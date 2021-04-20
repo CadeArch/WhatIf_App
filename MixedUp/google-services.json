@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "536223081161",
+    "project_id": "mixedupgame",
+    "storage_bucket": "mixedupgame.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536223081161:android:538e806b5853de723e6318",
+        "android_client_info": {
+          "package_name": "com.CadeMixedUpGame.phoneapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "536223081161-d6uhic7afhgafjdg1pk5k3hk7s5fgkao.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5CT38mkXgaVI7CYNkCFAJI6uY7MR3qPo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "536223081161-d6uhic7afhgafjdg1pk5k3hk7s5fgkao.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

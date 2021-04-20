@@ -1,0 +1,3 @@
+include ':API'
+include ':MixedUp'
+rootProject.name = "MixedUp"
