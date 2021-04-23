@@ -12,5 +12,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // which fragment to display first
+        if (savedInstanceState == null) {
+            getSupportFragmentManager().beginTransaction()
+                    .add(R.id.fragment_container, StartFragment.class, null)
+                    .setReorderingAllowed(true)
+                    .commit();
+        }
+
+
     }
 }
