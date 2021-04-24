@@ -8,6 +8,7 @@ import com.google.firebase.database.FirebaseDatabase;
 
 public class UserViewModel extends ViewModel {
     ObservableArrayList<User> users = new ObservableArrayList<User>();
+    public String localName;
     DatabaseReference db;
 
     public UserViewModel() {
@@ -18,7 +19,9 @@ public class UserViewModel extends ViewModel {
         return users;
     }
 
-
+    public void pushData(User user) {
+        db.child("rooms").child(user.gameRoom).child(user.userName).setValue(user);
+    }
 
 }
 

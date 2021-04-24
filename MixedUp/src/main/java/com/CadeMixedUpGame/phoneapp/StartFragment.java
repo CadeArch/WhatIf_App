@@ -1,11 +1,24 @@
 package com.CadeMixedUpGame.phoneapp;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
+import androidx.databinding.ObservableArrayList;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+
 import android.view.View;
+import android.widget.EditText;
+
+import com.CadeMixedUpGame.api.models.Room;
+import com.CadeMixedUpGame.api.models.User;
+import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
+import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
+
+import java.util.ArrayList;
 
 
 public class StartFragment extends Fragment {
+    RoomViewModel roomViewModel;
+    UserViewModel userViewModel;
 
 
     public StartFragment() {
@@ -16,8 +29,26 @@ public class StartFragment extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        //giving button functionality
-        view.findViewById(R.id.startGame).setOnClickListener(v -> {
+        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
+        roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
+
+        EditText usersName = view.findViewById(R.id.enterName);
+
+        //giving create game button functionality
+        view.findViewById(R.id.start).setOnClickListener(v -> {
+
+            //getting a list of all users
+            ObservableArrayList<User> users = userViewModel.getUsers();
+            //creating a new roomID to make a room
+            String roomID = roomViewModel.makeRoomID();
+            //making a new user and adding it to the users array
+            User newUser = new User("0", usersName.getText().toString(), roomID );
+            users.add(newUser);
+
+            //pushing the data to firebase
+            userViewModel.pushData(newUser);
+
+            //moving to the fragment where they can share their room code
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, CreateGameFrag.class, null)
                     .setReorderingAllowed(true)
@@ -25,8 +56,12 @@ public class StartFragment extends Fragment {
                     .commit();
         });
 
-        //giving button functionality
+        //giving the join game button functionality
         view.findViewById(R.id.joinGame).setOnClickListener(v -> {
+            // storing the name locally to push up to firebase in the join game fragment
+            userViewModel.localName = usersName.getText().toString();
+
+            //moving to the join game fragment
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, JoinGameFrag.class, null)
                     .setReorderingAllowed(true)
