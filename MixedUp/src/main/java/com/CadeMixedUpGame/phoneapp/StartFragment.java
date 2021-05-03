@@ -29,24 +29,22 @@ public class StartFragment extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
+        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
 
         EditText usersName = view.findViewById(R.id.enterName);
 
         //giving create game button functionality
         view.findViewById(R.id.start).setOnClickListener(v -> {
 
-            //getting a list of all users
-            ObservableArrayList<User> users = userViewModel.getUsers();
-            //creating a new roomID to make a room
+            userViewModel.localName = usersName.getText().toString();
+
+            //creating a new roomID to make a room and storing info locally
             String roomID = roomViewModel.makeRoomID();
-            //making a new user and adding it to the users array
-            User newUser = new User("0", usersName.getText().toString(), roomID );
-            users.add(newUser);
+            userViewModel.myRoom = roomID;
 
             //pushing the data to firebase
-            userViewModel.pushData(newUser);
+            roomViewModel.pushRoom(roomID, 1);
 
             //moving to the fragment where they can share their room code
             getActivity().getSupportFragmentManager().beginTransaction()

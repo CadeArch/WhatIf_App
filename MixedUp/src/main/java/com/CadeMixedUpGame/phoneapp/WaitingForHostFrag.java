@@ -39,7 +39,7 @@ public class WaitingForHostFrag extends Fragment {
 
         //if their User ID is 0 show the start button else hide it so only the host can begin game
         for (User n: playerArray) {
-            if(n.userID.equals("0")) {
+            if(n.userID == 1) {
 
                 //giving button functionality
                 view.findViewById(R.id.waitingForHost_start).setOnClickListener(v -> {

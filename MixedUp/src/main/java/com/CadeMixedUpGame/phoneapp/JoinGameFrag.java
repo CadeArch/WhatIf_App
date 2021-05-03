@@ -33,7 +33,7 @@ public class JoinGameFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        //giving button functionality
+        //giving back button functionality
         view.findViewById(R.id.joinGame_back).setOnClickListener(v -> {
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, StartFragment.class, null)
@@ -49,17 +49,24 @@ public class JoinGameFrag extends Fragment {
         //giving joinGame start button funcitonality
         view.findViewById(R.id.joinGame_start).setOnClickListener(v -> {
 
-            ArrayList<String> allrooms = roomViewModel.loadRooms();
-            // TODO: calling loadRooms twice may be an issue try doing roomViewModel.roomNames so it doesnt add rooms twice to the array
+            ArrayList<String> allrooms = roomViewModel.roomNames;
+            String myRoom = roomToJoin.getText().toString();
 
             //if the room they want to join exists out there it will add them to the room and push their
             // data to firebase, else it will let the user know it doesnt exist
-            if (allrooms.contains(roomToJoin.getText().toString())) {
-                ObservableArrayList<User> users = userViewModel.getUsers();
-                //creating the user and pushing it to firebase and storing the users on the device in the userviewmodels array of users
-                User newUser = new User("X", userViewModel.localName, roomToJoin.getText().toString());
-                users.add(newUser);
-                userViewModel.pushData(newUser);
+            if (allrooms.contains(myRoom)) {
+
+                //storing the room to join locally and loading in the users and pushing the user to the database
+                userViewModel.loadUsers(myRoom);
+                userViewModel.myRoom = myRoom;
+
+                roomViewModel.incrementNumInRoom(myRoom);
+                int newUserID = roomViewModel.getNumInRoom(myRoom);
+
+                User newUser = new User(newUserID, userViewModel.localName);
+                newUser.gameRoom = myRoom;
+                roomViewModel.updateNumInRoom(newUser);
+                userViewModel.pushPerson(newUser);
 
                 //moving to the waiting for host fragment
                 getActivity().getSupportFragmentManager().beginTransaction()

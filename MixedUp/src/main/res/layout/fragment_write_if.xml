@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".JoinGameFrag"
+    tools:context=".WriteIfFrag"
     android:background="@drawable/white_papers"
     android:id="@+id/layout">
 
@@ -15,7 +15,7 @@
         android:layout_width="250dp"
         android:layout_height="50dp"
         android:layout_marginTop="68dp"
-        android:text="Game Code"
+        android:text="What If..."
         android:textSize="30dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
@@ -23,40 +23,28 @@
         app:layout_constraintTop_toTopOf="@+id/layout" />
 
     <EditText
-        android:id="@+id/enterGameCode"
+        android:id="@+id/ifQuestion"
         android:layout_width="250dp"
         android:layout_height="50dp"
-        android:layout_marginTop="128dp"
-        android:hint="Enter Join Code"
+        android:layout_marginTop="164dp"
+        android:hint="Enter Question"
         android:textSize="30dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.505"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/layout" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/joinGame_start"
+        android:id="@+id/writeIf_submit"
         android:layout_width="100dp"
         android:layout_height="75dp"
-        android:text="start"
+        android:text="Submit"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.694"
+        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="@+id/layout"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.672" />
+        app:layout_constraintVertical_bias="0.764" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/joinGame_back"
-        android:layout_width="100dp"
-        android:layout_height="75dp"
-
-        android:text="back"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="@+id/layout"
-        app:layout_constraintHorizontal_bias="0.326"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.672" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

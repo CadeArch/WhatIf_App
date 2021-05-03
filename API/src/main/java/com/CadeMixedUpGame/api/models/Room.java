@@ -6,9 +6,13 @@ public class Room {
     public String roomID;
     public int numInRoom;
 
+    public Room(String roomID, int numInRoom) {
+        this.roomID = roomID;
+        this.numInRoom = numInRoom;
+    }
+
     public Room(String roomID) {
         this.roomID = roomID;
-        this.numInRoom = 1;
     }
 
     @Override

@@ -6,6 +6,7 @@ import androidx.databinding.ObservableArrayList;
 import androidx.lifecycle.ViewModel;
 
 import com.CadeMixedUpGame.api.models.Room;
+import com.CadeMixedUpGame.api.models.User;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
@@ -14,12 +15,14 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 public class RoomViewModel extends ViewModel {
     ObservableArrayList<Room> rooms;
     public ArrayList<String> roomNames = new ArrayList<>();
-    DatabaseReference db;
+    public DatabaseReference db;
     String allChars = "a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9";
     String[] usableCharacter;
 
@@ -37,18 +40,22 @@ public class RoomViewModel extends ViewModel {
         db.child("rooms").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                rooms.add(new Room(snapshot.getKey()));
+                rooms.add(new Room(snapshot.getKey(), 1));
                 roomNames.add(snapshot.getKey());
             }
 
             @Override
             public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
+//                String roomName = snapshot.getKey();
+//                Room changedRoom = new Room(roomName);
+//                int idx = rooms.indexOf(changedRoom);
+//                rooms.get(idx).numInRoom += 1;
             }
 
             @Override
             public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-
+                Room room = new Room(snapshot.getKey());
+                rooms.remove(room);
             }
 
             @Override
@@ -73,5 +80,39 @@ public class RoomViewModel extends ViewModel {
 
         }
         return sequence;
+    }
+
+    public ObservableArrayList<Room> getRooms() {
+        return rooms;
+    }
+
+    public void deleteRoom(String roomID) {
+        db.child("rooms").child(roomID).removeValue();
+    }
+
+    public int getNumInRoom(String roomID) {
+        int idx = rooms.indexOf(new Room(roomID));
+        return rooms.get(idx).numInRoom;
+    }
+
+    public void incrementNumInRoom(String roomID) {
+        int idx = rooms.indexOf(new Room(roomID));
+        int inRoom = rooms.get(idx).numInRoom;
+        System.out.println(rooms.get(idx).numInRoom);
+        inRoom = inRoom + 1;
+        rooms.get(idx).numInRoom = inRoom;
+        System.out.println(rooms.get(idx).numInRoom);
+    }
+
+    public void pushRoom(String id, int numInRoom) {
+        Room room = new Room(id, numInRoom);
+        db.child("rooms").child(room.roomID).setValue(room);
+    }
+
+    public void updateNumInRoom(User user) {
+        //how to update numInroom
+        Map<String, Object> hm = new HashMap<>();
+        hm.put("numInRoom", user.userID);
+        db.child("rooms").child(user.gameRoom).updateChildren(hm);
     }
 }

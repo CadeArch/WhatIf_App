@@ -4,14 +4,14 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
+import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
-
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
+
 import android.widget.TextView;
 
+import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
@@ -32,12 +32,15 @@ public class CreateGameFrag extends Fragment {
 
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
-        ObservableArrayList<User> allPlayers = userViewModel.getUsers();
-        TextView replace = view.findViewById(R.id.replace);
-        replace.setText(allPlayers.get(0).gameRoom);
 
-        //giving button functionality
+        TextView replace = view.findViewById(R.id.replace);
+        replace.setText(userViewModel.myRoom);
+
+
+        //giving back button functionality
         view.findViewById(R.id.createGame_back).setOnClickListener(v -> {
+            roomViewModel.deleteRoom(userViewModel.myRoom);
+
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, StartFragment.class, null)
                     .setReorderingAllowed(true)
@@ -46,8 +49,16 @@ public class CreateGameFrag extends Fragment {
         });
 
 
-        //giving button functionality
+        //giving start button functionality
         view.findViewById(R.id.createGame_start).setOnClickListener(v -> {
+
+            //making a new user and adding it to the users array
+            User newUser = new User(1, userViewModel.localName);
+            newUser.gameRoom = userViewModel.myRoom;
+            userViewModel.loadUsers(userViewModel.myRoom);
+
+            userViewModel.pushPerson(newUser);
+
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
                     .setReorderingAllowed(true)
