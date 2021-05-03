@@ -5,46 +5,44 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
+import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
-import android.widget.Toast;
+import android.view.ViewParent;
 
-import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
-import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
+import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
 
 
-public class WriteIfFrag extends Fragment {
+public class CollectingAnswersFrag extends Fragment {
     UserViewModel userViewModel;
-    RoomViewModel roomViewModel;
+    Boolean allThensFinished = false;
 
-    public WriteIfFrag() {
-        super(R.layout.fragment_write_if);
+    public CollectingAnswersFrag() {
+        super(R.layout.fragment_collecting_answers);
     }
 
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        //giving submit button functionality
-        view.findViewById(R.id.writeIf_submit).setOnClickListener(v -> {
+        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
+
+        // if all the answers are finished go to the ending fragment
+        if (allThensFinished) {
             getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
+                    .replace(R.id.fragment_container, EndingFrag.class, null)
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();
-        });
-
-        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
-        roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
-
-
+        }
     }
 }
+

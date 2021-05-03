@@ -11,6 +11,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.CadeMixedUpGame.api.models.Room;
@@ -21,22 +22,27 @@ import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 import java.util.ArrayList;
 
 
-public class WriteIfFrag extends Fragment {
+public class WriteThenFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
+    String myRandomIf;
 
-    public WriteIfFrag() {
-        super(R.layout.fragment_write_if);
+    public WriteThenFrag() {
+        super(R.layout.fragment_write_then);
     }
 
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        TextView ifQuestion = getActivity().findViewById(R.id.myIfQuestion);
+        // TODO need to set my randomif to one from another player
+        ifQuestion.setText(myRandomIf);
+
         //giving submit button functionality
-        view.findViewById(R.id.writeIf_submit).setOnClickListener(v -> {
+        view.findViewById(R.id.writeThen_submit).setOnClickListener(v -> {
             getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
+                    .replace(R.id.fragment_container, CollectingAnswersFrag.class, null)
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();

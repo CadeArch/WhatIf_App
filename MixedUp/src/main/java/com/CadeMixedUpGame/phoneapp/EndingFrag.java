@@ -11,6 +11,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.CadeMixedUpGame.api.models.Room;
@@ -21,22 +22,40 @@ import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 import java.util.ArrayList;
 
 
-public class WriteIfFrag extends Fragment {
+public class EndingFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
+    String myRandomIf;
+    String myRandomThen;
 
-    public WriteIfFrag() {
-        super(R.layout.fragment_write_if);
+    public EndingFrag() {
+        super(R.layout.fragment_ending);
     }
 
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        //giving submit button functionality
-        view.findViewById(R.id.writeIf_submit).setOnClickListener(v -> {
+        TextView ifQuestion = getActivity().findViewById(R.id.myIfQuestion_ending);
+        // TODO need to set my randomif to one from another player
+        ifQuestion.setText(myRandomIf);
+
+        TextView thenAnswer = getActivity().findViewById(R.id.myThenAnswer_ending);
+        thenAnswer.setText(myRandomThen);
+
+        //giving home button functionality
+        view.findViewById(R.id.home_ending).setOnClickListener(v -> {
             getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
+                    .replace(R.id.fragment_container, StartFragment.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+        });
+
+        //giving again button functionality
+        view.findViewById(R.id.again_ending).setOnClickListener(v -> {
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, WriteThenFrag.class, null)
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();

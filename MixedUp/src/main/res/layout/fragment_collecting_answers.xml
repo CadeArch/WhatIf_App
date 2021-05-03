@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".WaitingForHostFrag"
+    tools:context=".CollectingAnswersFrag"
     android:background="@drawable/white_papers"
     android:id="@+id/layout">
 
@@ -12,21 +12,21 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         tools:ignore="MissingConstraints" >
-    <LinearLayout
-        android:id="@+id/playerListLeft_joining"
-        android:layout_width="300dp"
-        android:layout_height="220dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        android:orientation="vertical" />
+        <LinearLayout
+            android:id="@+id/playerListLeft_collectingAnswers"
+            android:layout_width="300dp"
+            android:layout_height="220dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            android:orientation="vertical" />
     </androidx.core.widget.NestedScrollView>
 
     <androidx.core.widget.NestedScrollView
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    tools:ignore="MissingConstraints" >
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        tools:ignore="MissingConstraints" >
         <LinearLayout
-            android:id="@+id/playerListRight_joining"
+            android:id="@+id/playerListRight_collectingAnswers"
             android:layout_width="300dp"
             android:layout_height="220dp"
             android:orientation="vertical"
@@ -38,10 +38,10 @@
 
     <TextView
 
-        android:layout_width="400dp"
+        android:layout_width="500dp"
         android:layout_height="80dp"
         android:layout_marginTop="68dp"
-        android:text="Players Joining"
+        android:text="Collection Answers"
         android:textSize="50dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
@@ -52,24 +52,12 @@
         android:layout_width="300dp"
         android:layout_height="50dp"
         android:layout_marginTop="128dp"
-        android:text="Waiting For Host..."
+        android:text="Waiting For..."
         android:textSize="30dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.505"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/layout" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/waitingForHost_start"
-        android:layout_width="100dp"
-        android:layout_height="75dp"
-        android:text="start"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.499"
-        app:layout_constraintStart_toStartOf="@+id/layout"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.639" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
