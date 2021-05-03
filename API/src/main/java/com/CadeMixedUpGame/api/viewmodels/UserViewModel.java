@@ -34,15 +34,15 @@ public class UserViewModel extends ViewModel {
         return users;
     }
 
-    public void loadUsers(String gameRoom) {
+    public void loadUsers(String gameRoom, String userName) {
         db.child("rooms").child(gameRoom).addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                usersInRoom.add(snapshot.getKey());
+                usersInRoom.add(userName);
 
-                User newUser = new User(usersInRoom() + 1, snapshot.getKey());
-                users.add(newUser);
-                System.out.println("added");
+//                User newUser = new User(usersInRoom() + 1, userName);
+//                users.add(newUser);
+//                System.out.println("added");
             }
 
             @Override

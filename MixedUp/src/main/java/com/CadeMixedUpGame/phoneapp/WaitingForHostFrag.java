@@ -39,10 +39,12 @@ public class WaitingForHostFrag extends Fragment {
 
         //if their User ID is 0 show the start button else hide it so only the host can begin game
         for (User n: playerArray) {
+            System.out.println("NAME " + n.userName + " " + n.userID);
             if(n.userID == 1) {
 
                 //giving button functionality
                 view.findViewById(R.id.waitingForHost_start).setOnClickListener(v -> {
+                    System.out.println("hit button");
                     getActivity().getSupportFragmentManager().beginTransaction()
                             .replace(R.id.fragment_container, WriteIfFrag.class, null)
                             .setReorderingAllowed(true)

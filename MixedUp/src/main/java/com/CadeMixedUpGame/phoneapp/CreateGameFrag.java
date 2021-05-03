@@ -54,8 +54,9 @@ public class CreateGameFrag extends Fragment {
 
             //making a new user and adding it to the users array
             User newUser = new User(1, userViewModel.localName);
+            userViewModel.getUsers().add(newUser);
             newUser.gameRoom = userViewModel.myRoom;
-            userViewModel.loadUsers(userViewModel.myRoom);
+            userViewModel.loadUsers(userViewModel.myRoom, userViewModel.localName);
 
             userViewModel.pushPerson(newUser);
 
