@@ -44,7 +44,7 @@ public class StartFragment extends Fragment {
             userViewModel.myRoom = roomID;
 
             //pushing the data to firebase
-            roomViewModel.pushRoom(roomID, 1);
+            roomViewModel.pushRoom(roomID);
 
             //moving to the fragment where they can share their room code
             getActivity().getSupportFragmentManager().beginTransaction()

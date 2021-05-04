@@ -4,6 +4,7 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
+import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -56,26 +57,53 @@ public class JoinGameFrag extends Fragment {
             // data to firebase, else it will let the user know it doesnt exist
             if (allrooms.contains(myRoom)) {
 
-                int newUserID = roomViewModel.getNumInRoom(myRoom);
-                User newUser = new User(newUserID, userViewModel.localName);
-                userViewModel.getUsers().add(newUser);
+                User newUser = new User(userViewModel.localName);
 
                 //storing the room to join locally and loading in the users and pushing the user to the database
                 userViewModel.loadUsers(myRoom, userViewModel.localName );
                 userViewModel.myRoom = myRoom;
 
-//                roomViewModel.incrementNumInRoom(myRoom);
-
+                //storing users gameroom locally
                 newUser.gameRoom = myRoom;
-//                roomViewModel.updateNumInRoom(newUser);
+
                 userViewModel.pushPerson(newUser);
 
-                //moving to the waiting for host fragment
-                getActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
-                        .setReorderingAllowed(true)
-                        .addToBackStack(null)
-                        .commit();
+                //moving to the waiting for host fragment only when
+                userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
+                    @Override
+                    public void onChanged(ObservableList<User> sender) {
+
+                    }
+
+                    @Override
+                    public void onItemRangeChanged(ObservableList<User> sender, int positionStart, int itemCount) {
+
+                    }
+
+                    @Override
+                    public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
+                        // if the user exists in the observable array then we know that its gotten pushed to firebase and added to my observable array
+                        if (userViewModel.getUsers().indexOf(newUser) > -1) {
+
+                            getActivity().getSupportFragmentManager().beginTransaction()
+                                    .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
+                                    .setReorderingAllowed(true)
+                                    .addToBackStack(null)
+                                    .commit();
+                        }
+                    }
+
+                    @Override
+                    public void onItemRangeMoved(ObservableList<User> sender, int fromPosition, int toPosition, int itemCount) {
+
+                    }
+
+                    @Override
+                    public void onItemRangeRemoved(ObservableList<User> sender, int positionStart, int itemCount) {
+
+                    }
+                });
+
             }
             else {
                 //letting the user know that that gameroom doesnt exist

@@ -10,24 +10,30 @@ public class User {
     public String ifSentence;
     public Boolean thenFinished;
     public String thenSentence;
+    public boolean host;
+    public boolean hostStarted;
 
-    public User(int userID, String userName) {
-        this.userID = userID;
+    public User(String userName) {
+        this.userID = 0;
         this.userName = userName;
         this.gameRoom = "";
         this.ifFinished = false;
         this.thenFinished = false;
         ifSentence = "";
         thenSentence = "";
+        this.host = false;
+        this.hostStarted = false;
     }
 
-//    @Override
-//    public boolean equals(@Nullable Object obj) {
-//        if (obj instanceof User) {
-//            User user = (User) obj;
-//            return user.userID.equals(userID);
-//        }
-//        return false;
-//    }
+    public User() {}
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (obj instanceof User) {
+            User user = (User) obj;
+            return user.userID == userID;
+        }
+        return false;
+    }
 
 }

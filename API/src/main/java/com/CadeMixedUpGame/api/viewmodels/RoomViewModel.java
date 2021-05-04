@@ -40,16 +40,13 @@ public class RoomViewModel extends ViewModel {
         db.child("rooms").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                rooms.add(new Room(snapshot.getKey(), 1));
+                rooms.add(new Room(snapshot.getKey()));
                 roomNames.add(snapshot.getKey());
             }
 
             @Override
             public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-//                String roomName = snapshot.getKey();
-//                Room changedRoom = new Room(roomName);
-//                int idx = rooms.indexOf(changedRoom);
-//                rooms.get(idx).numInRoom += 1;
+
             }
 
             @Override
@@ -90,29 +87,17 @@ public class RoomViewModel extends ViewModel {
         db.child("rooms").child(roomID).removeValue();
     }
 
-    public int getNumInRoom(String roomID) {
-        int idx = rooms.indexOf(new Room(roomID));
-        return rooms.get(idx).numInRoom;
-    }
-
-    public void incrementNumInRoom(String roomID) {
-        int idx = rooms.indexOf(new Room(roomID));
-        int inRoom = rooms.get(idx).numInRoom;
-        System.out.println(rooms.get(idx).numInRoom);
-        inRoom = inRoom + 1;
-        rooms.get(idx).numInRoom = inRoom;
-        System.out.println(rooms.get(idx).numInRoom);
-    }
-
-    public void pushRoom(String id, int numInRoom) {
-        Room room = new Room(id, numInRoom);
+    public void pushRoom(String id) {
+        Room room = new Room(id);
         db.child("rooms").child(room.roomID).setValue(room);
     }
 
+    //key to update values in firebase
     public void updateNumInRoom(User user) {
         //how to update numInroom
         Map<String, Object> hm = new HashMap<>();
         hm.put("numInRoom", user.userID);
         db.child("rooms").child(user.gameRoom).updateChildren(hm);
+        // .child(numInRoom).setValue(value to put)
     }
 }
