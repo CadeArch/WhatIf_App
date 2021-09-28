@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
 import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.view.LayoutInflater;
@@ -56,15 +57,16 @@ public class JoinGameFrag extends Fragment {
             //if the room they want to join exists out there it will add them to the room and push their
             // data to firebase, else it will let the user know it doesnt exist
             if (allrooms.contains(myRoom)) {
-
-                User newUser = new User(userViewModel.localName);
+                // USE VIEWMODEL HERE
+                // check whats going on?
+                MutableLiveData<User> newUser = new MutableLiveData<User>(new User(userViewModel.localName));
 
                 //storing the room to join locally and loading in the users and pushing the user to the database
                 userViewModel.loadUsers(myRoom, userViewModel.localName );
                 userViewModel.myRoom = myRoom;
 
                 //storing users gameroom locally
-                newUser.gameRoom = myRoom;
+                newUser.getValue().gameRoom = myRoom;
 
                 userViewModel.pushPerson(newUser);
 

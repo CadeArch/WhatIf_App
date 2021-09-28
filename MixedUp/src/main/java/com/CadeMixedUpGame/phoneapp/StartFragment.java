@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import android.view.View;
 import android.widget.EditText;
+import android.widget.TextView;
 
 import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
@@ -33,11 +34,23 @@ public class StartFragment extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
 
         EditText usersName = view.findViewById(R.id.enterName);
+        TextView userName = view.findViewById(R.id.displayName);
 
-        //giving create game button functionality
+        if (userViewModel.getUser().getValue().isAccountPlay) {
+            userName.setText(userViewModel.getUser().getValue().userName);
+            usersName.setVisibility(View.GONE);
+        }
+
+        //giving create game button functionality MAYBE MAKE THIS ONLY AVAILABLE TO ACCOUNT PLAY
         view.findViewById(R.id.start).setOnClickListener(v -> {
 
-            userViewModel.localName = usersName.getText().toString();
+            // storing the name locally to push up to firebase in the join game fragment
+            if (userViewModel.getUser().getValue().isAccountPlay) {
+                userViewModel.localName = usersName.getText().toString();
+            }
+            else {
+                userViewModel.localName = "guest-" + usersName.getText().toString();
+            }
 
             //creating a new roomID to make a room and storing info locally
             String roomID = roomViewModel.makeRoomID();
@@ -57,8 +70,12 @@ public class StartFragment extends Fragment {
         //giving the join game button functionality
         view.findViewById(R.id.joinGame).setOnClickListener(v -> {
             // storing the name locally to push up to firebase in the join game fragment
-            userViewModel.localName = usersName.getText().toString();
-
+            if (userViewModel.getUser().getValue().isAccountPlay) {
+                userViewModel.localName = usersName.getText().toString();
+            }
+            else {
+                userViewModel.localName = "guest-" + usersName.getText().toString();
+            }
             //moving to the join game fragment
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, JoinGameFrag.class, null)

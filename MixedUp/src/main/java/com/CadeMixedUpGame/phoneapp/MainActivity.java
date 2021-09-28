@@ -18,7 +18,7 @@ public class MainActivity extends AppCompatActivity {
         // which fragment to display first
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
-                    .add(R.id.fragment_container, StartFragment.class, null)
+                    .add(R.id.fragment_container, FirstFrag.class, null)
                     .setReorderingAllowed(true)
                     .commit();
         }

@@ -19,6 +19,16 @@
         app:layout_constraintHorizontal_bias="0.505"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/layout" />
+    <TextView
+        android:id="@+id/displayName"
+        android:layout_width="250dp"
+        android:layout_height="50dp"
+        android:layout_marginTop="76dp"
+        android:hint="enter your name..."
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.505"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/layout" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/start"

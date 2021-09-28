@@ -1,11 +1,20 @@
 package com.CadeMixedUpGame.api.viewmodels;
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.databinding.ObservableArrayList;
+import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -23,26 +32,94 @@ public class UserViewModel extends ViewModel {
     public String localName;
     DatabaseReference db;
     public String myRoom;
+    FirebaseAuth auth;
+    MutableLiveData<User> user = new MutableLiveData<User>();
 
     public UserViewModel() {
         db = FirebaseDatabase.getInstance().getReference();
         if (users == null) {
             users = new ObservableArrayList<User>();
         }
+
+        this.auth = FirebaseAuth.getInstance();
+        this.auth.addAuthStateListener(new FirebaseAuth.AuthStateListener() {
+            @Override
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                FirebaseUser fbUser = auth.getCurrentUser();
+//                loginError.setValue(null);
+                if (fbUser == null) {
+                    user.setValue(null);
+                } else {
+                    // display name should be set when they sign up
+                    user.setValue(new User(fbUser, fbUser.getDisplayName()));
+                    User myUser = user.getValue();
+                    myUser.isAccountPlay = true;
+
+
+                }
+            }
+        });
     }
 
+    public void signUp(String email, String password, String userName) {
+        auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+            @Override
+            public void onComplete(@NonNull Task<AuthResult> task) {
+                AuthResult result = task.getResult();
+                // if user wasn't created
+                if (result.getUser() == null) {
+                    Log.d("Error: ", "Failure to create", task.getException());
+                }
+                // when user is created set up their display name
+                else {
+                    //setting the username of the account to whatever they put in the box when signing up
+                    FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+//                    System.out.println(" -----------------------------\n " + "email: " + email + "\npassword: " + password + "\nusername: " + userName);
+//                    System.out.println(user);
+                    UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
+                            .setDisplayName(userName).build();
+
+                    user.updateProfile(profileUpdates).addOnCompleteListener(new OnCompleteListener<Void>() {
+                        @Override
+                        public void onComplete(@NonNull Task<Void> task) {
+                            System.out.println("DISPLAY NAME ----------------" + user.getDisplayName());
+                            // assuring their username is set when they create an account
+                            getUser().getValue().userName = user.getDisplayName();
+
+
+                        }
+                    });
+                }
+
+            }
+        });
+
+    }
+
+    public void signIn(String email, String password) {
+        auth.signInWithEmailAndPassword(email, password);
+    }
+
+    public void signOut() {
+        auth.signOut();
+    }
+
+    public MutableLiveData<User> getUser() {
+        return user;
+    }
 
     public ObservableArrayList<User> getUsers() {
         return users;
     }
 
     public void loadUsers(String gameRoom, String userName) {
+        //// CHECK THIS
         db.child("rooms").child(gameRoom).child("players").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                usersInRoom.add(userName);
-                User newUser = snapshot.getValue(User.class);
-                users.add(newUser);
+//                usersInRoom.add(userName);
+//                User newUser = snapshot.getValue(User.class);
+//                users.add(newUser);
             }
 
             @Override
@@ -102,14 +179,11 @@ public class UserViewModel extends ViewModel {
         });
     }
 
-        public int usersInRoom() {
-        return users.size();
-    }
 
-    public void pushPerson(User user) {
+    public void pushPerson(MutableLiveData<User> user) {
         int userID = (int)(Math.random() * 100000);
-        user.userID = userID;
-        db.child("rooms").child(user.gameRoom).child("players").child(user.userName).setValue(user);
+        user.getValue().userID = userID;
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).setValue(user);
     }
 
     //key to update values in firebase
