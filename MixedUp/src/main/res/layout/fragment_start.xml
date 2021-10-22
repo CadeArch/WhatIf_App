@@ -13,18 +13,20 @@
         android:id="@+id/enterName"
         android:layout_width="250dp"
         android:layout_height="50dp"
-        android:layout_marginTop="76dp"
+        android:layout_marginTop="60dp"
         android:hint="enter your name..."
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.505"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/layout" />
+
     <TextView
         android:id="@+id/displayName"
         android:layout_width="250dp"
         android:layout_height="50dp"
-        android:layout_marginTop="76dp"
-        android:hint="enter your name..."
+        android:layout_marginTop="60dp"
+        android:textSize="40sp"
+        android:hint=""
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.505"
         app:layout_constraintStart_toStartOf="parent"
@@ -39,9 +41,10 @@
 
         app:layout_constraintBottom_toBottomOf="@+id/layout"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.501"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="@+id/layout"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.401" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/joinGame"
@@ -50,8 +53,32 @@
         android:text="Join Game"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.8" />
+        app:layout_constraintVertical_bias="0.69" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/signOut"
+        android:layout_width="100dp"
+        android:layout_height="75dp"
+        android:text="Sign Out"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.499"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.952" />
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/back"
+        android:layout_width="100dp"
+        android:layout_height="75dp"
+        android:text="back"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.499"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.952" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

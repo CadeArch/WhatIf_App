@@ -13,6 +13,7 @@ import android.widget.Toast;
 
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
+import com.google.firebase.auth.FirebaseUser;
 
 
 public class AccountFrag extends Fragment {
@@ -41,7 +42,6 @@ public class AccountFrag extends Fragment {
                     email.getText().toString(),
                     password.getText().toString()
 
-
             );
 
             //moving to the start game fragment
@@ -54,6 +54,7 @@ public class AccountFrag extends Fragment {
 
         //giving sign up button functionality
         signup.setOnClickListener(v -> {
+            userViewModel.localName = userName.getText().toString();
             userViewModel.signUp(
                     email.getText().toString(),
                     password.getText().toString(),
@@ -81,4 +82,5 @@ public class AccountFrag extends Fragment {
         });
 
     }
+
 }

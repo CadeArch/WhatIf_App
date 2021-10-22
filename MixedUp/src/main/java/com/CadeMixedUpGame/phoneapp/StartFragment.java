@@ -3,11 +3,14 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
@@ -33,23 +36,37 @@ public class StartFragment extends Fragment {
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
 
-        EditText usersName = view.findViewById(R.id.enterName);
+        EditText enterName = view.findViewById(R.id.enterName);
         TextView userName = view.findViewById(R.id.displayName);
 
-        if (userViewModel.getUser().getValue().isAccountPlay) {
-            userName.setText(userViewModel.getUser().getValue().userName);
-            usersName.setVisibility(View.GONE);
-        }
+        userViewModel.getUser().observe(getViewLifecycleOwner(), user -> {
+            if (user != null) {
+                System.out.println("Frag" + user.userName + user.isAccountPlay);
+                if (user.isAccountPlay) {
+                    view.findViewById(R.id.back).setVisibility(View.GONE);
+                    userName.setText(user.userName);
+                    enterName.setVisibility(View.GONE);
+                }
+
+                // if non account play take away log out button and show back button
+                else {
+                    view.findViewById(R.id.signOut).setVisibility(View.GONE);
+
+                }
+            }
+        });
+
+
 
         //giving create game button functionality MAYBE MAKE THIS ONLY AVAILABLE TO ACCOUNT PLAY
         view.findViewById(R.id.start).setOnClickListener(v -> {
 
-            // storing the name locally to push up to firebase in the join game fragment
-            if (userViewModel.getUser().getValue().isAccountPlay) {
-                userViewModel.localName = usersName.getText().toString();
-            }
-            else {
-                userViewModel.localName = "guest-" + usersName.getText().toString();
+            // storing the name locally to push up to firebase in the join game fragment for non account play
+            if (!userViewModel.getUser().getValue().isAccountPlay) {
+                userViewModel.localName = "guest-" + enterName.getText().toString();
+                //building user for first time if in freeplay
+                userViewModel.getUser().getValue().userName = userViewModel.localName;
+                System.out.println(userViewModel.getUser().getValue().userName);
             }
 
             //creating a new roomID to make a room and storing info locally
@@ -70,11 +87,10 @@ public class StartFragment extends Fragment {
         //giving the join game button functionality
         view.findViewById(R.id.joinGame).setOnClickListener(v -> {
             // storing the name locally to push up to firebase in the join game fragment
-            if (userViewModel.getUser().getValue().isAccountPlay) {
-                userViewModel.localName = usersName.getText().toString();
-            }
-            else {
-                userViewModel.localName = "guest-" + usersName.getText().toString();
+            if (!userViewModel.getUser().getValue().isAccountPlay) {
+                userViewModel.localName = "guest-" + enterName.getText().toString();
+                userViewModel.getUser().getValue().userName = userViewModel.localName;
+                System.out.println(userViewModel.getUser().getValue().userName);
             }
             //moving to the join game fragment
             getActivity().getSupportFragmentManager().beginTransaction()
@@ -83,5 +99,28 @@ public class StartFragment extends Fragment {
                     .addToBackStack(null)
                     .commit();
         });
+
+        //giving the signout button functionality
+        view.findViewById(R.id.signOut).setOnClickListener(v -> {
+            userViewModel.signOut();
+            //moving to the first game fragment
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, FirstFrag.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+        });
+
+        //giving the back button functionality
+        view.findViewById(R.id.back).setOnClickListener(v -> {
+            //moving to the first game fragment
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, FirstFrag.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+        });
+
+
     }
 }

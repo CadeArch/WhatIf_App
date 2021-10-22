@@ -33,6 +33,9 @@ public class FirstFrag extends Fragment {
         //giving the freeplay game button functionality
         view.findViewById(R.id.freePlay).setOnClickListener(v -> {
 
+            //could build user here for freeplay but then would have to update name later
+            userViewModel.buildUserFree("reset");
+
             //moving to the start game fragment
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, StartFragment.class, null)
@@ -40,7 +43,7 @@ public class FirstFrag extends Fragment {
                     .addToBackStack(null)
                     .commit();
         });
-        //giving the join game button functionality
+        //giving the account button functionality
         view.findViewById(R.id.accountPlay).setOnClickListener(v -> {
             // create temporary user here? similar with what would happen in the create user or login phase?
 

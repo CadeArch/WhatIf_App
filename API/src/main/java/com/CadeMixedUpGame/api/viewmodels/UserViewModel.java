@@ -55,7 +55,6 @@ public class UserViewModel extends ViewModel {
                     User myUser = user.getValue();
                     myUser.isAccountPlay = true;
 
-
                 }
             }
         });
@@ -72,20 +71,23 @@ public class UserViewModel extends ViewModel {
                 }
                 // when user is created set up their display name
                 else {
+
                     //setting the username of the account to whatever they put in the box when signing up
-                    FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                    FirebaseUser fBuser = FirebaseAuth.getInstance().getCurrentUser();
+                    buildUser(fBuser, userName);
+
 //                    System.out.println(" -----------------------------\n " + "email: " + email + "\npassword: " + password + "\nusername: " + userName);
 //                    System.out.println(user);
                     UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
                             .setDisplayName(userName).build();
 
-                    user.updateProfile(profileUpdates).addOnCompleteListener(new OnCompleteListener<Void>() {
+                    fBuser.updateProfile(profileUpdates).addOnCompleteListener(new OnCompleteListener<Void>() {
                         @Override
                         public void onComplete(@NonNull Task<Void> task) {
-                            System.out.println("DISPLAY NAME ----------------" + user.getDisplayName());
+//                            System.out.println("DISPLAY NAME ----------------" + fBuser.getDisplayName());
                             // assuring their username is set when they create an account
-                            getUser().getValue().userName = user.getDisplayName();
-
+                            getUser().getValue().userName = fBuser.getDisplayName();
+                            pushAccountPlayer(user);
 
                         }
                     });
@@ -97,7 +99,25 @@ public class UserViewModel extends ViewModel {
     }
 
     public void signIn(String email, String password) {
-        auth.signInWithEmailAndPassword(email, password);
+
+        auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+            @Override
+            public void onComplete(@NonNull Task<AuthResult> task) {
+                if (task.isSuccessful()) {
+                    // Sign in success, update UI with the signed-in user's information
+                    Log.d("Success: ", "signInWithEmail:success--------------");
+                    FirebaseUser fbUser = auth.getCurrentUser();
+                    localName = fbUser.getDisplayName();
+                    buildUser(fbUser, localName);
+
+
+                } else {
+                    // If sign in fails, display a message to the user.
+                    System.out.println("failed to sign in ------------------");
+
+                }
+            }
+        });
     }
 
     public void signOut() {
@@ -179,11 +199,32 @@ public class UserViewModel extends ViewModel {
         });
     }
 
+    //used when a user signs up for the first time and when the user logs in
+    public MutableLiveData<User> buildUser(FirebaseUser fbUser, String username) {
+        user.setValue(new User(fbUser, username));
+        user.getValue().isAccountPlay = true;
+//        user.setValue(user.getValue());
+
+        return user;
+    }
+    //in freeplay to build the user
+    public MutableLiveData<User> buildUserFree(String username) {
+        user.setValue(new User(username));
+        user.getValue().isAccountPlay = false;
+//        user.setValue(user.getValue());
+
+        return user;
+    }
+
 
     public void pushPerson(MutableLiveData<User> user) {
         int userID = (int)(Math.random() * 100000);
         user.getValue().userID = userID;
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).setValue(user);
+    }
+
+    public void pushAccountPlayer(MutableLiveData<User> user) {
+        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).setValue(user);
     }
 
     //key to update values in firebase

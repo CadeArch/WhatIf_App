@@ -27,6 +27,7 @@ public class User {
         this.gameRoom = "";
         this.ifFinished = false;
         this.thenFinished = false;
+        this.isAccountPlay = true;
         ifSentence = "";
         thenSentence = "";
         this.host = false;
