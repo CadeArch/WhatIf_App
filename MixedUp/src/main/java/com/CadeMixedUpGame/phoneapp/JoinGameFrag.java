@@ -59,18 +59,21 @@ public class JoinGameFrag extends Fragment {
             if (allrooms.contains(myRoom)) {
                 // USE VIEWMODEL HERE
                 // check whats going on?
-                MutableLiveData<User> newUser = new MutableLiveData<User>(new User(userViewModel.localName));
-
+//                MutableLiveData<User> newUser = new MutableLiveData<User>(new User(userViewModel.localName));
+                for (String room:allrooms) {
+                    System.out.println(room);
+                }
                 //storing the room to join locally and loading in the users and pushing the user to the database
+//                System.out.println("userName--joinGame ---" + userViewModel.localName);
                 userViewModel.loadUsers(myRoom, userViewModel.localName );
                 userViewModel.myRoom = myRoom;
 
                 //storing users gameroom locally
-                newUser.getValue().gameRoom = myRoom;
+                userViewModel.getUser().getValue().gameRoom = myRoom;
 
-                userViewModel.pushPerson(newUser);
+                userViewModel.pushPerson(userViewModel.getUser());
 
-                //moving to the waiting for host fragment only when
+                //moving to the waiting for host fragment only when user has been added to observable array list since one was added to firebase db
                 userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
                     @Override
                     public void onChanged(ObservableList<User> sender) {
@@ -85,13 +88,18 @@ public class JoinGameFrag extends Fragment {
                     @Override
                     public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
                         // if the user exists in the observable array then we know that its gotten pushed to firebase and added to my observable array
-                        if (userViewModel.getUsers().indexOf(newUser) > -1) {
-
-                            getActivity().getSupportFragmentManager().beginTransaction()
+//                        System.out.println("inserted " + userViewModel.getUsers().indexOf(userViewModel.getUser()));
+                        System.out.println(userViewModel.getUsers().size());
+                        for (User person:userViewModel.getUsers()) {
+                            System.out.println("PERSON------" + person.userName);
+                        }
+                        if (userViewModel.getUsers().indexOf(userViewModel.getUser()) > -1) {
+                                      getActivity().getSupportFragmentManager().beginTransaction()
                                     .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
                                     .setReorderingAllowed(true)
                                     .addToBackStack(null)
                                     .commit();
+
                         }
                     }
 

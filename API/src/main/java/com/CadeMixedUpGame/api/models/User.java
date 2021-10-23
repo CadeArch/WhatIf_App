@@ -44,6 +44,58 @@ public class User {
         thenSentence = "";
         this.host = false;
         this.hostStarted = false;
+        this.isAccountPlay = false;
+        this.uid = "";
+        this.email = "";
+    }
+
+    public User() {}
+
+    public Boolean getAccountPlay() {
+        return isAccountPlay;
+    }
+
+    public Boolean getIfFinished() {
+        return ifFinished;
+    }
+
+    public Boolean getThenFinished() {
+        return thenFinished;
+    }
+
+    public int getUserID() {
+        return userID;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getGameRoom() {
+        return gameRoom;
+    }
+
+    public String getIfSentence() {
+        return ifSentence;
+    }
+
+    public String getThenSentence() {
+        return thenSentence;
+    }
+
+    public String getUid() {
+        return uid;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public boolean getHost() {
+        return host;
+    }
+    public boolean getHostStarted() {
+        return hostStarted;
     }
 
     @Override

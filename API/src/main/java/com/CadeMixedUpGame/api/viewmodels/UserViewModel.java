@@ -132,14 +132,19 @@ public class UserViewModel extends ViewModel {
         return users;
     }
 
+
     public void loadUsers(String gameRoom, String userName) {
         //// CHECK THIS
         db.child("rooms").child(gameRoom).child("players").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-//                usersInRoom.add(userName);
-//                User newUser = snapshot.getValue(User.class);
-//                users.add(newUser);
+                usersInRoom.add(userName);
+                System.out.println(userName);
+                System.out.println(snapshot);
+                // producing null User?
+                User newUser = snapshot.getValue(User.class);
+                System.out.println("DB-NEW PLAYER ---------- " + newUser.userName);
+                users.add(newUser);
             }
 
             @Override
@@ -203,7 +208,6 @@ public class UserViewModel extends ViewModel {
     public MutableLiveData<User> buildUser(FirebaseUser fbUser, String username) {
         user.setValue(new User(fbUser, username));
         user.getValue().isAccountPlay = true;
-//        user.setValue(user.getValue());
 
         return user;
     }
@@ -211,7 +215,6 @@ public class UserViewModel extends ViewModel {
     public MutableLiveData<User> buildUserFree(String username) {
         user.setValue(new User(username));
         user.getValue().isAccountPlay = false;
-//        user.setValue(user.getValue());
 
         return user;
     }
@@ -220,7 +223,17 @@ public class UserViewModel extends ViewModel {
     public void pushPerson(MutableLiveData<User> user) {
         int userID = (int)(Math.random() * 100000);
         user.getValue().userID = userID;
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).setValue(user);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).setValue(user).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()){
+                    System.out.println("SUCCESS - PUSHED TO DATABASE");
+                }
+                else {
+                    System.out.println(task.getResult());
+                }
+            }
+        });
     }
 
     public void pushAccountPlayer(MutableLiveData<User> user) {
