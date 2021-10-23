@@ -41,8 +41,8 @@ public class StartFragment extends Fragment {
 
         userViewModel.getUser().observe(getViewLifecycleOwner(), user -> {
             if (user != null) {
-                System.out.println("Frag" + user.userName + user.isAccountPlay);
-                if (user.isAccountPlay) {
+                System.out.println("Frag" + user.userName + user.accountPlay);
+                if (user.accountPlay) {
                     view.findViewById(R.id.back).setVisibility(View.GONE);
                     userName.setText(user.userName);
                     enterName.setVisibility(View.GONE);
@@ -62,7 +62,7 @@ public class StartFragment extends Fragment {
         view.findViewById(R.id.start).setOnClickListener(v -> {
 
             // storing the name locally to push up to firebase in the join game fragment for non account play
-            if (!userViewModel.getUser().getValue().isAccountPlay) {
+            if (!userViewModel.getUser().getValue().accountPlay) {
                 userViewModel.localName = "guest-" + enterName.getText().toString();
                 //building user for first time if in freeplay
                 userViewModel.getUser().getValue().userName = userViewModel.localName;
@@ -87,7 +87,7 @@ public class StartFragment extends Fragment {
         //giving the join game button functionality
         view.findViewById(R.id.joinGame).setOnClickListener(v -> {
             // storing the name locally to push up to firebase in the join game fragment
-            if (!userViewModel.getUser().getValue().isAccountPlay) {
+            if (!userViewModel.getUser().getValue().accountPlay) {
                 userViewModel.localName = "guest-" + enterName.getText().toString();
                 userViewModel.getUser().getValue().userName = userViewModel.localName;
                 System.out.println(userViewModel.getUser().getValue().userName);

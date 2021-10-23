@@ -73,7 +73,7 @@ public class JoinGameFrag extends Fragment {
 
                 userViewModel.pushPerson(userViewModel.getUser());
 
-                //moving to the waiting for host fragment only when user has been added to observable array list since one was added to firebase db
+                //moving to the waiting for host fragment when firebase recieves new user and puts it into observable arraylist
                 userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
                     @Override
                     public void onChanged(ObservableList<User> sender) {
@@ -88,19 +88,21 @@ public class JoinGameFrag extends Fragment {
                     @Override
                     public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
                         // if the user exists in the observable array then we know that its gotten pushed to firebase and added to my observable array
-//                        System.out.println("inserted " + userViewModel.getUsers().indexOf(userViewModel.getUser()));
-                        System.out.println(userViewModel.getUsers().size());
+                        System.out.println("num in user array ----" + userViewModel.getUsers().size());
                         for (User person:userViewModel.getUsers()) {
                             System.out.println("PERSON------" + person.userName);
                         }
-                        if (userViewModel.getUsers().indexOf(userViewModel.getUser()) > -1) {
-                                      getActivity().getSupportFragmentManager().beginTransaction()
-                                    .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
-                                    .setReorderingAllowed(true)
-                                    .addToBackStack(null)
-                                    .commit();
-
+                        // could figure out how to use the contains array function?
+                        for (User player:userViewModel.getUsers()) {
+                            if (userViewModel.localName.equals(player.userName)) {
+                                getActivity().getSupportFragmentManager().beginTransaction()
+                                        .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
+                                        .setReorderingAllowed(true)
+                                        .addToBackStack(null)
+                                        .commit();
+                            }
                         }
+
                     }
 
                     @Override

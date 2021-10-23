@@ -6,53 +6,52 @@ import com.google.firebase.auth.FirebaseUser;
 
 public class User {
     public int userID;
-    public Boolean isAccountPlay = false;
+    public String uid;
+    public String email;
     public String userName;
     public String gameRoom;
     public Boolean ifFinished;
-    public String ifSentence;
     public Boolean thenFinished;
+    public Boolean accountPlay;
+    public String ifSentence;
     public String thenSentence;
     public boolean host;
     public boolean hostStarted;
-    // if i have this do i need the top userID
-    public String uid;
-    public String email;
 
     public User(FirebaseUser user, String userName) {
+        this.userID = 0;
         this.uid = user.getUid();
         this.email = user.getEmail();
-        this.userID = 0;
         this.userName = userName;
         this.gameRoom = "";
         this.ifFinished = false;
         this.thenFinished = false;
-        this.isAccountPlay = true;
-        ifSentence = "";
-        thenSentence = "";
+        this.accountPlay = true;
+        this.ifSentence = "";
+        this.thenSentence = "";
         this.host = false;
         this.hostStarted = false;
     }
 
     public User(String userName) {
         this.userID = 0;
+        this.uid = "";
+        this.email = "";
         this.userName = userName;
         this.gameRoom = "";
         this.ifFinished = false;
         this.thenFinished = false;
-        ifSentence = "";
-        thenSentence = "";
+        this.accountPlay = false;
+        this.ifSentence = "";
+        this.thenSentence = "";
         this.host = false;
         this.hostStarted = false;
-        this.isAccountPlay = false;
-        this.uid = "";
-        this.email = "";
     }
 
     public User() {}
 
     public Boolean getAccountPlay() {
-        return isAccountPlay;
+        return accountPlay;
     }
 
     public Boolean getIfFinished() {
@@ -96,6 +95,54 @@ public class User {
     }
     public boolean getHostStarted() {
         return hostStarted;
+    }
+
+    public void setAccountPlay(Boolean accountPlay) {
+        this.accountPlay = accountPlay;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setGameRoom(String gameRoom) {
+        this.gameRoom = gameRoom;
+    }
+
+    public void setHost(boolean host) {
+        this.host = host;
+    }
+
+    public void setHostStarted(boolean hostStarted) {
+        this.hostStarted = hostStarted;
+    }
+
+    public void setIfFinished(Boolean ifFinished) {
+        this.ifFinished = ifFinished;
+    }
+
+    public void setIfSentence(String ifSentence) {
+        this.ifSentence = ifSentence;
+    }
+
+    public void setThenFinished(Boolean thenFinished) {
+        this.thenFinished = thenFinished;
+    }
+
+    public void setThenSentence(String thenSentence) {
+        this.thenSentence = thenSentence;
+    }
+
+    public void setUid(String uid) {
+        this.uid = uid;
+    }
+
+    public void setUserID(int userID) {
+        this.userID = userID;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
     }
 
     @Override

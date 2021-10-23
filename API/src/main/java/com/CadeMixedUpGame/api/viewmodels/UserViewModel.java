@@ -53,7 +53,7 @@ public class UserViewModel extends ViewModel {
                     // display name should be set when they sign up
                     user.setValue(new User(fbUser, fbUser.getDisplayName()));
                     User myUser = user.getValue();
-                    myUser.isAccountPlay = true;
+                    myUser.accountPlay = true;
 
                 }
             }
@@ -138,13 +138,24 @@ public class UserViewModel extends ViewModel {
         db.child("rooms").child(gameRoom).child("players").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                usersInRoom.add(userName);
-                System.out.println(userName);
+
+                // this has data in it?
                 System.out.println(snapshot);
-                // producing null User?
+
+                //this is the persons name but snapshot.child(child).getvalue(User.class) produces null
+                String child = snapshot.getKey();
+                System.out.println(child);
+
+                for(DataSnapshot ds : snapshot.getChildren()) {
+                    User user = ds.getValue(User.class);
+                    Log.d("result", "User name: " + user.getUserName() + ", email " + user.getEmail());
+                    System.out.println("Not Null? ------------ " + user);
+                    System.out.println("DB-NEW PLAYER ADDED---------- " + user.userName);
+                    users.add(user);
+                }
                 User newUser = snapshot.getValue(User.class);
-                System.out.println("DB-NEW PLAYER ---------- " + newUser.userName);
-                users.add(newUser);
+                // producing null User?
+
             }
 
             @Override
@@ -207,14 +218,14 @@ public class UserViewModel extends ViewModel {
     //used when a user signs up for the first time and when the user logs in
     public MutableLiveData<User> buildUser(FirebaseUser fbUser, String username) {
         user.setValue(new User(fbUser, username));
-        user.getValue().isAccountPlay = true;
+        user.getValue().accountPlay = true;
 
         return user;
     }
     //in freeplay to build the user
     public MutableLiveData<User> buildUserFree(String username) {
         user.setValue(new User(username));
-        user.getValue().isAccountPlay = false;
+        user.getValue().accountPlay = false;
 
         return user;
     }
