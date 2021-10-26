@@ -88,7 +88,7 @@ public class JoinGameFrag extends Fragment {
                     @Override
                     public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
                         // if the user exists in the observable array then we know that its gotten pushed to firebase and added to my observable array
-                        System.out.println("num in user array ----" + userViewModel.getUsers().size());
+                        System.out.println("num in user array JOIN FRAG----" + userViewModel.getUsers().size());
                         for (User person:userViewModel.getUsers()) {
                             System.out.println("PERSON------" + person.userName);
                         }
@@ -100,6 +100,11 @@ public class JoinGameFrag extends Fragment {
                                         .setReorderingAllowed(true)
                                         .addToBackStack(null)
                                         .commit();
+                            }
+                            if (player.host) {
+                                System.out.println(player.userName + ": THIS GUY IS HOST");
+                                userViewModel.host.setValue(player);
+                                System.out.println("I KNOW WHO THE HOST IS");
                             }
                         }
 

@@ -4,6 +4,7 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.view.View;
@@ -36,49 +37,96 @@ public class AccountFrag extends Fragment {
         Button signin = view.findViewById(R.id.signIn);
         Button signup = view.findViewById(R.id.signUp);
 
+
+
         //giving sign in button functionality
         signin.setOnClickListener(v -> {
-            userViewModel.signIn(
-                    email.getText().toString(),
-                    password.getText().toString()
+            if (email.getText().toString().length() == 0 || password.getText().toString().length() == 0) {
+                // creating toast and switching text in viewmodel
+                Toast.makeText(
+                        getActivity(),
+                        "Fill Email and Password Fields",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+            else {
+                userViewModel.signIn(
+                        email.getText().toString(),
+                        password.getText().toString()
 
-            );
+                );
+                // creating toast and switching text in viewmodel
+                Toast theToast = Toast.makeText(
+                        getActivity(),
+                        "",
+                        Toast.LENGTH_SHORT
+                );
+                userViewModel.signInToast.setValue(theToast);
+                userViewModel.signInToast.observe(getViewLifecycleOwner(), new Observer<Toast>() {
+                    @Override
+                    public void onChanged(Toast toast) {
+                        userViewModel.signInToast.getValue().show();
+                    }
+                });
 
-            //moving to the start game fragment
-            getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, StartFragment.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
+                //moving to the start game fragment
+                userViewModel.getUser().observe(getViewLifecycleOwner(), user -> {
+                    if (userViewModel.getUser().getValue() != null) {
+                        getActivity().getSupportFragmentManager().beginTransaction()
+                                .replace(R.id.fragment_container, StartFragment.class, null)
+                                .setReorderingAllowed(true)
+                                .addToBackStack(null)
+                                .commit();
+                    }
+                });
+            }
         });
 
         //giving sign up button functionality
         signup.setOnClickListener(v -> {
-            userViewModel.localName = userName.getText().toString();
-            userViewModel.signUp(
-                    email.getText().toString(),
-                    password.getText().toString(),
-                    userName.getText().toString()
-            );
+            if (email.getText().toString().length() == 0 || password.getText().toString().length() == 0 || userName.getText().toString().length() == 0) {
+                // creating toast and switching text in viewmodel
+                Toast.makeText(
+                        getActivity(),
+                        "Please Fill Fields",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+            else {
+                userViewModel.localName = userName.getText().toString();
+                userViewModel.signUp(
+                        email.getText().toString(),
+                        password.getText().toString(),
+                        userName.getText().toString()
+                );
 
-            // timing issue with account being created and moving activities. mutable live data?
-            // give a toast that they have signed up
-            Toast.makeText(
-                    getActivity(),
-                    "Account Created",
-                    Toast.LENGTH_LONG
-            ).show();
+                // creating toast and switching text in viewmodel
+                Toast theToast = Toast.makeText(
+                        getActivity(),
+                        "",
+                        Toast.LENGTH_SHORT
+                );
+                userViewModel.signInToast.setValue(theToast);
+                userViewModel.signInToast.observe(getViewLifecycleOwner(), new Observer<Toast>() {
+                    @Override
+                    public void onChanged(Toast toast) {
+                        userViewModel.signInToast.getValue().show();
+                    }
+                });
+//            System.out.println("user ----------------" + userViewModel.getUser().getValue());
 
-            userViewModel.getUser().observe(getViewLifecycleOwner(), user -> {
-                //moving to the start game fragment
-                getActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fragment_container, StartFragment.class, null)
-                        .setReorderingAllowed(true)
-                        .addToBackStack(null)
-                        .commit();
+                userViewModel.getUser().observe(getViewLifecycleOwner(), user -> {
+                    //moving to the start game fragment
+                    if (userViewModel.getUser().getValue() != null) {
+                        getActivity().getSupportFragmentManager().beginTransaction()
+                                .replace(R.id.fragment_container, StartFragment.class, null)
+                                .setReorderingAllowed(true)
+                                .addToBackStack(null)
+                                .commit();
+                    }
+                });
 
-            });
-
+            }
         });
 
     }

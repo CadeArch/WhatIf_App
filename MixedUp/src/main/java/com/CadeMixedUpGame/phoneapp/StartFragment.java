@@ -41,7 +41,7 @@ public class StartFragment extends Fragment {
 
         userViewModel.getUser().observe(getViewLifecycleOwner(), user -> {
             if (user != null) {
-                System.out.println("Frag" + user.userName + user.accountPlay);
+//                System.out.println("Frag" + user.userName + user.accountPlay);
                 if (user.accountPlay) {
                     view.findViewById(R.id.back).setVisibility(View.GONE);
                     userName.setText(user.userName);

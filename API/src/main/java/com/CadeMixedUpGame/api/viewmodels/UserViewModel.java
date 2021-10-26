@@ -1,5 +1,6 @@
 package com.CadeMixedUpGame.api.viewmodels;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -9,7 +10,10 @@ import androidx.lifecycle.ViewModel;
 
 import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
+
+import com.google.android.gms.common.internal.ConnectionErrorMessages;
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
@@ -27,8 +31,10 @@ import java.util.Map;
 
 
 public class UserViewModel extends ViewModel {
+    public MutableLiveData<Toast> signInToast = new MutableLiveData<>();
     ObservableArrayList<User> users;
-    ArrayList<String> usersInRoom = new ArrayList<>();
+    public MutableLiveData<User> host = new MutableLiveData<User>();
+//    ArrayList<String> usersInRoom = new ArrayList<>();
     public String localName;
     DatabaseReference db;
     public String myRoom;
@@ -64,20 +70,15 @@ public class UserViewModel extends ViewModel {
         auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
             @Override
             public void onComplete(@NonNull Task<AuthResult> task) {
-                AuthResult result = task.getResult();
-                // if user wasn't created
-                if (result.getUser() == null) {
-                    Log.d("Error: ", "Failure to create", task.getException());
-                }
-                // when user is created set up their display name
-                else {
+                if (task.isSuccessful()) {
+                    signInToast.getValue().setText("account created");
 
                     //setting the username of the account to whatever they put in the box when signing up
                     FirebaseUser fBuser = FirebaseAuth.getInstance().getCurrentUser();
                     buildUser(fBuser, userName);
 
 //                    System.out.println(" -----------------------------\n " + "email: " + email + "\npassword: " + password + "\nusername: " + userName);
-//                    System.out.println(user);
+                    // setting username in Firebase account
                     UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
                             .setDisplayName(userName).build();
 
@@ -88,14 +89,74 @@ public class UserViewModel extends ViewModel {
                             // assuring their username is set when they create an account
                             getUser().getValue().userName = fBuser.getDisplayName();
                             pushAccountPlayer(user);
-
                         }
                     });
                 }
+                else {
+                    // If sign in fails, display a message to the user.
+//                    System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
+                    if (task.getException().getMessage().equals("The email address is badly formatted.")) {
+                        signInToast.getValue().setText("Email Badly Formatted");
+                    }
+                    else if (task.getException().getMessage().equals("The given password is invalid. [ Password should be at least 6 characters ]")) {
+                        signInToast.getValue().setText("Weak Password");
+                    }
+                    else if (task.getException().getMessage().equals("The email address is already in use by another account.")) {
+                        signInToast.getValue().setText("Email in Use");
+                    }
+                    else {
+                        System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
+                        signInToast.getValue().setText("Error");
+                    }
+                }
+
+
+//                // make this if statement better that would encapsulate all errors
+//                if (task.getException() != null) {
+//                    System.out.println("EXCEPTION -------------" + task.getException().getMessage());
+//                    if (task.getException().getMessage().equals("The email address is badly formatted.")) {
+//                        signInToast.getValue().setText("Invalid Email");
+//
+//                    }
+//                    if (task.getException().getMessage().equals("The email address is already in use by another account.")) {
+//                        signInToast.getValue().setText("Email Already in Use");
+//                    }
+//
+//                }
+//                else {
+//                    AuthResult result = task.getResult();
+//                    // if user wasn't created
+//                    if (result.getUser() == null) {
+//                        Log.d("Error: ", "Failure to create", task.getException());
+//                    }
+//                    // when user is created set up their display name
+//                    else {
+//                        signInToast.getValue().setText("account created");
+//
+//                        //setting the username of the account to whatever they put in the box when signing up
+//                        FirebaseUser fBuser = FirebaseAuth.getInstance().getCurrentUser();
+//                        buildUser(fBuser, userName);
+//
+//                    System.out.println(" -----------------------------\n " + "email: " + email + "\npassword: " + password + "\nusername: " + userName);
+//                    System.out.println(user);
+//                        UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
+//                                .setDisplayName(userName).build();
+//
+//                        fBuser.updateProfile(profileUpdates).addOnCompleteListener(new OnCompleteListener<Void>() {
+//                            @Override
+//                            public void onComplete(@NonNull Task<Void> task) {
+////                            System.out.println("DISPLAY NAME ----------------" + fBuser.getDisplayName());
+//                                // assuring their username is set when they create an account
+//                                getUser().getValue().userName = fBuser.getDisplayName();
+//                                pushAccountPlayer(user);
+//                            }
+//                        });
+//                    }
+//
+//                }
 
             }
         });
-
     }
 
     public void signIn(String email, String password) {
@@ -109,12 +170,23 @@ public class UserViewModel extends ViewModel {
                     FirebaseUser fbUser = auth.getCurrentUser();
                     localName = fbUser.getDisplayName();
                     buildUser(fbUser, localName);
-
+                    signInToast.getValue().setText("Sign in Complete");
 
                 } else {
                     // If sign in fails, display a message to the user.
-                    System.out.println("failed to sign in ------------------");
-
+//                    System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
+                    if (task.getException().getMessage().equals("The password is invalid or the user does not have a password.")) {
+                        signInToast.getValue().setText("Invalid Password");
+                    }
+                    else if (task.getException().getMessage().equals("There is no user record corresponding to this identifier. The user may have been deleted.")) {
+                        signInToast.getValue().setText("Invalid Email");
+                    }
+                    else if (task.getException().getMessage().equals("The email address is badly formatted.")) {
+                        signInToast.getValue().setText("Email Badly Formatted");
+                    }
+                    else {
+                        signInToast.getValue().setText("User Disabled");
+                    }
                 }
             }
         });
@@ -132,30 +204,22 @@ public class UserViewModel extends ViewModel {
         return users;
     }
 
-
+    // used in create and join game to see players that join room from firebase
     public void loadUsers(String gameRoom, String userName) {
-        //// CHECK THIS
         db.child("rooms").child(gameRoom).child("players").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
 
-                // this has data in it?
-                System.out.println(snapshot);
-
-                //this is the persons name but snapshot.child(child).getvalue(User.class) produces null
                 String child = snapshot.getKey();
                 System.out.println(child);
 
                 for(DataSnapshot ds : snapshot.getChildren()) {
                     User user = ds.getValue(User.class);
                     Log.d("result", "User name: " + user.getUserName() + ", email " + user.getEmail());
-                    System.out.println("Not Null? ------------ " + user);
-                    System.out.println("DB-NEW PLAYER ADDED---------- " + user.userName);
+//                    System.out.println("Not Null user FROM-DB? ------------ " + user.userName);
+//                    System.out.println("DB-NEW PLAYER ADDED---------- " + user.userName);
                     users.add(user);
                 }
-                User newUser = snapshot.getValue(User.class);
-                // producing null User?
-
             }
 
             @Override
@@ -175,13 +239,20 @@ public class UserViewModel extends ViewModel {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
+                System.out.println(error.getCode() + ": " + error.getMessage() + ": " + error.getDetails());
             }
         });
     }
 
-    public void listenToHost(User host) {
-        db.child("rooms").child(host.gameRoom).child("players").child(host.userName).addChildEventListener(new ChildEventListener() {
+    //key to update values in firebase
+    public void hostStarted(User user) {
+        //updating the status that the host has started the game
+        db.child("rooms").child(user.gameRoom).child("players").child(user.userName).child("value").child("hostStarted").setValue(true);
+
+    }
+
+    public void listenToHost(MutableLiveData<User> host) {
+        db.child("rooms").child(host.getValue().gameRoom).child("players").child(host.getValue().userName).addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
 
@@ -189,13 +260,35 @@ public class UserViewModel extends ViewModel {
 
             @Override
             public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                if (snapshot.getKey().equals("hostStarted")) {
-                    for (User user : users) {
-                        user.hostStarted = true;
-                    }
-                    System.out.println("Host Started: TRUE");
+//                System.out.println(snapshot.getValue());
+//                System.out.println(snapshot.getKey());
+                User theChanged = snapshot.getValue(User.class);
+                System.out.println(theChanged.userName + theChanged.host + theChanged.hostStarted);
+
+                if (theChanged.hostStarted) {
+                    System.out.println("USER: " + getUser().getValue().userName + " Host Started: " + getUser().getValue().hostStarted + " changing to true");
+                    getUser().getValue().hostStarted = true;
+                    System.out.println("USER: " + getUser().getValue().userName + " Host Started: " + getUser().getValue().hostStarted + " NOW TRUE");
                 }
-                System.out.println("Child Changed Called: TRUE ");
+//                for (DataSnapshot ds: snapshot.getChildren()) {
+////                    System.out.println("MEMBER OF DATASNAPSHOT -----------" + ds);
+//                    if (ds.getKey().equals("hostStarted")) {
+//                        boolean hostClicked = ds.getValue(Boolean.class);
+//                        System.out.println("true host clicked from Firebase -------" + hostClicked);
+//                        if (hostClicked) {
+//                            System.out.println("CHANGED USERS HOST STARTED VALUE TO TRUE");
+//                            System.out.println(user.getValue().userName);
+//
+////                            for (User user : users) {
+////                               user.hostStarted = true;
+////                            }
+//                            user.getValue().hostStarted = true;
+//                            System.out.println(user.getValue().hostStarted);
+//
+//                        }
+//                    }
+//                }
+                System.out.println("DATABASE noticed Change: TRUE ");
             }
 
             @Override
@@ -210,7 +303,7 @@ public class UserViewModel extends ViewModel {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
+                System.out.println("ErROR==========" + error.getMessage());
             }
         });
     }
@@ -251,12 +344,7 @@ public class UserViewModel extends ViewModel {
         db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).setValue(user);
     }
 
-    //key to update values in firebase
-    public void hostStarted(User user) {
-        //updating the status that the host has started the game
-        db.child("rooms").child(user.gameRoom).child("players").child(user.userName).child("hostStarted").setValue(true);
 
-    }
 
 }
 
