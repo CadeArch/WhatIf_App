@@ -97,63 +97,15 @@ public class UserViewModel extends ViewModel {
 //                    System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
                     if (task.getException().getMessage().equals("The email address is badly formatted.")) {
                         signInToast.getValue().setText("Email Badly Formatted");
-                    }
-                    else if (task.getException().getMessage().equals("The given password is invalid. [ Password should be at least 6 characters ]")) {
+                    } else if (task.getException().getMessage().equals("The given password is invalid. [ Password should be at least 6 characters ]")) {
                         signInToast.getValue().setText("Weak Password");
-                    }
-                    else if (task.getException().getMessage().equals("The email address is already in use by another account.")) {
+                    } else if (task.getException().getMessage().equals("The email address is already in use by another account.")) {
                         signInToast.getValue().setText("Email in Use");
-                    }
-                    else {
+                    } else {
                         System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
                         signInToast.getValue().setText("Error");
                     }
                 }
-
-
-//                // make this if statement better that would encapsulate all errors
-//                if (task.getException() != null) {
-//                    System.out.println("EXCEPTION -------------" + task.getException().getMessage());
-//                    if (task.getException().getMessage().equals("The email address is badly formatted.")) {
-//                        signInToast.getValue().setText("Invalid Email");
-//
-//                    }
-//                    if (task.getException().getMessage().equals("The email address is already in use by another account.")) {
-//                        signInToast.getValue().setText("Email Already in Use");
-//                    }
-//
-//                }
-//                else {
-//                    AuthResult result = task.getResult();
-//                    // if user wasn't created
-//                    if (result.getUser() == null) {
-//                        Log.d("Error: ", "Failure to create", task.getException());
-//                    }
-//                    // when user is created set up their display name
-//                    else {
-//                        signInToast.getValue().setText("account created");
-//
-//                        //setting the username of the account to whatever they put in the box when signing up
-//                        FirebaseUser fBuser = FirebaseAuth.getInstance().getCurrentUser();
-//                        buildUser(fBuser, userName);
-//
-//                    System.out.println(" -----------------------------\n " + "email: " + email + "\npassword: " + password + "\nusername: " + userName);
-//                    System.out.println(user);
-//                        UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
-//                                .setDisplayName(userName).build();
-//
-//                        fBuser.updateProfile(profileUpdates).addOnCompleteListener(new OnCompleteListener<Void>() {
-//                            @Override
-//                            public void onComplete(@NonNull Task<Void> task) {
-////                            System.out.println("DISPLAY NAME ----------------" + fBuser.getDisplayName());
-//                                // assuring their username is set when they create an account
-//                                getUser().getValue().userName = fBuser.getDisplayName();
-//                                pushAccountPlayer(user);
-//                            }
-//                        });
-//                    }
-//
-//                }
 
             }
         });
@@ -268,26 +220,10 @@ public class UserViewModel extends ViewModel {
                 if (theChanged.hostStarted) {
                     System.out.println("USER: " + getUser().getValue().userName + " Host Started: " + getUser().getValue().hostStarted + " changing to true");
                     getUser().getValue().hostStarted = true;
+                    getUser().setValue(getUser().getValue());
                     System.out.println("USER: " + getUser().getValue().userName + " Host Started: " + getUser().getValue().hostStarted + " NOW TRUE");
                 }
-//                for (DataSnapshot ds: snapshot.getChildren()) {
-////                    System.out.println("MEMBER OF DATASNAPSHOT -----------" + ds);
-//                    if (ds.getKey().equals("hostStarted")) {
-//                        boolean hostClicked = ds.getValue(Boolean.class);
-//                        System.out.println("true host clicked from Firebase -------" + hostClicked);
-//                        if (hostClicked) {
-//                            System.out.println("CHANGED USERS HOST STARTED VALUE TO TRUE");
-//                            System.out.println(user.getValue().userName);
-//
-////                            for (User user : users) {
-////                               user.hostStarted = true;
-////                            }
-//                            user.getValue().hostStarted = true;
-//                            System.out.println(user.getValue().hostStarted);
-//
-//                        }
-//                    }
-//                }
+
                 System.out.println("DATABASE noticed Change: TRUE ");
             }
 
@@ -303,7 +239,7 @@ public class UserViewModel extends ViewModel {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                System.out.println("ErROR==========" + error.getMessage());
+                System.out.println("ERROR==========" + error.getMessage());
             }
         });
     }

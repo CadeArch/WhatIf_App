@@ -24,7 +24,6 @@ public class StartFragment extends Fragment {
     RoomViewModel roomViewModel;
     UserViewModel userViewModel;
 
-
     public StartFragment() {
         super(R.layout.fragment_start);
     }
@@ -56,8 +55,6 @@ public class StartFragment extends Fragment {
             }
         });
 
-
-
         //giving create game button functionality MAYBE MAKE THIS ONLY AVAILABLE TO ACCOUNT PLAY
         view.findViewById(R.id.start).setOnClickListener(v -> {
 
@@ -75,6 +72,13 @@ public class StartFragment extends Fragment {
 
             //pushing the data to firebase
             roomViewModel.pushRoom(roomID);
+
+            MutableLiveData<User> newUser = userViewModel.getUser();
+            newUser.getValue().userName = userViewModel.localName;
+            newUser.getValue().host = true;
+            newUser.getValue().gameRoom = userViewModel.myRoom;
+
+            userViewModel.pushPerson(newUser);
 
             //moving to the fragment where they can share their room code
             getActivity().getSupportFragmentManager().beginTransaction()
@@ -120,7 +124,6 @@ public class StartFragment extends Fragment {
                     .addToBackStack(null)
                     .commit();
         });
-
 
     }
 }

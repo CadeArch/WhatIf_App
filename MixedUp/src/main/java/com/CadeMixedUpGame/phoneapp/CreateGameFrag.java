@@ -53,15 +53,8 @@ public class CreateGameFrag extends Fragment {
         //giving start button functionality
         view.findViewById(R.id.createGame_start).setOnClickListener(v -> {
 
-            //check what is going on here
-            //making a new user and adding it to the users array
-            MutableLiveData<User> newUser = userViewModel.getUser();
-            newUser.getValue().userName = userViewModel.localName;
-            newUser.getValue().host = true;
-            newUser.getValue().gameRoom = userViewModel.myRoom;
-            userViewModel.loadUsers(userViewModel.myRoom, userViewModel.localName);
 
-            userViewModel.pushPerson(newUser);
+            userViewModel.loadUsers(userViewModel.myRoom, userViewModel.localName);
 
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, WaitingForHostFrag.class, null)

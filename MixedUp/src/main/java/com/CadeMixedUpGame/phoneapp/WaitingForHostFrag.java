@@ -11,11 +11,14 @@ import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.widget.GridLayout;
 
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
@@ -46,19 +49,53 @@ public class WaitingForHostFrag extends Fragment {
         //grabbing the list of users
         ObservableArrayList<User> playerArray = userViewModel.getUsers();
 
+        // set up the RecyclerView
+        RecyclerView recyclerView = getActivity().findViewById(R.id.recyclerView);
+        recyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 2));
+        MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), userViewModel.getUsers());
+        recyclerView.setAdapter(adapter);
+
+        // when the users array changes reset the adapter to include all people
+        userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
+            @Override
+            public void onChanged(ObservableList<User> sender) {
+
+            }
+
+            @Override
+            public void onItemRangeChanged(ObservableList<User> sender, int positionStart, int itemCount) {
+
+            }
+
+            @Override
+            public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
+                recyclerView.setAdapter(adapter);
+            }
+
+            @Override
+            public void onItemRangeMoved(ObservableList<User> sender, int fromPosition, int toPosition, int itemCount) {
+
+            }
+
+            @Override
+            public void onItemRangeRemoved(ObservableList<User> sender, int positionStart, int itemCount) {
+
+            }
+        });
+
         //looping through all the users that have joined
-        for (User n: playerArray) {
+        for (User user: playerArray) {
             //grabbing each individual on their phone
-            if (n.userName.equals(userViewModel.localName)) {
+            if (user.userName.equals(userViewModel.localName)) {
 
                 //if they are the host show the button else hide it
-                if (n.host) {
+                if (user.host) {
                     //giving button functionalityl
                     view.findViewById(R.id.waitingForHost_start).setOnClickListener(v -> {
                         // host started game and setting the value in firebase to be true
                         System.out.println("HOST CLICKED BUTTON ------------------");
                         userViewModel.getUser().getValue().hostStarted = true;
-                        userViewModel.hostStarted(n);
+                        userViewModel.hostStarted(user);
                         getActivity().getSupportFragmentManager().beginTransaction()
                                 .replace(R.id.fragment_container, WriteIfFrag.class, null)
                                 .setReorderingAllowed(true)
@@ -82,11 +119,8 @@ public class WaitingForHostFrag extends Fragment {
                         });
                     }
 
-//                    //is this necessary
-//                    userViewModel.getUser().removeObservers(getViewLifecycleOwner());
-//                    System.out.println("has active observer: " + userViewModel.getUser().hasActiveObservers());
-//
-//                    // when observer notices change on user data move to next frag LIVE DATA MEDIAATOR?
+
+                    // when observer notices change on user data move to next frag
                     userViewModel.getUser().observe(this.getViewLifecycleOwner(), new Observer<User>() {
 
                             @Override
@@ -94,6 +128,7 @@ public class WaitingForHostFrag extends Fragment {
                                 System.out.println("MY USERNAME: " + user.userName);
                                 System.out.println("Host started: " + user.hostStarted);
                                 //if host has clicked the button move to next screen
+                                userViewModel.hostStarted(userViewModel.getUser().getValue());
                                 if (user.hostStarted) {
                                     getActivity().getSupportFragmentManager().beginTransaction()
                                             .replace(R.id.fragment_container, WriteIfFrag.class, null)
@@ -103,47 +138,7 @@ public class WaitingForHostFrag extends Fragment {
                                     System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostStarted);
                                 }
                             }
-
                     });
-
-                    //waiting tell the observable arraylist changes to move to the next screen
-                    // can I do this even though I have one in the join game fragment?
-//                    userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
-//                        @Override
-//                        public void onChanged(ObservableList<User> sender) {
-//
-//                        }
-//
-//                        @Override
-//                        public void onItemRangeChanged(ObservableList<User> sender, int positionStart, int itemCount) {
-//                        //if host has clicked the button move to next screen
-//                            System.out.println("NOTICE CHANGE");
-//                            System.out.println(userViewModel.getUser().getValue().hostStarted);
-//                            if (userViewModel.getUser().getValue().hostStarted) {
-//                                getActivity().getSupportFragmentManager().beginTransaction()
-//                                        .replace(R.id.fragment_container, WriteIfFrag.class, null)
-//                                        .setReorderingAllowed(true)
-//                                        .addToBackStack(null)
-//                                        .commit();
-//                            }
-//                            System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER" + userViewModel.getUser().getValue().hostStarted);
-//                        }
-//
-//                        @Override
-//                        public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
-//
-//                        }
-//
-//                        @Override
-//                        public void onItemRangeMoved(ObservableList<User> sender, int fromPosition, int toPosition, int itemCount) {
-//
-//                        }
-//
-//                        @Override
-//                        public void onItemRangeRemoved(ObservableList<User> sender, int positionStart, int itemCount) {
-//
-//                        }
-//                    });
 
                 }
             }

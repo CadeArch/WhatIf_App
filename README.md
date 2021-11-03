@@ -15,6 +15,9 @@ Toast from viewmodel help - https://code.luasoftware.com/tutorials/android/andro
 Off. Doc. Firebase account help - https://firebase.google.com/docs/auth/android/password-auth
 Off. Doc. Firebase account error help - https://firebase.google.com/docs/reference/js/v8/firebase.auth.Auth#signinwithemailandpassword
 
+help with recycler view - https://stackoverflow.com/questions/40584424/simple-android-recyclerview-example
+                        - https://www.journaldev.com/13792/android-gridlayoutmanager-example
+
 ## todo
 error handle when bad email or sign in is entered in account play so it doesnt crash (MOSTLY DONE: sinch up a bit more)
 ** add host to firebase gameroom immediately with the gameroom being push to fb to make structure simpler?
