@@ -19,12 +19,14 @@ help with recycler view - https://stackoverflow.com/questions/40584424/simple-an
                         - https://www.journaldev.com/13792/android-gridlayoutmanager-example
 
 ## todo
-error handle when bad email or sign in is entered in account play so it doesnt crash (MOSTLY DONE: sinch up a bit more)
-** add host to firebase gameroom immediately with the gameroom being push to fb to make structure simpler?
-** make sure observable array isnt duplicating entries when players are joining?
-fix error with start button not sending all players to write if fragment
-populate waiting for host fragment with players as they are joining
-when all players finish writing if statement randomize ifs and give them to players to create then statement **assure players dont get their own
+send players if statements to db
+set up observer on database to see changes and to add new user to list of users
+set up onlistchanged callback in collecting ifs fragment to show who has submitted there answer
+set up to move to write then fragment once everyones ifs are in
+in setting up write then frag make sure players dont get their own if sentance.
+set up to move to readSentance frag once everyones thens are in.
+
+after they hit next from readsentance have them vote on best sentance. then they can return to first frag or play again
 
 create leaderboards fragment and buttons to link to current frags
 create unlockables class that will be part of user players stored in FB 
