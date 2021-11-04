@@ -89,12 +89,14 @@ public class JoinGameFrag extends Fragment {
                     public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
                         // if the user exists in the observable array then we know that its gotten pushed to firebase and added to my observable array
                         System.out.println("num in user array JOIN FRAG----" + userViewModel.getUsers().size());
-                        for (User person:userViewModel.getUsers()) {
-                            System.out.println("PERSON------" + person.userName);
-                        }
+//                        for (User person:userViewModel.getUsers()) {
+//                            System.out.println("PERSON------" + person.userName);
+//                        }
                         // could figure out how to use the contains array function?
                         for (User player:userViewModel.getUsers()) {
-                            if (userViewModel.localName.equals(player.userName)) {
+                            // if the local name matches the players name move to waiting for host.
+                            // and if host started = false fixes issue when moving to collecting ifs frag
+                            if (userViewModel.localName.equals(player.userName) && !player.hostStarted) {
                                 getActivity().getSupportFragmentManager().beginTransaction()
                                         .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
                                         .setReorderingAllowed(true)
@@ -102,9 +104,8 @@ public class JoinGameFrag extends Fragment {
                                         .commit();
                             }
                             if (player.host) {
-                                System.out.println(player.userName + ": THIS GUY IS HOST");
+//                                System.out.println(player.userName + ": THIS GUY IS HOST");
                                 userViewModel.host.setValue(player);
-                                System.out.println("I KNOW WHO THE HOST IS");
                             }
                         }
 

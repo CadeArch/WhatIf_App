@@ -49,10 +49,8 @@ public class CreateGameFrag extends Fragment {
                     .commit();
         });
 
-
         //giving start button functionality
         view.findViewById(R.id.createGame_start).setOnClickListener(v -> {
-
 
             userViewModel.loadUsers(userViewModel.myRoom, userViewModel.localName);
 

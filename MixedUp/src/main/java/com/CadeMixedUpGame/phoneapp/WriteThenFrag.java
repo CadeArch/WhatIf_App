@@ -35,7 +35,12 @@ public class WriteThenFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
+        roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
+
         TextView ifQuestion = getActivity().findViewById(R.id.myIfQuestion);
+
+
         // TODO need to set my randomif to one from another player
         ifQuestion.setText(myRandomIf);
 
@@ -48,8 +53,6 @@ public class WriteThenFrag extends Fragment {
                     .commit();
         });
 
-        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
-        roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
 
     }

@@ -50,7 +50,7 @@ public class WaitingForHostFrag extends Fragment {
         ObservableArrayList<User> playerArray = userViewModel.getUsers();
 
         // set up the RecyclerView
-        RecyclerView recyclerView = getActivity().findViewById(R.id.recyclerView);
+        RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 2));
         MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), userViewModel.getUsers());
         recyclerView.setAdapter(adapter);
@@ -93,7 +93,7 @@ public class WaitingForHostFrag extends Fragment {
                     //giving button functionalityl
                     view.findViewById(R.id.waitingForHost_start).setOnClickListener(v -> {
                         // host started game and setting the value in firebase to be true
-                        System.out.println("HOST CLICKED BUTTON ------------------");
+//                        System.out.println("HOST CLICKED BUTTON ------------------");
                         userViewModel.getUser().getValue().hostStarted = true;
                         userViewModel.hostStarted(user);
                         getActivity().getSupportFragmentManager().beginTransaction()
@@ -108,12 +108,12 @@ public class WaitingForHostFrag extends Fragment {
                     View button = view.findViewById(R.id.waitingForHost_start);
                     button.setVisibility(View.GONE);
 
-                    //finding the player and the host
+                    //could take out of mutable live data observer because host will for sure be pushed to database before other players join
                     if (userViewModel.host.getValue() != null) {
-                        System.out.println("HOST HAS BEEN SET --------" + userViewModel.host.getValue().userName);
+//                        System.out.println("HOST HAS BEEN SET --------" + userViewModel.host.getValue().userName);
                         userViewModel.host.observe(getViewLifecycleOwner(), theHost -> {
 
-                            System.out.println("HOST JOINED ------------- LISTENING TO HOST");
+//                            System.out.println("HOST JOINED ------------- LISTENING TO HOST");
                             //setting a listener on the host in firebase
                             userViewModel.listenToHost(userViewModel.host);
                         });
@@ -129,7 +129,9 @@ public class WaitingForHostFrag extends Fragment {
                                 System.out.println("Host started: " + user.hostStarted);
                                 //if host has clicked the button move to next screen
                                 userViewModel.hostStarted(userViewModel.getUser().getValue());
-                                if (user.hostStarted) {
+                                // may not need user.ifFinished
+                                if (user.hostStarted && !user.ifFinished) {
+                                    System.out.println("-------------" + user.hostStarted + user.ifFinished);
                                     getActivity().getSupportFragmentManager().beginTransaction()
                                             .replace(R.id.fragment_container, WriteIfFrag.class, null)
                                             .setReorderingAllowed(true)

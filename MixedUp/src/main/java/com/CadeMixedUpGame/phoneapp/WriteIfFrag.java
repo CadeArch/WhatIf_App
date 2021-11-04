@@ -19,6 +19,7 @@ import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 import java.util.ArrayList;
+import java.util.TreeMap;
 
 
 public class WriteIfFrag extends Fragment {
@@ -33,8 +34,19 @@ public class WriteIfFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
+        roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
+
+        EditText ifSentence = getActivity().findViewById(R.id.ifQuestion);
+
         //giving submit button functionality
         view.findViewById(R.id.writeIf_submit).setOnClickListener(v -> {
+
+            userViewModel.getUser().getValue().ifSentence = ifSentence.getText().toString();
+            userViewModel.getUser().getValue().ifFinished = true;
+
+            userViewModel.pushIf(userViewModel.getUser());
+
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
                     .setReorderingAllowed(true)
@@ -42,8 +54,6 @@ public class WriteIfFrag extends Fragment {
                     .commit();
         });
 
-        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
-        roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
 
     }

@@ -8,7 +8,7 @@
     android:background="@drawable/white_papers"
     android:id="@+id/layout">
 
-    <GridLayout
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -17,20 +17,23 @@
         app:layout_constraintTop_toBottomOf="@+id/textView6">
 
         <androidx.recyclerview.widget.RecyclerView
-            android:layout_width="27dp"
-            android:layout_height="match_parent" />
-    </GridLayout>
+            android:id="@+id/recyclerViewCollectQ"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingLeft="75dp"
+            app:spanCount="2" />
+    </FrameLayout>
 
     <TextView
 
         android:id="@+id/textView4"
         android:layout_width="500dp"
         android:layout_height="80dp"
-        android:layout_marginTop="68dp"
+        android:layout_marginTop="40dp"
         android:text="Collection Questions"
         android:textSize="50dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/layout" />
 
@@ -38,11 +41,11 @@
         android:id="@+id/textView6"
         android:layout_width="300dp"
         android:layout_height="50dp"
-        android:layout_marginTop="128dp"
-        android:text="Waiting For..."
+        android:layout_marginTop="120dp"
+        android:text="Players Submitted"
         android:textSize="30dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.505"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/layout" />
 

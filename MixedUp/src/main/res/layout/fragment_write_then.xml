@@ -11,16 +11,30 @@
     <!-- TODO: Update blank fragment layout -->
 
     <TextView
-        android:id="@+id/myIfQuestion"
-        android:layout_width="250dp"
+        android:id="@+id/instructions"
+        android:layout_width="470dp"
         android:layout_height="50dp"
-        android:layout_marginTop="68dp"
-        android:text=""
-        android:textSize="30dp"
+        android:layout_marginTop="16dp"
+        android:text="Write your response beginning with then"
+        android:textSize="25dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/layout" />
+
+    <TextView
+        android:id="@+id/myIfQuestion"
+        android:layout_width="match_parent"
+        android:layout_height="90dp"
+        android:paddingLeft="25dp"
+        android:text=""
+        android:textSize="30dp"
+        app:layout_constraintBottom_toTopOf="@+id/ifQuestion"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/instructions"
+        app:layout_constraintVertical_bias="0.0" />
 
     <EditText
         android:id="@+id/ifQuestion"

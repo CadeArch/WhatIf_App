@@ -33,5 +33,4 @@ create unlockables class that will be part of user players stored in FB
 
 
 ## questions
-    mutable live data not functioning listen to host
-    any reason to not push host to firebase with the room
+
