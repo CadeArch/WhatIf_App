@@ -29,7 +29,7 @@
         android:paddingLeft="25dp"
         android:text=""
         android:textSize="30dp"
-        app:layout_constraintBottom_toTopOf="@+id/ifQuestion"
+        app:layout_constraintBottom_toTopOf="@+id/thenAnswer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
@@ -37,7 +37,7 @@
         app:layout_constraintVertical_bias="0.0" />
 
     <EditText
-        android:id="@+id/ifQuestion"
+        android:id="@+id/thenAnswer"
         android:layout_width="250dp"
         android:layout_height="50dp"
         android:layout_marginTop="164dp"

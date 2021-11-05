@@ -36,7 +36,7 @@ public class CollectingQuestionsFrag extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        System.out.println("----------------collecting frag--------------------------");
+//        System.out.println("----------------collecting If frag--------------------------");
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
 
         // set up the RecyclerView
@@ -53,13 +53,6 @@ public class CollectingQuestionsFrag extends Fragment {
         // populating view with those who have submitted there if
         MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), whoSubmitted);
 
-//        for (User usr:userViewModel.getUsers()) {
-//            if (usr.ifFinished) {
-//                System.out.println(usr.userName + usr.ifFinished);
-//                recyclerView.setAdapter(adapter);
-//            }
-//        }
-
         // when the users array changes reset the adapter to include all people
         userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
             @Override
@@ -73,23 +66,24 @@ public class CollectingQuestionsFrag extends Fragment {
 
             @Override
             public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
+                // if they have finished their if sentance add it to the who submitted array and reset adapter to inflate text
                 if (userViewModel.getUsers().get(positionStart).ifFinished) {
                     whoSubmitted.add(userViewModel.getUsers().get(positionStart));
                     recyclerView.setAdapter(adapter);
-                    System.out.println("1 TRUE");
                 }
-                System.out.println("SAW CHANGE --------------------");
+//                System.out.println("SAW CHANGE --------------------");
                 int count = 0;
                 for (User user:userViewModel.getUsers()) {
                     if (user.ifFinished) {
                         count += 1;
                     }
                 }
-                System.out.println(count + " ------------------ " + userViewModel.getUsers().size());
+//                System.out.println(count + " ------------------ " + userViewModel.getUsers().size());
                 if (count == userViewModel.getUsers().size()) {
                     allIfsFinished = true;
                 }
-                if (allIfsFinished) {
+                // if then isnt finished fixes for when moving to collecting answers frag
+                if (allIfsFinished && !userViewModel.getUser().getValue().thenFinished) {
                     getActivity().getSupportFragmentManager().beginTransaction()
                             .replace(R.id.fragment_container, WriteThenFrag.class, null)
                             .setReorderingAllowed(true)

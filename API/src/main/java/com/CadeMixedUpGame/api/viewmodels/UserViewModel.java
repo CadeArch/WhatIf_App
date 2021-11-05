@@ -176,13 +176,13 @@ public class UserViewModel extends ViewModel {
 
             @Override
             public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                System.out.println("DATABASE NOTICED CHANGE IN GAMEROOM---------------------------------");
-                System.out.println(snapshot);
+//                System.out.println("DATABASE NOTICED CHANGE IN GAMEROOM---------------------------------");
+//                System.out.println(snapshot);
                 for(DataSnapshot ds : snapshot.getChildren()) {
                     User user = ds.getValue(User.class);
                     // this is so it will only update in device once players are playing game
-                    if (user.ifSentence.length() > 0) {
-                        Log.d("result", "User name: " + user.getUserName() + ", email " + user.getEmail());
+                    if (user.ifSentence.length() > 0 && user.thenSentence.length() == 0) {
+//                        Log.d("IF CHANGED", "User name: " + user.getUserName() + ", ------------------- " + user.getEmail());
 //                        for (User us : users) {
 //                            System.out.println("before removed --------------- " + us.userName + " " + us.userID + " " + us.ifSentence);
 //                        }
@@ -191,6 +191,13 @@ public class UserViewModel extends ViewModel {
 //                        for (User us : users) {
 //                            System.out.println("after re added ---------------- " + us.userName + " " + us.userID + " " + us.ifSentence);
 //                        }
+                    }
+                    // this is for when a then answer is changed
+                    if (user.thenSentence.length() > 0) {
+//                        Log.d("THEN CHANGED", "User name: " + user.getUserName() + ", ---------------- " + user.getEmail());
+
+                        users.remove(user);
+                        users.add(user);
                     }
                 }
 
@@ -239,7 +246,7 @@ public class UserViewModel extends ViewModel {
                     getUser().setValue(getUser().getValue());
                 }
 
-                System.out.println("DATABASE noticed Change On Host Player ");
+//                System.out.println("DATABASE noticed Change On Host Player ");
             }
 
             @Override
@@ -300,6 +307,10 @@ public class UserViewModel extends ViewModel {
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("ifFinished").setValue(user.getValue().ifFinished);
     }
 
+    public void pushThen(MutableLiveData<User> user) {
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("thenSentence").setValue(user.getValue().thenSentence);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("thenFinished").setValue(user.getValue().thenFinished);
+    }
 
 }
 

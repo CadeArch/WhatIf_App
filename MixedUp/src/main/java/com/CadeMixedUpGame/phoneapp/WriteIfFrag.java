@@ -42,6 +42,11 @@ public class WriteIfFrag extends Fragment {
         //giving submit button functionality
         view.findViewById(R.id.writeIf_submit).setOnClickListener(v -> {
 
+            for (User user: userViewModel.getUsers()
+                 ) {
+                System.out.println("ORDER IN WRITE IF FRAG ------------- " + user.userName);
+            }
+
             userViewModel.getUser().getValue().ifSentence = ifSentence.getText().toString();
             userViewModel.getUser().getValue().ifFinished = true;
 

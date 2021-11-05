@@ -54,8 +54,11 @@ public class EndingFrag extends Fragment {
 
         //giving again button functionality
         view.findViewById(R.id.again_ending).setOnClickListener(v -> {
+
+            // here I will need to reset players values and database values to how they would be
+            // at the start of a match
             getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, WriteThenFrag.class, null)
+                    .replace(R.id.fragment_container, WriteIfFrag.class, null)
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();

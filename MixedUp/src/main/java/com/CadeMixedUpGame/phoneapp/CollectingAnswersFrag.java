@@ -4,10 +4,13 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
+import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -24,6 +27,7 @@ import java.util.ArrayList;
 public class CollectingAnswersFrag extends Fragment {
     UserViewModel userViewModel;
     Boolean allThensFinished = false;
+    ObservableArrayList<User> whoSubmittedThen = new ObservableArrayList<>();
 
     public CollectingAnswersFrag() {
         super(R.layout.fragment_collecting_answers);
@@ -33,16 +37,71 @@ public class CollectingAnswersFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+//        System.out.println("----------------collecting Then frag--------------------------");
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
 
-        // if all the answers are finished go to the ending fragment
-        if (allThensFinished) {
-            getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, EndingFrag.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
+        // set up the RecyclerView
+        RecyclerView recyclerView = view.findViewById(R.id.recyclerViewCollectA);
+        recyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 2));
+
+        // seeing who has submitted
+        for (User user:userViewModel.getUsers()) {
+            if (user.thenFinished) {
+                whoSubmittedThen.add(user);
+            }
         }
+
+        // populating view with those who have submitted there if
+        MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), whoSubmittedThen);
+
+        // when the users array changes reset the adapter to include all people
+        userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
+            @Override
+            public void onChanged(ObservableList<User> sender) {
+
+            }
+
+            @Override
+            public void onItemRangeChanged(ObservableList<User> sender, int positionStart, int itemCount) {
+            }
+
+            @Override
+            public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
+                // if they have finished their if sentance add it to the who submitted array and reset adapter to inflate text
+                if (userViewModel.getUsers().get(positionStart).thenFinished) {
+                    whoSubmittedThen.add(userViewModel.getUsers().get(positionStart));
+                    recyclerView.setAdapter(adapter);
+                }
+//                System.out.println("SAW CHANGE --------------------");
+                int count = 0;
+                for (User user:userViewModel.getUsers()) {
+                    if (user.thenFinished) {
+                        count += 1;
+                    }
+                }
+//                System.out.println(count + " ------------------ " + userViewModel.getUsers().size());
+                if (count == userViewModel.getUsers().size()) {
+                    allThensFinished = true;
+                }
+                if (allThensFinished) {
+                    getActivity().getSupportFragmentManager().beginTransaction()
+                            .replace(R.id.fragment_container, EndingFrag.class, null)
+                            .setReorderingAllowed(true)
+                            .addToBackStack(null)
+                            .commit();
+                }
+            }
+
+            @Override
+            public void onItemRangeMoved(ObservableList<User> sender, int fromPosition, int toPosition, int itemCount) {
+
+            }
+
+            @Override
+            public void onItemRangeRemoved(ObservableList<User> sender, int positionStart, int itemCount) {
+
+            }
+        });
     }
 }
 
