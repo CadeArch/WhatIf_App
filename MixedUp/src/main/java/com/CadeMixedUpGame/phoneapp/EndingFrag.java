@@ -36,11 +36,17 @@ public class EndingFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+
+        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
+        roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
+
         TextView ifQuestion = getActivity().findViewById(R.id.myIfQuestion_ending);
         // TODO need to set my randomif to one from another player
+        myRandomIf = userViewModel.localRandIf;
         ifQuestion.setText(myRandomIf);
 
         TextView thenAnswer = getActivity().findViewById(R.id.myThenAnswer_ending);
+        myRandomThen = userViewModel.getUser().getValue().thenSentence;
         thenAnswer.setText(myRandomThen);
 
         //giving home button functionality
@@ -64,8 +70,6 @@ public class EndingFrag extends Fragment {
                     .commit();
         });
 
-        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
-        roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
 
     }

@@ -33,7 +33,6 @@ public class WaitingForHostFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
 
-    User me;
 
     public WaitingForHostFrag() {
         super(R.layout.fragment_waiting_for_host);
@@ -46,8 +45,6 @@ public class WaitingForHostFrag extends Fragment {
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
-        //grabbing the list of users
-        ObservableArrayList<User> playerArray = userViewModel.getUsers();
 
         // set up the RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
@@ -83,17 +80,26 @@ public class WaitingForHostFrag extends Fragment {
             }
         });
 
+        // if the current persons device is the host set the host value since the host wont have gone through the join game frag
+        if (userViewModel.getUser().getValue().host) {
+            userViewModel.host = userViewModel.getUser();
+            System.out.println("I am the host and have set the host value: " + userViewModel.host.getValue().userName);
+        }
+
+
         //looping through all the users that have joined
-        for (User user: playerArray) {
+        for (User user: userViewModel.getUsers()) {
+            System.out.println("hit Loop");
             //grabbing each individual on their phone
             if (user.userName.equals(userViewModel.localName)) {
-
+                System.out.println("I am " + user.userName + userViewModel.localName);
                 //if they are the host show the button else hide it
+                System.out.println("i am the host: " + user.host);
                 if (user.host) {
                     //giving button functionalityl
                     view.findViewById(R.id.waitingForHost_start).setOnClickListener(v -> {
                         // host started game and setting the value in firebase to be true
-//                        System.out.println("HOST CLICKED BUTTON ------------------");
+                        System.out.println("HOST CLICKED BUTTON ------------------");
                         userViewModel.getUser().getValue().hostStarted = true;
                         userViewModel.hostStarted(user);
                         getActivity().getSupportFragmentManager().beginTransaction()
@@ -125,19 +131,21 @@ public class WaitingForHostFrag extends Fragment {
 
                             @Override
                             public void onChanged(User user) {
-                                System.out.println("MY USERNAME: " + user.userName);
-                                System.out.println("Host started: " + user.hostStarted);
+//                                System.out.println("MY USERNAME: " + user.userName);
+//                                System.out.println("Host started: " + user.hostStarted);
                                 //if host has clicked the button move to next screen
                                 userViewModel.hostStarted(userViewModel.getUser().getValue());
-                                // may not need user.ifFinished
+
                                 if (user.hostStarted && !user.ifFinished) {
                                     System.out.println("-------------" + user.hostStarted + user.ifFinished);
+                                    System.out.println("-------------- SwiTCHED TO WRITE IF FRAG");
                                     getActivity().getSupportFragmentManager().beginTransaction()
                                             .replace(R.id.fragment_container, WriteIfFrag.class, null)
                                             .setReorderingAllowed(true)
                                             .addToBackStack(null)
                                             .commit();
                                     System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostStarted);
+//                                    userViewModel.getUser().removeObservers(getViewLifecycleOwner());
                                 }
                             }
                     });

@@ -84,6 +84,7 @@ public class CollectingQuestionsFrag extends Fragment {
                 }
                 // if then isnt finished fixes for when moving to collecting answers frag
                 if (allIfsFinished && !userViewModel.getUser().getValue().thenFinished) {
+                    System.out.println("Switched to write then frag");
                     getActivity().getSupportFragmentManager().beginTransaction()
                             .replace(R.id.fragment_container, WriteThenFrag.class, null)
                             .setReorderingAllowed(true)

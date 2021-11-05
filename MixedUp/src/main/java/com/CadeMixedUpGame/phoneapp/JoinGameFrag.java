@@ -57,11 +57,9 @@ public class JoinGameFrag extends Fragment {
             //if the room they want to join exists out there it will add them to the room and push their
             // data to firebase, else it will let the user know it doesnt exist
             if (allrooms.contains(myRoom)) {
-                // USE VIEWMODEL HERE
-                // check whats going on?
-//                MutableLiveData<User> newUser = new MutableLiveData<User>(new User(userViewModel.localName));
+
                 for (String room:allrooms) {
-                    System.out.println(room);
+//                    System.out.println(room);
                 }
                 //storing the room to join locally and loading in the users and pushing the user to the database
 //                System.out.println("userName--joinGame ---" + userViewModel.localName);

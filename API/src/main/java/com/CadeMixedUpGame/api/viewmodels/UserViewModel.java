@@ -34,7 +34,7 @@ public class UserViewModel extends ViewModel {
     public MutableLiveData<Toast> signInToast = new MutableLiveData<>();
     ObservableArrayList<User> users;
     public MutableLiveData<User> host = new MutableLiveData<User>();
-//    ArrayList<String> usersInRoom = new ArrayList<>();
+    public String localRandIf = "";
     public String localName;
     DatabaseReference db;
     public String myRoom;
@@ -171,6 +171,9 @@ public class UserViewModel extends ViewModel {
 //                    System.out.println("Not Null user FROM-DB? ------------ " + user.userName);
 //                    System.out.println("DB-NEW PLAYER ADDED---------- " + user.userName);
                     users.add(user);
+                }
+                for(User user: users) {
+//                    System.out.println(user.userName);
                 }
             }
 

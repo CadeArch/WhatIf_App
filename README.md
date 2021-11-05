@@ -19,12 +19,13 @@ help with recycler view - https://stackoverflow.com/questions/40584424/simple-an
                         - https://www.journaldev.com/13792/android-gridlayoutmanager-example
 
 ## todo
-send players if statements to db
-set up observer on database to see changes and to add new user to list of users
-set up onlistchanged callback in collecting ifs fragment to show who has submitted there answer
-set up to move to write then fragment once everyones ifs are in
-in setting up write then frag make sure players dont get their own if sentance.
-set up to move to readSentance frag once everyones thens are in.
+send players if statements to db - DONE
+set up observer on database to see changes and to add new user to list of users - DONE
+set up onlistchanged callback in collecting ifs fragment to show who has submitted there answer - DONE
+set up to move to write then fragment once everyones ifs are in - DONE
+in setting up write then frag make sure players dont get their own if sentance. - DONE
+set up onlistchanged callback in collecting thens fragment to show who has submitted there answer - DONE
+set up to move to readSentance frag once everyones thens are in. - DONE
 
 after they hit next from readsentance have them vote on best sentance. then they can return to first frag or play again
 
@@ -33,4 +34,5 @@ create unlockables class that will be part of user players stored in FB
 
 
 ## questions
-
+- issue if host trys to hit start too quick upon loading of the waiting for host frag ** SOMETIMES??
+- issue if someone is entering text and someone submits there if or then it replaces frag again

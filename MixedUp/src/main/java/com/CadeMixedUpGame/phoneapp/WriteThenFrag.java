@@ -43,16 +43,25 @@ public class WriteThenFrag extends Fragment {
             System.out.println("ORDER IN WRITE THEN FRAG ------------- " + user.userName);
         }
 
-        // this works for two people but not for more...
+        // making sure all if sentances are used but players dont get their own
+        int idx = 0;
         for (User user: userViewModel.getUsers()) {
             if(user.ifSentence.equals(userViewModel.getUser().getValue().ifSentence)) {
-                System.out.println("passed: dont give user there own");
-            }
-            else {
-                myRandomIf = user.ifSentence;
+                System.out.println(user.userName + ": got my own index: " + idx);
                 break;
             }
+            idx += 1;
         }
+
+        if (idx + 1 == userViewModel.getUsers().size()) {
+            myRandomIf = userViewModel.getUsers().get(0).ifSentence;
+            userViewModel.localRandIf = myRandomIf;
+        }
+        else {
+            myRandomIf = userViewModel.getUsers().get(idx + 1).ifSentence;
+            userViewModel.localRandIf = myRandomIf;
+        }
+
 
         TextView ifQuestion = view.findViewById(R.id.myIfQuestion);
         EditText thenSentence = view.findViewById(R.id.thenAnswer);
