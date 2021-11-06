@@ -41,12 +41,34 @@ public class EndingFrag extends Fragment {
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
         TextView ifQuestion = getActivity().findViewById(R.id.myIfQuestion_ending);
-        // TODO need to set my randomif to one from another player
+
         myRandomIf = userViewModel.localRandIf;
         ifQuestion.setText(myRandomIf);
 
+        userViewModel.getUsers().sort(null);
+
+        // making sure all then sentances are used but players dont get their own
+        // players finding their index in the array.
+        int idx = 0;
+        for (User user: userViewModel.getUsers()) {
+            if(user.thenSentence.equals(userViewModel.getUser().getValue().thenSentence)) {
+                System.out.println(user.userName + ": got my own index: " + idx);
+                break;
+            }
+            idx += 1;
+        }
+
+        // players will get the next persons if in the array, if they are the last person in the array
+        // they will get the first persons if in the array
+        // this works because the arrays are in the same order across devices. and array order differs based upon when the users submit there answer
+        if (idx + 1 == userViewModel.getUsers().size()) {
+            myRandomThen = userViewModel.getUsers().get(0).thenSentence;
+        }
+        else {
+            myRandomThen = userViewModel.getUsers().get(idx + 1).thenSentence;
+        }
+
         TextView thenAnswer = getActivity().findViewById(R.id.myThenAnswer_ending);
-        myRandomThen = userViewModel.getUser().getValue().thenSentence;
         thenAnswer.setText(myRandomThen);
 
         //giving home button functionality

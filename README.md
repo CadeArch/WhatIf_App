@@ -26,6 +26,8 @@ set up to move to write then fragment once everyones ifs are in - DONE
 in setting up write then frag make sure players dont get their own if sentance. - DONE
 set up onlistchanged callback in collecting thens fragment to show who has submitted there answer - DONE
 set up to move to readSentance frag once everyones thens are in. - DONE
+mix up everyones Then sentence so they dont have their own then - DONE
+FIXED ISSUE RANDOMIZING PEOPLES IFS AND THENS - if i have to keep the fix when restarting game must change playerID
 
 after they hit next from readsentance have them vote on best sentance. then they can return to first frag or play again
 
@@ -36,3 +38,6 @@ create unlockables class that will be part of user players stored in FB
 ## questions
 - issue if host trys to hit start too quick upon loading of the waiting for host frag ** SOMETIMES??
 - issue if someone is entering text and someone submits there if or then it replaces frag again
+- any way to lock down the back button on the phone
+- FUNCTIONALITY: mix up then sentances?
+- FUNCTIONALITY: if host doesnt hit again terminate for all users?

@@ -48,6 +48,8 @@ public class WriteIfFrag extends Fragment {
             }
 
 
+
+
             userViewModel.getUser().getValue().ifSentence = ifSentence.getText().toString();
             userViewModel.getUser().getValue().ifFinished = true;
 

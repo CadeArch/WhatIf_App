@@ -4,7 +4,7 @@ import androidx.annotation.Nullable;
 
 import com.google.firebase.auth.FirebaseUser;
 
-public class User {
+public class User implements Comparable<User>{
     public int userID;
     public String uid;
     public String email;
@@ -49,6 +49,8 @@ public class User {
     }
 
     public User() {}
+
+
 
     public Boolean getAccountPlay() {
         return accountPlay;
@@ -152,6 +154,11 @@ public class User {
             return user.userID == userID;
         }
         return false;
+    }
+
+    @Override
+    public int compareTo(User user) {
+        return this.userName.compareTo(String.valueOf(user.getUserID()));
     }
 
 }

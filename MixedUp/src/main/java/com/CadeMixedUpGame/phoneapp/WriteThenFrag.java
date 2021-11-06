@@ -20,6 +20,8 @@ import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 
 
 public class WriteThenFrag extends Fragment {
@@ -38,12 +40,16 @@ public class WriteThenFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
+        userViewModel.getUsers().sort(null);
+        Collections.reverse(userViewModel.getUsers());
+
         for (User user: userViewModel.getUsers()
         ) {
             System.out.println("ORDER IN WRITE THEN FRAG ------------- " + user.userName);
         }
 
         // making sure all if sentances are used but players dont get their own
+        // players finding their index in the array.
         int idx = 0;
         for (User user: userViewModel.getUsers()) {
             if(user.ifSentence.equals(userViewModel.getUser().getValue().ifSentence)) {
@@ -53,6 +59,9 @@ public class WriteThenFrag extends Fragment {
             idx += 1;
         }
 
+        // players will get the next persons if in the array, if they are the last person in the array
+        // they will get the first persons if in the array
+        // this works because the arrays are in the same order across devices. and array order differs based upon when the users submit there answer
         if (idx + 1 == userViewModel.getUsers().size()) {
             myRandomIf = userViewModel.getUsers().get(0).ifSentence;
             userViewModel.localRandIf = myRandomIf;
