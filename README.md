@@ -18,6 +18,8 @@ Off. Doc. Firebase account error help - https://firebase.google.com/docs/referen
 help with recycler view - https://stackoverflow.com/questions/40584424/simple-android-recyclerview-example
                         - https://www.journaldev.com/13792/android-gridlayoutmanager-example
 
+making own class comparable to sort in array - https://stackoverflow.com/questions/13051568/making-your-own-class-comparable
+
 ## todo
 send players if statements to db - DONE
 set up observer on database to see changes and to add new user to list of users - DONE
@@ -27,17 +29,16 @@ in setting up write then frag make sure players dont get their own if sentance. 
 set up onlistchanged callback in collecting thens fragment to show who has submitted there answer - DONE
 set up to move to readSentance frag once everyones thens are in. - DONE
 mix up everyones Then sentence so they dont have their own then - DONE
-FIXED ISSUE RANDOMIZING PEOPLES IFS AND THENS - if i have to keep the fix when restarting game must change playerID
+TEMP FIX - fixed issue randomizing ifs and thens - change write then frag once view loading is fixed
 
-after they hit next from readsentance have them vote on best sentance. then they can return to first frag or play again
+  after they hit next from read sentance have them vote on best sentance. then they can return to first frag or play again
 
-create leaderboards fragment and buttons to link to current frags
-create unlockables class that will be part of user players stored in FB 
+  create leaderboards fragment and buttons to link to current frags
+  create unlockables class that will be part of user players stored in FB 
 
 
 ## questions
 - issue if host trys to hit start too quick upon loading of the waiting for host frag ** SOMETIMES??
 - issue if someone is entering text and someone submits there if or then it replaces frag again
 - any way to lock down the back button on the phone
-- FUNCTIONALITY: mix up then sentances?
 - FUNCTIONALITY: if host doesnt hit again terminate for all users?
