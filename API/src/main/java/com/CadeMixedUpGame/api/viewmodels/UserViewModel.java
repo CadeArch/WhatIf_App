@@ -35,6 +35,9 @@ public class UserViewModel extends ViewModel {
     ObservableArrayList<User> users;
     public MutableLiveData<User> host = new MutableLiveData<User>();
     public String localRandIf = "";
+    public Boolean onWriteThen = false;
+    public Boolean onWriteIf = false;
+    public Boolean onWaitingForHost = false;
     public String localName;
     DatabaseReference db;
     public String myRoom;

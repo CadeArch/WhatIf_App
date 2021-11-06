@@ -29,6 +29,7 @@ public class CollectingQuestionsFrag extends Fragment {
     Boolean allIfsFinished = false;
     ObservableArrayList<User> whoSubmitted = new ObservableArrayList<>();
 
+
     public CollectingQuestionsFrag() {
         super(R.layout.fragment_collecting_questions);
     }
@@ -83,13 +84,14 @@ public class CollectingQuestionsFrag extends Fragment {
                     allIfsFinished = true;
                 }
                 // if then isnt finished fixes for when moving to collecting answers frag
-                if (allIfsFinished && !userViewModel.getUser().getValue().thenFinished) {
+                if (allIfsFinished && !userViewModel.getUser().getValue().thenFinished && !userViewModel.onWriteThen) {
                     System.out.println("Switched to write then frag");
                     getActivity().getSupportFragmentManager().beginTransaction()
                             .replace(R.id.fragment_container, WriteThenFrag.class, null)
                             .setReorderingAllowed(true)
                             .addToBackStack(null)
                             .commit();
+                    userViewModel.onWriteThen = true;
                 }
             }
 

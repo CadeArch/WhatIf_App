@@ -86,10 +86,10 @@ public class WaitingForHostFrag extends Fragment {
             System.out.println("I am the host and have set the host value: " + userViewModel.host.getValue().userName);
         }
 
-
+        // TODO sometimes host stalls here and doesnt go farther in frag and button wont work
         //looping through all the users that have joined
         for (User user: userViewModel.getUsers()) {
-            System.out.println("hit Loop");
+            System.out.println("hit Loop in waiting for host frag");
             //grabbing each individual on their phone
             if (user.userName.equals(userViewModel.localName)) {
                 System.out.println("I am " + user.userName + userViewModel.localName);
@@ -136,7 +136,7 @@ public class WaitingForHostFrag extends Fragment {
                                 //if host has clicked the button move to next screen
                                 userViewModel.hostStarted(userViewModel.getUser().getValue());
 
-                                if (user.hostStarted && !user.ifFinished) {
+                                if (user.hostStarted && !user.ifFinished && !userViewModel.onWriteIf) {
                                     System.out.println("-------------" + user.hostStarted + user.ifFinished);
                                     System.out.println("-------------- SwiTCHED TO WRITE IF FRAG");
                                     getActivity().getSupportFragmentManager().beginTransaction()
@@ -145,7 +145,7 @@ public class WaitingForHostFrag extends Fragment {
                                             .addToBackStack(null)
                                             .commit();
                                     System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostStarted);
-//                                    userViewModel.getUser().removeObservers(getViewLifecycleOwner());
+                                    userViewModel.onWriteIf = true;
                                 }
                             }
                     });

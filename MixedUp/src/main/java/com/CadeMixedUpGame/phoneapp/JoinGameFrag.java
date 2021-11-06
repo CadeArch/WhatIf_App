@@ -69,6 +69,7 @@ public class JoinGameFrag extends Fragment {
                 //storing users gameroom locally
                 userViewModel.getUser().getValue().gameRoom = myRoom;
 
+                System.out.println("start  button pushed in join game frag");
                 userViewModel.pushPerson(userViewModel.getUser());
 
                 //moving to the waiting for host fragment when firebase recieves new user and puts it into observable arraylist
@@ -90,20 +91,26 @@ public class JoinGameFrag extends Fragment {
 //                        for (User person:userViewModel.getUsers()) {
 //                            System.out.println("PERSON------" + person.userName);
 //                        }
+                        // TODO this gets run A BUNCH
                         // could figure out how to use the contains array function?
                         for (User player:userViewModel.getUsers()) {
                             // if the local name matches the players name move to waiting for host.
                             // and if host started = false fixes issue when moving to collecting ifs frag
-                            if (userViewModel.localName.equals(player.userName) && !player.hostStarted) {
+                            System.out.println(userViewModel.localName.equals(player.userName) + " " + !player.hostStarted +" "+ !userViewModel.onWaitingForHost);
+                            if (userViewModel.localName.equals(player.userName) && !player.hostStarted && !userViewModel.onWaitingForHost) {
+//                                System.out.println("switching to waiting for host frag");
                                 getActivity().getSupportFragmentManager().beginTransaction()
                                         .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
                                         .setReorderingAllowed(true)
                                         .addToBackStack(null)
                                         .commit();
+//                                System.out.println("on waiting for host switched to TRUE");
+                                userViewModel.onWaitingForHost = true;
                             }
                             if (player.host) {
 //                                System.out.println(player.userName + ": THIS GUY IS HOST");
                                 userViewModel.host.setValue(player);
+//                                userViewModel.onWaitingForHost = true;
                             }
                         }
 
