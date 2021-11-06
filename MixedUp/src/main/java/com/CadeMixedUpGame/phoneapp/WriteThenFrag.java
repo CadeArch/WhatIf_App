@@ -27,7 +27,7 @@ import java.util.Comparator;
 public class WriteThenFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
-    String myRandomIf;
+    String myRandomIf = "";
 
     public WriteThenFrag() {
         super(R.layout.fragment_write_then);
@@ -40,8 +40,8 @@ public class WriteThenFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
-        userViewModel.getUsers().sort(null);
-        Collections.reverse(userViewModel.getUsers());
+//        userViewModel.getUsers().sort(null);
+//        Collections.reverse(userViewModel.getUsers());
 
         for (User user: userViewModel.getUsers()
         ) {
@@ -59,23 +59,35 @@ public class WriteThenFrag extends Fragment {
             idx += 1;
         }
 
+        TextView ifQuestion = view.findViewById(R.id.myIfQuestion);
+        EditText thenSentence = view.findViewById(R.id.thenAnswer);
+
         // players will get the next persons if in the array, if they are the last person in the array
         // they will get the first persons if in the array
         // this works because the arrays are in the same order across devices. and array order differs based upon when the users submit there answer
-        if (idx + 1 == userViewModel.getUsers().size()) {
+        // TODO ALL of the below is so it works while it is reloading the view multiple times. FIX ONCE VIEW LOADING IS FIXED
+        if (idx + 1 == userViewModel.getUsers().size() && userViewModel.localRandIf.equals("")) {
             myRandomIf = userViewModel.getUsers().get(0).ifSentence;
             userViewModel.localRandIf = myRandomIf;
+            ifQuestion.setText(myRandomIf);
+
+            System.out.println("hit if ----------------"+ userViewModel.localRandIf);
         }
-        else {
+        else if (idx + 1 < userViewModel.getUsers().size() && userViewModel.localRandIf.equals("")){
             myRandomIf = userViewModel.getUsers().get(idx + 1).ifSentence;
             userViewModel.localRandIf = myRandomIf;
+            ifQuestion.setText(myRandomIf);
+
+            System.out.println("hit else ----------------"+ userViewModel.localRandIf);
+        }
+
+        if(!userViewModel.localRandIf.equals("")) {
+            ifQuestion.setText(userViewModel.localRandIf);
         }
 
 
-        TextView ifQuestion = view.findViewById(R.id.myIfQuestion);
-        EditText thenSentence = view.findViewById(R.id.thenAnswer);
-        // TODO need to set my randomif to one from another player
-        ifQuestion.setText(myRandomIf);
+
+
 
         //giving submit button functionality
         view.findViewById(R.id.writeThen_submit).setOnClickListener(v -> {

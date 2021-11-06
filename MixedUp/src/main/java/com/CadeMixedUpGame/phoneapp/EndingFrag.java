@@ -45,7 +45,7 @@ public class EndingFrag extends Fragment {
         myRandomIf = userViewModel.localRandIf;
         ifQuestion.setText(myRandomIf);
 
-        userViewModel.getUsers().sort(null);
+//        userViewModel.getUsers().sort(null);
 
         // making sure all then sentances are used but players dont get their own
         // players finding their index in the array.
