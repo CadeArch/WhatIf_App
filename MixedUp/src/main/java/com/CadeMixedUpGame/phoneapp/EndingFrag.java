@@ -45,8 +45,6 @@ public class EndingFrag extends Fragment {
         myRandomIf = userViewModel.localRandIf;
         ifQuestion.setText(myRandomIf);
 
-//        userViewModel.getUsers().sort(null);
-
         // making sure all then sentances are used but players dont get their own
         // players finding their index in the array.
         int idx = 0;
@@ -59,8 +57,8 @@ public class EndingFrag extends Fragment {
         }
 
         // players will get the next persons if in the array, if they are the last person in the array
-        // they will get the first persons if in the array
-        // this works because the arrays are in the same order across devices. and array order differs based upon when the users submit there answer
+        // they will get the first persons if in the array. this works because the arrays are in the same order across devices.
+        // and array order differs based upon when the users submit there answer
         if (idx + 1 == userViewModel.getUsers().size()) {
             myRandomThen = userViewModel.getUsers().get(0).thenSentence;
         }
@@ -91,8 +89,6 @@ public class EndingFrag extends Fragment {
                     .addToBackStack(null)
                     .commit();
         });
-
-
 
     }
 }

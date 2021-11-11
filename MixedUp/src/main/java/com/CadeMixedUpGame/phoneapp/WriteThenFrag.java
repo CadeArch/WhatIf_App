@@ -40,13 +40,9 @@ public class WriteThenFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
-//        userViewModel.getUsers().sort(null);
-//        Collections.reverse(userViewModel.getUsers());
-
-        for (User user: userViewModel.getUsers()
-        ) {
-            System.out.println("ORDER IN WRITE THEN FRAG ------------- " + user.userName);
-        }
+//        for (User user: userViewModel.getUsers()) {
+//            System.out.println("ORDER IN WRITE THEN FRAG ------------- " + user.userName);
+//        }
 
         // making sure all if sentances are used but players dont get their own
         // players finding their index in the array.
@@ -65,26 +61,6 @@ public class WriteThenFrag extends Fragment {
         // players will get the next persons if in the array, if they are the last person in the array
         // they will get the first persons if in the array
         // this works because the arrays are in the same order across devices. and array order differs based upon when the users submit there answer
-
-        // TODO below not needed because i fixed the fragment reloading issue
-//        if (idx + 1 == userViewModel.getUsers().size() && userViewModel.localRandIf.equals("")) {
-//            myRandomIf = userViewModel.getUsers().get(0).ifSentence;
-//            userViewModel.localRandIf = myRandomIf;
-//            ifQuestion.setText(myRandomIf);
-//
-//            System.out.println("hit if ----------------"+ userViewModel.localRandIf);
-//        }
-//        else if (idx + 1 < userViewModel.getUsers().size() && userViewModel.localRandIf.equals("")){
-//            myRandomIf = userViewModel.getUsers().get(idx + 1).ifSentence;
-//            userViewModel.localRandIf = myRandomIf;
-//            ifQuestion.setText(myRandomIf);
-//
-//            System.out.println("hit else ----------------"+ userViewModel.localRandIf);
-//        }
-//
-//        if(!userViewModel.localRandIf.equals("")) {
-//            ifQuestion.setText(userViewModel.localRandIf);
-//        }
 
         if (idx + 1 == userViewModel.getUsers().size()) {
             myRandomIf = userViewModel.getUsers().get(0).ifSentence;

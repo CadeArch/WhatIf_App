@@ -47,9 +47,6 @@ public class WriteIfFrag extends Fragment {
                 System.out.println("ORDER IN WRITE IF FRAG ------------- " + user.userName);
             }
 
-
-
-
             userViewModel.getUser().getValue().ifSentence = ifSentence.getText().toString();
             userViewModel.getUser().getValue().ifFinished = true;
 
@@ -61,8 +58,6 @@ public class WriteIfFrag extends Fragment {
                     .addToBackStack(null)
                     .commit();
         });
-
-
 
     }
 }
