@@ -108,9 +108,8 @@ public class JoinGameFrag extends Fragment {
                                 userViewModel.onWaitingForHost = true;
                             }
                             if (player.host) {
-//                                System.out.println(player.userName + ": THIS GUY IS HOST");
+                                System.out.println(player.userName + ": THIS GUY IS HOST");
                                 userViewModel.host.setValue(player);
-//                                userViewModel.onWaitingForHost = true;
                             }
                         }
 

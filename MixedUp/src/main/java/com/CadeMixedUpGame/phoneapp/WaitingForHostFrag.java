@@ -87,7 +87,6 @@ public class WaitingForHostFrag extends Fragment {
         }
 
         // TODO sometimes host stalls here and doesnt go farther in frag and button wont work FIXED?
-        // seeing if bringing this out of all the unecessary ifs fixes the stalling issue
         // giving button functionality
         view.findViewById(R.id.waitingForHost_start).setOnClickListener(v -> {
             // host started game and setting the value in firebase to be true
@@ -101,53 +100,37 @@ public class WaitingForHostFrag extends Fragment {
                     .commit();
         });
 
-        //looping through all the users that have joined
-        for (User user: userViewModel.getUsers()) {
-            System.out.println("hit Loop in waiting for host frag");
-            //grabbing each individual on their phone
-            if (user.userName.equals(userViewModel.localName)) {
-                if(!user.host) {
-                    //making button invisible since they arent the host
-                    View button = view.findViewById(R.id.waitingForHost_start);
-                    button.setVisibility(View.GONE);
+        if(!userViewModel.getUser().getValue().host) {
+            // making button invisible since they arent the host
+            View button = view.findViewById(R.id.waitingForHost_start);
+            button.setVisibility(View.GONE);
 
-                    //could take out of mutable live data observer because host will for sure be pushed to database before other players join
-                    if (userViewModel.host.getValue() != null) {
-//                        System.out.println("HOST HAS BEEN SET --------" + userViewModel.host.getValue().userName);
-                        userViewModel.host.observe(getViewLifecycleOwner(), theHost -> {
+            // setting listener on host location in database if hostStarted changes to true
+            // hostStarted will be changed to true on this user
+            userViewModel.listenToHost(userViewModel.host);
 
-//                            System.out.println("HOST JOINED ------------- LISTENING TO HOST");
-                            //setting a listener on the host in firebase
-                            userViewModel.listenToHost(userViewModel.host);
-                        });
+            // when observer notices change on user data move to next frag
+            userViewModel.getUser().observe(this.getViewLifecycleOwner(), new Observer<User>() {
+                @Override
+                public void onChanged(User user) {
+//                    System.out.println("MY USERNAME: " + user.userName);
+//                    System.out.println("Host started: " + user.hostStarted);
+                    //if host has clicked the button move to next screen
+                    userViewModel.hostStarted(userViewModel.getUser().getValue());
+
+                    if (user.hostStarted && !user.ifFinished && !userViewModel.onWriteIf) {
+                        System.out.println("-------------" + user.hostStarted + user.ifFinished);
+                        System.out.println("-------------- SwiTCHED TO WRITE IF FRAG");
+                        getActivity().getSupportFragmentManager().beginTransaction()
+                                .replace(R.id.fragment_container, WriteIfFrag.class, null)
+                                .setReorderingAllowed(true)
+                                .addToBackStack(null)
+                                .commit();
+                        System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostStarted);
+                        userViewModel.onWriteIf = true;
                     }
-
-                    // when observer notices change on user data move to next frag
-                    userViewModel.getUser().observe(this.getViewLifecycleOwner(), new Observer<User>() {
-
-                            @Override
-                            public void onChanged(User user) {
-//                                System.out.println("MY USERNAME: " + user.userName);
-//                                System.out.println("Host started: " + user.hostStarted);
-                                //if host has clicked the button move to next screen
-                                userViewModel.hostStarted(userViewModel.getUser().getValue());
-
-                                if (user.hostStarted && !user.ifFinished && !userViewModel.onWriteIf) {
-                                    System.out.println("-------------" + user.hostStarted + user.ifFinished);
-                                    System.out.println("-------------- SwiTCHED TO WRITE IF FRAG");
-                                    getActivity().getSupportFragmentManager().beginTransaction()
-                                            .replace(R.id.fragment_container, WriteIfFrag.class, null)
-                                            .setReorderingAllowed(true)
-                                            .addToBackStack(null)
-                                            .commit();
-                                    System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostStarted);
-                                    userViewModel.onWriteIf = true;
-                                }
-                            }
-                    });
-
                 }
-            }
+            });
         }
     }
 }
