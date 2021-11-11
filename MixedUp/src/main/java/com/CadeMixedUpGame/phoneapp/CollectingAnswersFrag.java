@@ -6,22 +6,14 @@ import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
 import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentActivity;
-import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.ViewParent;
 
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
-import com.google.android.material.button.MaterialButton;
-
-import java.util.ArrayList;
 
 
 public class CollectingAnswersFrag extends Fragment {
@@ -85,7 +77,7 @@ public class CollectingAnswersFrag extends Fragment {
                 }
                 if (allThensFinished) {
                     getActivity().getSupportFragmentManager().beginTransaction()
-                            .replace(R.id.fragment_container, EndingFrag.class, null)
+                            .replace(R.id.fragment_container, ReadSentenceFrag.class, null)
                             .setReorderingAllowed(true)
                             .addToBackStack(null)
                             .commit();
