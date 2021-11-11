@@ -86,30 +86,27 @@ public class WaitingForHostFrag extends Fragment {
             System.out.println("I am the host and have set the host value: " + userViewModel.host.getValue().userName);
         }
 
-        // TODO sometimes host stalls here and doesnt go farther in frag and button wont work
+        // TODO sometimes host stalls here and doesnt go farther in frag and button wont work FIXED?
+        // seeing if bringing this out of all the unecessary ifs fixes the stalling issue
+        // giving button functionality
+        view.findViewById(R.id.waitingForHost_start).setOnClickListener(v -> {
+            // host started game and setting the value in firebase to be true
+            System.out.println("HOST CLICKED BUTTON ------------------");
+            userViewModel.getUser().getValue().hostStarted = true;
+            userViewModel.hostStarted(userViewModel.host.getValue());
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, WriteIfFrag.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+        });
+
         //looping through all the users that have joined
         for (User user: userViewModel.getUsers()) {
             System.out.println("hit Loop in waiting for host frag");
             //grabbing each individual on their phone
             if (user.userName.equals(userViewModel.localName)) {
-                System.out.println("I am " + user.userName + userViewModel.localName);
-                //if they are the host show the button else hide it
-                System.out.println("i am the host: " + user.host);
-                if (user.host) {
-                    //giving button functionalityl
-                    view.findViewById(R.id.waitingForHost_start).setOnClickListener(v -> {
-                        // host started game and setting the value in firebase to be true
-                        System.out.println("HOST CLICKED BUTTON ------------------");
-                        userViewModel.getUser().getValue().hostStarted = true;
-                        userViewModel.hostStarted(user);
-                        getActivity().getSupportFragmentManager().beginTransaction()
-                                .replace(R.id.fragment_container, WriteIfFrag.class, null)
-                                .setReorderingAllowed(true)
-                                .addToBackStack(null)
-                                .commit();
-                    });
-                }
-                else {
+                if(!user.host) {
                     //making button invisible since they arent the host
                     View button = view.findViewById(R.id.waitingForHost_start);
                     button.setVisibility(View.GONE);
@@ -124,7 +121,6 @@ public class WaitingForHostFrag extends Fragment {
                             userViewModel.listenToHost(userViewModel.host);
                         });
                     }
-
 
                     // when observer notices change on user data move to next frag
                     userViewModel.getUser().observe(this.getViewLifecycleOwner(), new Observer<User>() {
