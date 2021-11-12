@@ -21,6 +21,8 @@ help with recycler view - https://stackoverflow.com/questions/40584424/simple-an
 making own class comparable to sort in array - https://stackoverflow.com/questions/13051568/making-your-own-class-comparable (NOT NEEDED ANYMORE)
 
 making spinner - https://stackoverflow.com/questions/13377361/how-to-create-a-drop-down-list
+               - slightly modified Md. Kamruzzamans answer for my nameing conventions, used his classes and ideas! Thanks!
+
 
 
 ## todo

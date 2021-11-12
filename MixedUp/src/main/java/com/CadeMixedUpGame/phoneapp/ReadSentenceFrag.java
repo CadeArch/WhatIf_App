@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import android.speech.tts.TextToSpeech;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -26,6 +27,8 @@ public class ReadSentenceFrag extends Fragment {
     String myRandomIf;
     String myRandomThen;
     TextToSpeech tts;
+    int code;
+    String selectedItemOnSpinner;
 
     public ReadSentenceFrag() {
         super(R.layout.fragment_read_sentence);
@@ -68,7 +71,7 @@ public class ReadSentenceFrag extends Fragment {
         TextView thenAnswer = getActivity().findViewById(R.id.myThenAnswer_ending);
         thenAnswer.setText(myRandomThen);
 
-        // checking to see if all uers are account players
+        // checking to see if all users are account players
         int numAccountPlayers = 0;
         for (User user: userViewModel.getUsers()) {
             if (user.accountPlay) {
@@ -81,7 +84,7 @@ public class ReadSentenceFrag extends Fragment {
             view.findViewById(R.id.next_frag).setOnClickListener(v -> {
                 getActivity().getSupportFragmentManager().beginTransaction()
                         // TODO CHANGE TO VOTE FRAG
-                        .replace(R.id.fragment_container, EndFrag.class, null)
+                        .replace(R.id.fragment_container, VoteFrag.class, null)
                         .setReorderingAllowed(true)
                         .addToBackStack(null)
                         .commit();
@@ -99,22 +102,6 @@ public class ReadSentenceFrag extends Fragment {
 
         // Todo make spinner and mic button invisible if non account play
 
-        //creating my text to speech object
-        tts = new TextToSpeech(getContext(), new TextToSpeech.OnInitListener() {
-            @Override
-            public void onInit(int status) {
-                tts.setLanguage(Locale.getDefault());
-            }
-        });
-
-        // giving mic button functionality to speak sentence
-        view.findViewById(R.id.readSentence).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                tts.speak(myRandomIf + ", " + myRandomThen, TextToSpeech.QUEUE_FLUSH, null, "readIfThen");
-            }
-        });
-
         // maybe place this as a class member variable
         // array of unlocked google voices
         ArrayList<DiffGoogleVoice> voicesUnlocked = new ArrayList<DiffGoogleVoice>();
@@ -127,7 +114,57 @@ public class ReadSentenceFrag extends Fragment {
         SpinnerAdapter adapter = new SpinnerAdapter(getContext(), R.layout.read_method_item, voicesUnlocked, res);
         spinner.setAdapter(adapter);
 
+        // change code value based upon which item is selected
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String selectedItemText = (String) parent.getItemAtPosition(position);
+                System.out.println(parent.getSelectedItem());
+                selectedItemOnSpinner = selectedItemText;
+                System.out.println(selectedItemText);
+                //Todo depending on whats selected change code value here
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                code = 0;
+            }
+
+        });
+        //creating my text to speech object
+        tts = new TextToSpeech(getContext(), new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                tts.setLanguage(Locale.getDefault());
+            }
+        });
+        // giving mic button functionality to speak sentence
+        view.findViewById(R.id.readSentence).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (code == 0 ) {
+                    tts.speak(myRandomIf + ", " + myRandomThen, TextToSpeech.QUEUE_FLUSH, null, "readIfThen");
+                }
+                else {
+                    String mutatedString = mutateString(myRandomIf + " " + myRandomThen);
+                    tts.speak(mutatedString, TextToSpeech.QUEUE_FLUSH, null, "readIfThen");
+                }
+            }
+        });
+    }
 
 
+    public String mutateString(String ifThen) {
+
+        //depending on code changed above on listener mutate sentence a specific way
+        if (code == 1) {
+            String mutatedIfThen = ifThen.replace("r", "w");
+            return mutatedIfThen;
+        }
+        if (code == 2) {
+            String mutatedIfThen = ifThen;
+            return mutatedIfThen;
+        }
+        return ifThen;
     }
 }
