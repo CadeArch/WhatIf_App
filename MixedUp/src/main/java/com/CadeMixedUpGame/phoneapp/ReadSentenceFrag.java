@@ -27,8 +27,8 @@ public class ReadSentenceFrag extends Fragment {
     String myRandomIf;
     String myRandomThen;
     TextToSpeech tts;
-    int code;
-    String selectedItemOnSpinner;
+    String code = "0";
+    DiffGoogleVoice selectedItemOnSpinner;
 
     public ReadSentenceFrag() {
         super(R.layout.fragment_read_sentence);
@@ -106,9 +106,17 @@ public class ReadSentenceFrag extends Fragment {
         // array of unlocked google voices
         ArrayList<DiffGoogleVoice> voicesUnlocked = new ArrayList<DiffGoogleVoice>();
         voicesUnlocked.add(new DiffGoogleVoice("regular", "0"));
+        voicesUnlocked.add(new DiffGoogleVoice("fuddified google", "1"));
+
         // fill in voices unlocked here pull from database which are unlocked
+//        String[][] unlockedAll = userViewModel.getUnlocked(userViewModel.getUser());
+//        for (String[] unlocked:unlockedAll) {
+//            if (unlocked[2].equals("true")) {
+//                voicesUnlocked.add(new DiffGoogleVoice(unlocked[0], unlocked[1]));
+//            }
+//        }
 
-
+        //finding and filling dropdown menu
         Spinner spinner = view.findViewById(R.id.spinnerObject);
         Resources res = getResources();
         SpinnerAdapter adapter = new SpinnerAdapter(getContext(), R.layout.read_method_item, voicesUnlocked, res);
@@ -118,19 +126,28 @@ public class ReadSentenceFrag extends Fragment {
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String selectedItemText = (String) parent.getItemAtPosition(position);
-                System.out.println(parent.getSelectedItem());
-                selectedItemOnSpinner = selectedItemText;
-                System.out.println(selectedItemText);
+                DiffGoogleVoice selectedItem = (DiffGoogleVoice) parent.getItemAtPosition(position);
+                System.out.println(selectedItem.getVoice() + selectedItem.getVoiceCode());
+                selectedItemOnSpinner = selectedItem;
                 //Todo depending on whats selected change code value here
+                if (selectedItem.getVoice().equals("fuddified google")) {
+                    code = selectedItem.getVoiceCode();
+                    System.out.println(code);
+                }
+                if (selectedItem.getVoice().equals("regular")) {
+                    code = selectedItem.getVoiceCode();
+                    System.out.println(code);
+                }
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
-                code = 0;
+                code = "0";
+                System.out.println(code);
             }
 
         });
+
         //creating my text to speech object
         tts = new TextToSpeech(getContext(), new TextToSpeech.OnInitListener() {
             @Override
@@ -142,11 +159,11 @@ public class ReadSentenceFrag extends Fragment {
         view.findViewById(R.id.readSentence).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (code == 0 ) {
+                if (code.equals("0")) {
                     tts.speak(myRandomIf + ", " + myRandomThen, TextToSpeech.QUEUE_FLUSH, null, "readIfThen");
                 }
                 else {
-                    String mutatedString = mutateString(myRandomIf + " " + myRandomThen);
+                    String mutatedString = mutateString(myRandomIf + ", " + myRandomThen);
                     tts.speak(mutatedString, TextToSpeech.QUEUE_FLUSH, null, "readIfThen");
                 }
             }
@@ -156,12 +173,18 @@ public class ReadSentenceFrag extends Fragment {
 
     public String mutateString(String ifThen) {
 
-        //depending on code changed above on listener mutate sentence a specific way
-        if (code == 1) {
+        //fuddify
+        if (code.equals("1")) {
             String mutatedIfThen = ifThen.replace("r", "w");
             return mutatedIfThen;
         }
-        if (code == 2) {
+        //pig latin
+        if (code.equals("2")) {
+            String mutatedIfThen = ifThen;
+            return mutatedIfThen;
+        }
+        //read it backwords
+        if (code.equals("3")) {
             String mutatedIfThen = ifThen;
             return mutatedIfThen;
         }

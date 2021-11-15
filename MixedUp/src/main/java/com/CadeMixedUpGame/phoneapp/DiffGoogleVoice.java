@@ -16,7 +16,7 @@ public class DiffGoogleVoice {
         this.voiceCode = statusCode;
     }
 
-    public String getStatus() {
+    public String getVoice() {
         return voice;
     }
 
@@ -24,7 +24,7 @@ public class DiffGoogleVoice {
         this.voice = voice;
     }
 
-    public String getStatusCode() {
+    public String getVoiceCode() {
         return voiceCode;
     }
 

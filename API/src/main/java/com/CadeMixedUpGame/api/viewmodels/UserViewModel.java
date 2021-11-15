@@ -318,5 +318,13 @@ public class UserViewModel extends ViewModel {
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("thenFinished").setValue(user.getValue().thenFinished);
     }
 
+    public String[][] getUnlocked(MutableLiveData<User> user) {
+        String[][] toReturn = new String[6][3];
+        Task unlocked = db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").get();
+        System.out.println((Object) unlocked.getResult());
+
+        return toReturn;
+    }
+
 }
 

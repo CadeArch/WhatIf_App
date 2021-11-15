@@ -23,6 +23,12 @@ public class MainActivity extends AppCompatActivity {
                     .commit();
         }
 
+    }
+
+    @Override
+    public void onBackPressed() {
+        // by not calling the below i am disabling the phones back button for all fragments
+//        super.onBackPressed();
 
     }
 }

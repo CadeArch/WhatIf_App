@@ -44,7 +44,7 @@ public class SpinnerAdapter extends ArrayAdapter<DiffGoogleVoice> {
         if (position == 0) {
             label.setText("Regular google voice");
         } else {
-            label.setText(currRowVal.getStatus());
+            label.setText(currRowVal.getVoice());
         }
 
         return row;

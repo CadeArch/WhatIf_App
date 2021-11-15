@@ -22,6 +22,7 @@ making own class comparable to sort in array - https://stackoverflow.com/questio
 
 making spinner - https://stackoverflow.com/questions/13377361/how-to-create-a-drop-down-list
                - slightly modified Md. Kamruzzamans answer for my nameing conventions, used his classes and ideas! Thanks!
+help with spinner - https://android--examples.blogspot.com/2016/10/android-spinner-on-item-selected.html
 
 
 
