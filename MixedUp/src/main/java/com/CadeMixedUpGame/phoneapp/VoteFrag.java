@@ -13,7 +13,7 @@ public class VoteFrag extends Fragment {
     RoomViewModel roomViewModel;
 
     public VoteFrag() {
-        super(R.layout.fragment_end);
+        super(R.layout.fragment_vote);
     }
 
     @Override
