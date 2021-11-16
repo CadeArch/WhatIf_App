@@ -4,6 +4,7 @@ import android.content.res.Resources;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -13,6 +14,7 @@ import android.widget.AdapterView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
+import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
@@ -106,15 +108,39 @@ public class ReadSentenceFrag extends Fragment {
         // array of unlocked google voices
         ArrayList<DiffGoogleVoice> voicesUnlocked = new ArrayList<DiffGoogleVoice>();
         voicesUnlocked.add(new DiffGoogleVoice("regular", "0"));
-        voicesUnlocked.add(new DiffGoogleVoice("fuddified google", "1"));
+//        voicesUnlocked.add(new DiffGoogleVoice("fuddified google", "1"));
 
         // fill in voices unlocked here pull from database which are unlocked
-//        String[][] unlockedAll = userViewModel.getUnlocked(userViewModel.getUser());
-//        for (String[] unlocked:unlockedAll) {
-//            if (unlocked[2].equals("true")) {
-//                voicesUnlocked.add(new DiffGoogleVoice(unlocked[0], unlocked[1]));
-//            }
-//        }
+        userViewModel.userUnlocked.addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<Unlockable>>() {
+            @Override
+            public void onChanged(ObservableList<Unlockable> sender) {
+
+            }
+
+            @Override
+            public void onItemRangeChanged(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
+
+            }
+
+            @Override
+            public void onItemRangeInserted(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
+                if (sender.get(positionStart).isUnlocked()) {
+                    voicesUnlocked.add(new DiffGoogleVoice(sender.get(positionStart).getVoiceType(), sender.get(positionStart).getVoiceCode()));
+                }
+            }
+
+            @Override
+            public void onItemRangeMoved(ObservableList<Unlockable> sender, int fromPosition, int toPosition, int itemCount) {
+
+            }
+
+            @Override
+            public void onItemRangeRemoved(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
+
+            }
+        });
+        userViewModel.getUnlocked(userViewModel.getUser());
+
 
         //finding and filling dropdown menu
         Spinner spinner = view.findViewById(R.id.spinnerObject);
@@ -130,7 +156,27 @@ public class ReadSentenceFrag extends Fragment {
                 System.out.println(selectedItem.getVoice() + selectedItem.getVoiceCode());
                 selectedItemOnSpinner = selectedItem;
                 //Todo depending on whats selected change code value here
-                if (selectedItem.getVoice().equals("fuddified google")) {
+                if (selectedItem.getVoice().equals("fuddify")) {
+                    code = selectedItem.getVoiceCode();
+                    System.out.println(code);
+                }
+                if (selectedItem.getVoice().equals("pig latin")) {
+                    code = selectedItem.getVoiceCode();
+                    System.out.println(code);
+                }
+                if (selectedItem.getVoice().equals("jokester")) {
+                    code = selectedItem.getVoiceCode();
+                    System.out.println(code);
+                }
+                if (selectedItem.getVoice().equals("disobedient")) {
+                    code = selectedItem.getVoiceCode();
+                    System.out.println(code);
+                }
+                if (selectedItem.getVoice().equals("forgetful")) {
+                    code = selectedItem.getVoiceCode();
+                    System.out.println(code);
+                }
+                if (selectedItem.getVoice().equals("shaggy")) {
                     code = selectedItem.getVoiceCode();
                     System.out.println(code);
                 }
@@ -159,6 +205,7 @@ public class ReadSentenceFrag extends Fragment {
         view.findViewById(R.id.readSentence).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                System.out.println("mic button hit");
                 if (code.equals("0")) {
                     tts.speak(myRandomIf + ", " + myRandomThen, TextToSpeech.QUEUE_FLUSH, null, "readIfThen");
                 }
@@ -171,6 +218,7 @@ public class ReadSentenceFrag extends Fragment {
     }
 
 
+    // Todo: write codes 2 - 7 and figure out ways to unlock them
     public String mutateString(String ifThen) {
 
         //fuddify
@@ -185,6 +233,26 @@ public class ReadSentenceFrag extends Fragment {
         }
         //read it backwords
         if (code.equals("3")) {
+            String mutatedIfThen = ifThen;
+            return mutatedIfThen;
+        }
+        // jokester
+        if (code.equals("4")) {
+            String mutatedIfThen = ifThen;
+            return mutatedIfThen;
+        }
+        // forgetful
+        if (code.equals("5")) {
+            String mutatedIfThen = ifThen;
+            return mutatedIfThen;
+        }
+        // shaggy
+        if (code.equals("6")) {
+            String mutatedIfThen = ifThen;
+            return mutatedIfThen;
+        }
+        // disobedient
+        if (code.equals("7")) {
             String mutatedIfThen = ifThen;
             return mutatedIfThen;
         }

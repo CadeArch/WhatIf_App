@@ -5,10 +5,12 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.databinding.ObservableArrayList;
+import androidx.databinding.ObservableList;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.CadeMixedUpGame.api.models.Room;
+import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
 
 import com.google.android.gms.common.internal.ConnectionErrorMessages;
@@ -43,6 +45,7 @@ public class UserViewModel extends ViewModel {
     public String myRoom;
     FirebaseAuth auth;
     MutableLiveData<User> user = new MutableLiveData<User>();
+    public ObservableArrayList<Unlockable> userUnlocked = new ObservableArrayList<Unlockable>();
 
     public UserViewModel() {
         db = FirebaseDatabase.getInstance().getReference();
@@ -92,6 +95,7 @@ public class UserViewModel extends ViewModel {
                             // assuring their username is set when they create an account
                             getUser().getValue().userName = fBuser.getDisplayName();
                             pushAccountPlayer(user);
+                            fillUnlockables(user);
                         }
                     });
                 }
@@ -318,12 +322,41 @@ public class UserViewModel extends ViewModel {
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("thenFinished").setValue(user.getValue().thenFinished);
     }
 
-    public String[][] getUnlocked(MutableLiveData<User> user) {
-        String[][] toReturn = new String[6][3];
-        Task unlocked = db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").get();
-        System.out.println((Object) unlocked.getResult());
+    public void fillUnlockables(MutableLiveData<User> user) {
+        Unlockable v1 = new Unlockable("fuddify", "1", false);
+        Unlockable v2 = new Unlockable("pig latin", "2", false);
+        Unlockable v3 = new Unlockable("backwords", "3", false);
+        Unlockable v4 = new Unlockable("jokester", "4", false);
+        Unlockable v5 = new Unlockable("forgetful", "5", false);
+        Unlockable v6 = new Unlockable("shaggy", "6", false);
+        Unlockable v7 = new Unlockable("disobedient", "7", false);
 
-        return toReturn;
+        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v1.getVoiceType()).setValue(v1);
+        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v2.getVoiceType()).setValue(v2);
+        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v3.getVoiceType()).setValue(v3);
+        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v4.getVoiceType()).setValue(v4);
+        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v5.getVoiceType()).setValue(v5);
+        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v6.getVoiceType()).setValue(v6);
+        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v7.getVoiceType()).setValue(v7);
+
+    }
+
+
+    public void getUnlocked(MutableLiveData<User> user) {
+        Task<DataSnapshot> unlocked = db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").get();
+        unlocked.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DataSnapshot> task) {
+                DataSnapshot snapshot = unlocked.getResult();
+                System.out.println(snapshot);
+                for (DataSnapshot ds:snapshot.getChildren()) {
+                    System.out.println(ds);
+                    userUnlocked.add(ds.getValue(Unlockable.class));
+                }
+            }
+        });
+//        return userUnlocked;
+
     }
 
 }
