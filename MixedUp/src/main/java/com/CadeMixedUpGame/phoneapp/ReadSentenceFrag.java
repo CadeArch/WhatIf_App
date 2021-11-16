@@ -20,6 +20,7 @@ import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Locale;
 
 
@@ -184,6 +185,11 @@ public class ReadSentenceFrag extends Fragment {
                     code = selectedItem.getVoiceCode();
                     System.out.println(code);
                 }
+                if (selectedItem.getVoice().equals("backwords")) {
+                    code = selectedItem.getVoiceCode();
+                    System.out.println(code);
+                }
+
             }
 
             @Override
@@ -218,7 +224,7 @@ public class ReadSentenceFrag extends Fragment {
     }
 
 
-    // Todo: write codes 2 - 7 and figure out ways to unlock them
+    // Todo: write codes 4 - 7 and figure out ways to unlock them
     public String mutateString(String ifThen) {
 
         //fuddify
@@ -228,13 +234,77 @@ public class ReadSentenceFrag extends Fragment {
         }
         //pig latin
         if (code.equals("2")) {
-            String mutatedIfThen = ifThen;
-            return mutatedIfThen;
+            String[] toMutate = ifThen.split(",");
+
+            ArrayList<String> totalLatinfied = new ArrayList<>();
+            for (String part: toMutate) {
+                String[] listWords = part.split(" ");
+                ArrayList<String> partLatinfied = new ArrayList<>();
+                for (String word: listWords) {
+                    if (word.length() == 0) {
+                        continue;
+                    }
+                    else if (word.substring(0, 1).equalsIgnoreCase("a") || word.substring(0, 1).equalsIgnoreCase("e") || word.substring(0, 1).equalsIgnoreCase("i") || word.substring(0, 1).equalsIgnoreCase("o") || word.substring(0, 1).equalsIgnoreCase("u")) {
+                        partLatinfied.add(word + "way");
+                    }
+                    else if (word.length() == 1) {
+                        partLatinfied.add(word + "ay");
+                    }
+                    else if (word.length() >= 2 && word.substring(1, 2).equalsIgnoreCase("a") || word.substring(1, 2).equalsIgnoreCase("e") || word.substring(1, 2).equalsIgnoreCase("i") || word.substring(1, 2).equalsIgnoreCase("o") || word.substring(1, 2).equalsIgnoreCase("u")) {
+//                        System.out.println(word);
+                        char firstLetter = word.charAt(0);
+                        String firstLetterRemoved = word.substring(1);
+//                        System.out.println(firstLetterRemoved);
+                        String pigLatinFied = firstLetterRemoved + firstLetter + "ay";
+                        partLatinfied.add(pigLatinFied);
+                    }
+                    else if (word.length() >= 2 && !word.substring(1, 2).equalsIgnoreCase("a") || !word.substring(1, 2).equalsIgnoreCase("e") || !word.substring(1, 2).equalsIgnoreCase("i") || !word.substring(1, 2).equalsIgnoreCase("o") || !word.substring(1, 2).equalsIgnoreCase("u")) {
+//                        System.out.println(word);
+                        String firstTwoLets = word.substring(0, 2);
+                        String firstTwoLettersRemoved = word.substring(2);
+//                        System.out.println(firstTwoLettersRemoved);
+                        String pigLatinFied = firstTwoLettersRemoved + firstTwoLets + "ay";
+                        partLatinfied.add(pigLatinFied);
+                    }
+                    else {
+                        partLatinfied.add(word);
+                    }
+                }
+                totalLatinfied.addAll(partLatinfied);
+                totalLatinfied.add(", ");
+            }
+            String toReturn = "";
+            totalLatinfied.remove(totalLatinfied.size() - 1);
+            for (String element:totalLatinfied) {
+                toReturn += element + " ";
+            }
+//            System.out.println(toReturn);
+            return toReturn;
         }
         //read it backwords
         if (code.equals("3")) {
-            String mutatedIfThen = ifThen;
-            return mutatedIfThen;
+            String toReturn = "";
+            ArrayList<String> totalBackword = new ArrayList<>();
+            String[] toMutate = ifThen.split(",");
+            for (String part: toMutate) {
+                String[] listWords = part.split(" ");
+                ArrayList<String> partBackword = new ArrayList<>();
+                for (String word: listWords) {
+                    if (word.contains(",")) {
+                        word.replace(",", " ");
+                    }
+                    String reversed = new StringBuilder(word).reverse().toString();
+                    partBackword.add(reversed);
+                }
+                totalBackword.addAll(partBackword);
+                totalBackword.add(", ");
+            }
+            totalBackword.remove(totalBackword.size() - 1);
+            for (String element:totalBackword) {
+                toReturn += element + " ";
+            }
+            System.out.println(toReturn);
+            return toReturn;
         }
         // jokester
         if (code.equals("4")) {

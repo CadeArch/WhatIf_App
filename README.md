@@ -37,10 +37,13 @@ set up to move to readSentance frag once everyones thens are in. - DONE
 mix up everyones Then sentence so they dont have their own then - DONE
   add dropdown to read sentence frag if they are account play  
 
-  after they hit next from read sentance have them vote on best sentance (if all users are account play). then they can return to first frag or play again.
+  after they hit next from read sentance have them vote on best sentance (if all users are account play). 
+  then they can return to first frag or play again. - In progress
 
-  create leaderboards fragment and buttons to link to current frags
-  create unlockables class that will be part of user players stored in FB 
+  create leaderboards fragment and buttons to link to current frags - 
+  create unlockables class that will be part of user players stored in FB - DONE
+  create ways to unlock each unlockable voice and implement
+  write string mutators to change text based on different voices
 
 
 ## questions
