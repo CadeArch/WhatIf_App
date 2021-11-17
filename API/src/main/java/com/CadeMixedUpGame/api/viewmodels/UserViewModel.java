@@ -9,6 +9,7 @@ import androidx.databinding.ObservableList;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
@@ -348,16 +349,15 @@ public class UserViewModel extends ViewModel {
             @Override
             public void onComplete(@NonNull Task<DataSnapshot> task) {
                 DataSnapshot snapshot = unlocked.getResult();
-                System.out.println(snapshot);
+//                System.out.println(snapshot);
                 for (DataSnapshot ds:snapshot.getChildren()) {
-                    System.out.println(ds);
+//                    System.out.println(ds);
                     userUnlocked.add(ds.getValue(Unlockable.class));
                 }
             }
         });
-//        return userUnlocked;
-
     }
+
 
 }
 

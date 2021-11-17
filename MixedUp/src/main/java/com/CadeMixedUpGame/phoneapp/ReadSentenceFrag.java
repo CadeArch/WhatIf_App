@@ -14,10 +14,13 @@ import android.widget.AdapterView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
+import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
+import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,6 +30,7 @@ import java.util.Locale;
 public class ReadSentenceFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
+    LeaderBoardViewModel leaderBoardViewModel;
     String myRandomIf;
     String myRandomThen;
     TextToSpeech tts;
@@ -44,13 +48,20 @@ public class ReadSentenceFrag extends Fragment {
 
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
+        leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
 
         TextView ifQuestion = getActivity().findViewById(R.id.myIfQuestion_ending);
+
+        // if user isnt account play they cannot read text aloud
+        if (!userViewModel.getUser().getValue().accountPlay) {
+            getActivity().findViewById(R.id.readSentence).setVisibility(View.GONE);
+            getActivity().findViewById(R.id.spinnerObject).setVisibility(View.GONE);
+        }
 
         myRandomIf = userViewModel.localRandIf;
         ifQuestion.setText(myRandomIf);
 
-        // making sure all then sentances are used but players dont get their own
+        // making sure all then sentances are used.
         // players finding their index in the array.
         int idx = 0;
         for (User user: userViewModel.getUsers()) {
@@ -85,8 +96,20 @@ public class ReadSentenceFrag extends Fragment {
         //giving next button functionality
         if (numAccountPlayers == userViewModel.getUsers().size()) {
             view.findViewById(R.id.next_frag).setOnClickListener(v -> {
+                String ifContributor = "";
+                String thenContributor = "";
+                // finding the contributors to the if and then
+                for (User user: userViewModel.getUsers()) {
+                    if (user.ifSentence.equals(myRandomIf)) {
+                        ifContributor = user.userName;
+                    }
+                    if (user.thenSentence.equals(myRandomThen)) {
+                        thenContributor = user.userName;
+                    }
+                }
+                LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf, myRandomThen, ifContributor, thenContributor, userViewModel.getUser().getValue().getUid());
+                leaderBoardViewModel.pushLeaderBoardItem(userViewModel.getUser(), lbi);
                 getActivity().getSupportFragmentManager().beginTransaction()
-                        // TODO CHANGE TO VOTE FRAG
                         .replace(R.id.fragment_container, VoteFrag.class, null)
                         .setReorderingAllowed(true)
                         .addToBackStack(null)
@@ -103,13 +126,9 @@ public class ReadSentenceFrag extends Fragment {
             });
         }
 
-        // Todo make spinner and mic button invisible if non account play
-
-        // maybe place this as a class member variable
         // array of unlocked google voices
         ArrayList<DiffGoogleVoice> voicesUnlocked = new ArrayList<DiffGoogleVoice>();
         voicesUnlocked.add(new DiffGoogleVoice("regular", "0"));
-//        voicesUnlocked.add(new DiffGoogleVoice("fuddified google", "1"));
 
         // fill in voices unlocked here pull from database which are unlocked
         userViewModel.userUnlocked.addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<Unlockable>>() {
@@ -125,6 +144,7 @@ public class ReadSentenceFrag extends Fragment {
 
             @Override
             public void onItemRangeInserted(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
+                // grabbing users unlocked voices and adding to voicesUnlocked array which will fill the spinner
                 if (sender.get(positionStart).isUnlocked()) {
                     voicesUnlocked.add(new DiffGoogleVoice(sender.get(positionStart).getVoiceType(), sender.get(positionStart).getVoiceCode()));
                 }
@@ -140,7 +160,10 @@ public class ReadSentenceFrag extends Fragment {
 
             }
         });
-        userViewModel.getUnlocked(userViewModel.getUser());
+        // so it doesnt break for non account players
+        if (userViewModel.getUser().getValue().accountPlay) {
+            userViewModel.getUnlocked(userViewModel.getUser());
+        }
 
 
         //finding and filling dropdown menu
@@ -221,6 +244,7 @@ public class ReadSentenceFrag extends Fragment {
                 }
             }
         });
+
     }
 
 
@@ -250,19 +274,23 @@ public class ReadSentenceFrag extends Fragment {
                     else if (word.length() == 1) {
                         partLatinfied.add(word + "ay");
                     }
-                    else if (word.length() >= 2 && word.substring(1, 2).equalsIgnoreCase("a") || word.substring(1, 2).equalsIgnoreCase("e") || word.substring(1, 2).equalsIgnoreCase("i") || word.substring(1, 2).equalsIgnoreCase("o") || word.substring(1, 2).equalsIgnoreCase("u")) {
-//                        System.out.println(word);
+                    else if (word.length() >= 2 && word.substring(1, 2).equalsIgnoreCase("a") ||
+                            word.substring(1, 2).equalsIgnoreCase("e") ||
+                            word.substring(1, 2).equalsIgnoreCase("i") ||
+                            word.substring(1, 2).equalsIgnoreCase("o") ||
+                            word.substring(1, 2).equalsIgnoreCase("u")) {
                         char firstLetter = word.charAt(0);
                         String firstLetterRemoved = word.substring(1);
-//                        System.out.println(firstLetterRemoved);
                         String pigLatinFied = firstLetterRemoved + firstLetter + "ay";
                         partLatinfied.add(pigLatinFied);
                     }
-                    else if (word.length() >= 2 && !word.substring(1, 2).equalsIgnoreCase("a") || !word.substring(1, 2).equalsIgnoreCase("e") || !word.substring(1, 2).equalsIgnoreCase("i") || !word.substring(1, 2).equalsIgnoreCase("o") || !word.substring(1, 2).equalsIgnoreCase("u")) {
-//                        System.out.println(word);
+                    else if (word.length() >= 2 && !word.substring(1, 2).equalsIgnoreCase("a") ||
+                            !word.substring(1, 2).equalsIgnoreCase("e") ||
+                            !word.substring(1, 2).equalsIgnoreCase("i") ||
+                            !word.substring(1, 2).equalsIgnoreCase("o") ||
+                            !word.substring(1, 2).equalsIgnoreCase("u")) {
                         String firstTwoLets = word.substring(0, 2);
                         String firstTwoLettersRemoved = word.substring(2);
-//                        System.out.println(firstTwoLettersRemoved);
                         String pigLatinFied = firstTwoLettersRemoved + firstTwoLets + "ay";
                         partLatinfied.add(pigLatinFied);
                     }
@@ -278,7 +306,6 @@ public class ReadSentenceFrag extends Fragment {
             for (String element:totalLatinfied) {
                 toReturn += element + " ";
             }
-//            System.out.println(toReturn);
             return toReturn;
         }
         //read it backwords
@@ -291,7 +318,10 @@ public class ReadSentenceFrag extends Fragment {
                 ArrayList<String> partBackword = new ArrayList<>();
                 for (String word: listWords) {
                     if (word.contains(",")) {
-                        word.replace(",", " ");
+                        word = word.replace(",", " ");
+                        String reversed = new StringBuilder(word).reverse().toString();
+                        partBackword.add(reversed);
+                        continue;
                     }
                     String reversed = new StringBuilder(word).reverse().toString();
                     partBackword.add(reversed);
