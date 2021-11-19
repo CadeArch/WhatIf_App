@@ -1,8 +1,12 @@
 package com.CadeMixedUpGame.phoneapp;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -22,6 +26,7 @@ public class VoteFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
     LeaderBoardViewModel leaderBoardViewModel;
+    int sentencesSelected = 0;
 
     public VoteFrag() {
         super(R.layout.fragment_vote);
@@ -52,12 +57,32 @@ public class VoteFrag extends Fragment {
 
             @Override
             public void onItemRangeInserted(ObservableList<LeaderBoardItem> sender, int positionStart, int itemCount) {
+
                 LeaderBoardItem leaderBoardItem = leaderBoardViewModel.getPotentialLeaderBoardItems().get(positionStart);
                 View voteItem = LayoutInflater.from(getContext()).inflate(R.layout.lb_vote_item, null);
                 TextView ifPart = voteItem.findViewById(R.id.if_part);
                 TextView thenPart = voteItem.findViewById(R.id.then_part);
+
                 ifPart.setText(leaderBoardItem.getIfPart());
                 thenPart.setText(leaderBoardItem.getThenPart());
+
+                voteItem.setBackgroundColor(Color.parseColor("#0000FF00"));
+
+                voteItem.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        int color = ((ColorDrawable) v.getBackground()).getColor();
+                        System.out.println(color);
+                        if (color == 1107361536) {
+                            v.setBackgroundColor(Color.parseColor("#0000FF00")); // 65280
+
+                        }
+                        else {
+                            v.setBackgroundColor(Color.parseColor("#4200FF00")); // 1107361536
+                        }
+
+                    }
+                });
 
                 potentialLBIlist.addView(voteItem);
 
@@ -74,31 +99,49 @@ public class VoteFrag extends Fragment {
             }
         });
 
-        //giving home button functionality
+        //giving vote button functionality
         view.findViewById(R.id.vote_submit).setOnClickListener(v -> {
-            // TODO push vote to database
+            // checking to see how many sentences are selected
+            sentencesSelected = 0;
+            for (int i = 0; i < potentialLBIlist.getChildCount(); i++) {
+                View pot = potentialLBIlist.getChildAt(i);
+                int color = ((ColorDrawable) pot.getBackground()).getColor();
+                if (color == 1107361536) {
+                    sentencesSelected += 1;
+                }
+            }
+            System.out.println(sentencesSelected);
+            // if more than one guide user
+            if (sentencesSelected > 1) {
+                // creating toast and switching text in viewmodel
+                Toast.makeText(
+                        getActivity(),
+                        "Please select 1 sentence",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+            // if only one, make the vote
+            else {
+                // todo send vote
 
-            // creating toast and switching text in viewmodel
-            Toast.makeText(
-                    getActivity(),
-                    "vote sent",
-                    Toast.LENGTH_SHORT
-            ).show();
 
-            getActivity().getSupportFragmentManager().beginTransaction()
+                getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, EndFrag.class, null)
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();
+
+                // creating toast and switching text in viewmodel
+                Toast.makeText(
+                        getActivity(),
+                        "vote sent",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+
+
+
         });
 
-        //giving next button functionality DONT NEED THIS BUTTON
-//        view.findViewById(R.id.vote_next).setOnClickListener(v -> {
-//            getActivity().getSupportFragmentManager().beginTransaction()
-//                    .replace(R.id.fragment_container, EndFrag.class, null)
-//                    .setReorderingAllowed(true)
-//                    .addToBackStack(null)
-//                    .commit();
-//        });
     }
 }

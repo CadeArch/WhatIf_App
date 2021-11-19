@@ -106,7 +106,7 @@ public class LeaderBoardViewModel extends ViewModel {
 
     public void pushLeaderBoardItem(MutableLiveData<User> user, LeaderBoardItem lbi) {
         db.child("rooms").child(user.getValue().gameRoom).child("tempVoting").child(lbi.getId()).setValue(lbi);
-
+        System.out.println("Pushed Potential LBI to temp voting in database");
     }
 
     public ObservableArrayList<LeaderBoardItem> getLeaderBoard() {

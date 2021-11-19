@@ -95,20 +95,23 @@ public class ReadSentenceFrag extends Fragment {
 
         //giving next button functionality
         if (numAccountPlayers == userViewModel.getUsers().size()) {
-            view.findViewById(R.id.next_frag).setOnClickListener(v -> {
-                String ifContributor = "";
-                String thenContributor = "";
-                // finding the contributors to the if and then
-                for (User user: userViewModel.getUsers()) {
-                    if (user.ifSentence.equals(myRandomIf)) {
-                        ifContributor = user.userName;
-                    }
-                    if (user.thenSentence.equals(myRandomThen)) {
-                        thenContributor = user.userName;
-                    }
+
+            String ifContributor = "";
+            String thenContributor = "";
+            // finding the contributors to the if and then
+            for (User user: userViewModel.getUsers()) {
+                if (user.ifSentence.equals(myRandomIf)) {
+                    ifContributor = user.userName;
                 }
-                LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf, myRandomThen, ifContributor, thenContributor, userViewModel.getUser().getValue().getUid());
-                leaderBoardViewModel.pushLeaderBoardItem(userViewModel.getUser(), lbi);
+                if (user.thenSentence.equals(myRandomThen)) {
+                    thenContributor = user.userName;
+                }
+            }
+            LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf, myRandomThen, ifContributor, thenContributor, userViewModel.getUser().getValue().getUid());
+            leaderBoardViewModel.pushLeaderBoardItem(userViewModel.getUser(), lbi);
+
+            view.findViewById(R.id.next_frag).setOnClickListener(v -> {
+
                 getActivity().getSupportFragmentManager().beginTransaction()
                         .replace(R.id.fragment_container, VoteFrag.class, null)
                         .setReorderingAllowed(true)

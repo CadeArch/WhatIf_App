@@ -6,6 +6,8 @@ https://console.firebase.google.com/u/0/project/mixedupgame/database/mixedupgame
 https://xd.adobe.com/view/d865483a-67ff-4a2c-bced-c4d787b48586-8d36/screen/7c679a4d-125c-429d-bfe9-65bd4ffe7b58/
 
 ## help
+android studio wig out help - https://stackoverflow.com/questions/20226912/android-studio-inline-compiler-showing-red-errors-but-compilation-with-gradle-w
+
 user help - https://stackoverflow.com/questions/38114358/firebase-setdisplayname-of-user-while-creating-user-android
 
 Firebase db child even listener help - https://www.titanwolf.org/Network/q/26edfd1b-c54c-4431-b147-acece2238472/y
@@ -23,6 +25,8 @@ making own class comparable to sort in array - https://stackoverflow.com/questio
 making spinner - https://stackoverflow.com/questions/13377361/how-to-create-a-drop-down-list
                - slightly modified Md. Kamruzzamans answer for my nameing conventions, used his classes and ideas! Thanks!
 help with spinner - https://android--examples.blogspot.com/2016/10/android-spinner-on-item-selected.html
+
+
 
 
 
