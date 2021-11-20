@@ -40,7 +40,8 @@ public class VoteFrag extends Fragment {
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
 
-        leaderBoardViewModel.loadTempLeaderItems(userViewModel.getUser());
+        leaderBoardViewModel.loadVotingItems(userViewModel.getUser());
+        leaderBoardViewModel.createAndListenToCastVotes(userViewModel.myRoom);
 
         LinearLayout potentialLBIlist = view.findViewById(R.id.potential_lbiList);
 
@@ -62,9 +63,12 @@ public class VoteFrag extends Fragment {
                 View voteItem = LayoutInflater.from(getContext()).inflate(R.layout.lb_vote_item, null);
                 TextView ifPart = voteItem.findViewById(R.id.if_part);
                 TextView thenPart = voteItem.findViewById(R.id.then_part);
+                TextView sentID = voteItem.findViewById(R.id.sentence_id);
 
                 ifPart.setText(leaderBoardItem.getIfPart());
                 thenPart.setText(leaderBoardItem.getThenPart());
+                sentID.setText(leaderBoardItem.getId());
+
 
                 voteItem.setBackgroundColor(Color.parseColor("#0000FF00"));
 
@@ -83,7 +87,7 @@ public class VoteFrag extends Fragment {
 
                     }
                 });
-
+                System.out.println("New Potential leaderboard sentence -- adding it to view");
                 potentialLBIlist.addView(voteItem);
 
             }
@@ -99,6 +103,11 @@ public class VoteFrag extends Fragment {
             }
         });
 
+        if (userViewModel.getUser().getValue().host) {
+            leaderBoardViewModel.castVoteListener(userViewModel.getUsers().size());
+        }
+
+
         //giving vote button functionality
         view.findViewById(R.id.vote_submit).setOnClickListener(v -> {
             // checking to see how many sentences are selected
@@ -110,9 +119,9 @@ public class VoteFrag extends Fragment {
                     sentencesSelected += 1;
                 }
             }
-            System.out.println(sentencesSelected);
+            System.out.println("Sentences selected: " + sentencesSelected);
             // if more than one guide user
-            if (sentencesSelected > 1) {
+            if (sentencesSelected > 1 || sentencesSelected == 0) {
                 // creating toast and switching text in viewmodel
                 Toast.makeText(
                         getActivity(),
@@ -120,23 +129,34 @@ public class VoteFrag extends Fragment {
                         Toast.LENGTH_SHORT
                 ).show();
             }
-            // if only one, make the vote
+            // if only one, make the vote add it to list of cast votes
             else {
-                // todo send vote
 
-
-                getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, EndFrag.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
-
-                // creating toast and switching text in viewmodel
+                // saved vote in castVotes array
+                for (int i = 0; i < potentialLBIlist.getChildCount(); i++) {
+                    View pot = potentialLBIlist.getChildAt(i);
+                    int color = ((ColorDrawable) pot.getBackground()).getColor();
+                    if (color == 1107361536) {
+                        TextView selectedVoteID = pot.findViewById(R.id.sentence_id);
+                        String id = selectedVoteID.getText().toString();
+                        leaderBoardViewModel.castVote(userViewModel.getUser(), id);
+                        System.out.println("submitted vote");
+                        break;
+                    }
+                }
+                // telling user vote was sent
                 Toast.makeText(
                         getActivity(),
                         "vote sent",
                         Toast.LENGTH_SHORT
                 ).show();
+
+                getActivity().getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, EndFrag.class, null)
+                        .setReorderingAllowed(true)
+                        .addToBackStack(null)
+                        .commit();
+
             }
 
 

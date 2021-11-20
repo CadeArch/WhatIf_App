@@ -108,7 +108,7 @@ public class ReadSentenceFrag extends Fragment {
                 }
             }
             LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf, myRandomThen, ifContributor, thenContributor, userViewModel.getUser().getValue().getUid());
-            leaderBoardViewModel.pushLeaderBoardItem(userViewModel.getUser(), lbi);
+            leaderBoardViewModel.pushVoteItem(userViewModel.getUser(), lbi);
 
             view.findViewById(R.id.next_frag).setOnClickListener(v -> {
 

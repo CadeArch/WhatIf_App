@@ -30,6 +30,13 @@
             android:layout_height="wrap_content"
             android:textColor="@color/black"
             android:textSize="18sp" />
+        <TextView
+            android:id="@+id/sentence_id"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/black"
+            android:visibility="invisible"
+            android:textSize="11sp" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
