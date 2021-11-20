@@ -18,12 +18,15 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class LeaderBoardViewModel extends ViewModel {
     ObservableArrayList<LeaderBoardItem> leaderBoard;
     DatabaseReference db;
     ObservableArrayList<LeaderBoardItem> potentialLeaderBoardItems;
     ObservableArrayList<String> castvotes = new ObservableArrayList<>();
+    int mostVotes = 0;
+    String mostVotedID = "";
 
     public LeaderBoardViewModel() {
         db = FirebaseDatabase.getInstance().getReference();
@@ -203,11 +206,16 @@ public class LeaderBoardViewModel extends ViewModel {
     }
 
     // todo: finish finding best sentence and if it beats what is on the leaderboard push it to the leaderboard
+    // TEST THIS FUNCTION
     public void findBestSentence() {
-        for (String vote:castvotes) {
-            System.out.println(vote);
-        };
+        for (LeaderBoardItem lbi:potentialLeaderBoardItems) {
+            int numVotes = Collections.frequency(castvotes, lbi.getId());
 
+            if (mostVotes < numVotes) {
+                mostVotes = numVotes;
+                mostVotedID = lbi.getId();
+            }
+        }
     }
 
     public LeaderBoardItem removeWhichItem(LeaderBoardItem newlbi) {
