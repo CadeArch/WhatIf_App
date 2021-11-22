@@ -28,6 +28,8 @@ help with spinner - https://android--examples.blogspot.com/2016/10/android-spinn
 
 iterating through views help - https://stackoverflow.com/questions/4809834/how-to-iterate-through-a-views-elements
 
+collections help - https://stackoverflow.com/questions/22989806/find-the-most-common-string-in-arraylist
+
 
 
 
