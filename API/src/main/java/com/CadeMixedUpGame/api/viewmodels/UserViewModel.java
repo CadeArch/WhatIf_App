@@ -41,6 +41,7 @@ public class UserViewModel extends ViewModel {
     public Boolean onWriteThen = false;
     public Boolean onWriteIf = false;
     public Boolean onWaitingForHost = false;
+    public Boolean playing = false;
     public String localName;
     DatabaseReference db;
     public String myRoom;
@@ -71,6 +72,33 @@ public class UserViewModel extends ViewModel {
                 }
             }
         });
+    }
+
+    public void reset() {
+        signInToast = new MutableLiveData<>();
+        // do I need to do this or simply implement on child removed
+//        loadUsers(myRoom);
+        localRandIf = "";
+        onWriteThen = false;
+        onWriteIf = false;
+        onWaitingForHost = false;
+        playing = false;
+        System.out.println("HIT RESET");
+        user.getValue().setIfFinished(false);
+        user.getValue().setIfSentence("");
+        user.getValue().setThenFinished(false);
+        user.getValue().setThenSentence("");
+        user.getValue().setHostStarted(false);
+
+    }
+
+    public void reInitUserVals(MutableLiveData<User> user) {
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("ifSentence").setValue(user.getValue().ifSentence);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("thenSentence").setValue(user.getValue().thenSentence);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("ifFinished").setValue(user.getValue().ifFinished);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("thenFinished").setValue(user.getValue().thenFinished);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("hostStarted").setValue(user.getValue().hostStarted);
+
     }
 
     public void signUp(String email, String password, String userName) {
@@ -164,8 +192,12 @@ public class UserViewModel extends ViewModel {
         return users;
     }
 
+    public void setUsers(ObservableArrayList<User> users) {
+        this.users = users;
+    }
+
     // used in create and join game to see players that join room from firebase
-    public void loadUsers(String gameRoom, String userName) {
+    public void loadUsers(String gameRoom) {
         db.child("rooms").child(gameRoom).child("players").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
@@ -216,6 +248,24 @@ public class UserViewModel extends ViewModel {
 
             @Override
             public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                System.out.println(snapshot);
+                // the person who left nurf the array
+                if (user.getValue().userName.equals(snapshot.getKey())) {
+                    setUsers(new ObservableArrayList<User>());
+                    for (DataSnapshot ds : snapshot.getChildren()) {
+                        User userLeft = ds.getValue(User.class);
+                        deleteRoom(userLeft);
+                    }
+                }
+                // everyone else just get rid of the person who left
+                else {
+                    for (DataSnapshot ds : snapshot.getChildren()) {
+                        User userLeft = ds.getValue(User.class);
+                        users.remove(userLeft);
+                    }
+                }
+                System.out.println("Noticed player left DB: setting Users array to empty for: " + snapshot.getKey());
+
 
             }
 
@@ -292,6 +342,10 @@ public class UserViewModel extends ViewModel {
         return user;
     }
 
+    public void removeUserFromGameRoom(MutableLiveData<User> user) {
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).removeValue();
+        System.out.println("removed User from GameRoom");
+        }
 
     public void pushPerson(MutableLiveData<User> user) {
         int userID = (int)(Math.random() * 100000);
@@ -307,6 +361,11 @@ public class UserViewModel extends ViewModel {
                 }
             }
         });
+    }
+
+    public void deleteRoom(User userLeft) {
+        System.out.println("Deleted room");
+        db.child("rooms").child(userLeft.gameRoom).removeValue();
     }
 
     public void pushAccountPlayer(MutableLiveData<User> user) {

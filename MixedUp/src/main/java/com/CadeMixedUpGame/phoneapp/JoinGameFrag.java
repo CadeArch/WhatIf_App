@@ -63,7 +63,7 @@ public class JoinGameFrag extends Fragment {
                 }
                 //storing the room to join locally and loading in the users and pushing the user to the database
 //                System.out.println("userName--joinGame ---" + userViewModel.localName);
-                userViewModel.loadUsers(myRoom, userViewModel.localName );
+                userViewModel.loadUsers(myRoom);
                 userViewModel.myRoom = myRoom;
 
                 //storing users gameroom locally

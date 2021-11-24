@@ -92,12 +92,7 @@ public class RoomViewModel extends ViewModel {
         db.child("rooms").child(room.roomID).setValue(room);
     }
 
-    //key to update values in firebase
-    public void updateNumInRoom(User user) {
-        //how to update numInroom
-        Map<String, Object> hm = new HashMap<>();
-        hm.put("numInRoom", user.userID);
-        db.child("rooms").child(user.gameRoom).updateChildren(hm);
-        // .child(numInRoom).setValue(value to put)
-    }
+//    public void updateNumInRoom(User user) {
+//
+//    }
 }

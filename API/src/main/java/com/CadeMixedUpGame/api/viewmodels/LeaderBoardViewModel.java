@@ -25,7 +25,7 @@ public class LeaderBoardViewModel extends ViewModel {
     ObservableArrayList<LeaderBoardItem> leaderBoard;
     DatabaseReference db;
     ObservableArrayList<LeaderBoardItem> potentialLeaderBoardItems;
-    ObservableArrayList<String> castvotes = new ObservableArrayList<>();
+    ObservableArrayList<String> castvotes = new ObservableArrayList<String>();
     int mostVotes = 0;
     String mostVotedID = "";
     LeaderBoardItem plbi;
@@ -39,6 +39,14 @@ public class LeaderBoardViewModel extends ViewModel {
         if (potentialLeaderBoardItems == null) {
             potentialLeaderBoardItems = new ObservableArrayList<>();
         }
+    }
+
+    public void reset() {
+        potentialLeaderBoardItems = null;
+        castvotes = new ObservableArrayList<String>();
+        mostVotedID = "";
+        mostVotes = 0;
+        plbi = null;
     }
 
     public void loadLeaderBoardItems() {
@@ -271,5 +279,6 @@ public class LeaderBoardViewModel extends ViewModel {
         }
         return removeThis;
     }
+
 
 }

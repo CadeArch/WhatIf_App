@@ -65,7 +65,7 @@ public class WriteThenFrag extends Fragment {
         if (idx + 1 == userViewModel.getUsers().size()) {
             myRandomIf = userViewModel.getUsers().get(0).ifSentence;
             userViewModel.localRandIf = myRandomIf;
-            System.out.println("hit if");
+            System.out.println("WRITE THEN FRAG: hit if");
         }
         else {
             myRandomIf = userViewModel.getUsers().get(idx + 1).ifSentence;
@@ -80,7 +80,7 @@ public class WriteThenFrag extends Fragment {
         view.findViewById(R.id.writeThen_submit).setOnClickListener(v -> {
 
             // need to push the then sentance to firebase and change thenComplete to true
-//            System.out.println("ButtonPressed to move to collecting answers frag");
+            System.out.println("ButtonPressed to move to collecting answers frag");
             userViewModel.getUser().getValue().thenSentence = thenSentence.getText().toString();
             userViewModel.getUser().getValue().thenFinished = true;
 

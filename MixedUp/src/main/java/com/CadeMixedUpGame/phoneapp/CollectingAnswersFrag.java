@@ -67,15 +67,18 @@ public class CollectingAnswersFrag extends Fragment {
 //                System.out.println("SAW CHANGE --------------------");
                 int count = 0;
                 for (User user:userViewModel.getUsers()) {
+                    System.out.println("CollectingAnswersfrag: " + user.thenSentence + " " + user.thenFinished);
                     if (user.thenFinished) {
                         count += 1;
+                        System.out.println("Count incremented: CAF");
                     }
                 }
-//                System.out.println(count + " ------------------ " + userViewModel.getUsers().size());
+                System.out.println(count + " ------------------ " + userViewModel.getUsers().size());
                 if (count == userViewModel.getUsers().size()) {
                     allThensFinished = true;
                 }
-                if (allThensFinished) {
+                if (allThensFinished && userViewModel.playing) {
+                    System.out.println("going to read sentence frag");
                     getActivity().getSupportFragmentManager().beginTransaction()
                             .replace(R.id.fragment_container, ReadSentenceFrag.class, null)
                             .setReorderingAllowed(true)

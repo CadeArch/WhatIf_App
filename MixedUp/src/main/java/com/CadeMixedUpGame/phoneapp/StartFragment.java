@@ -105,6 +105,7 @@ public class StartFragment extends Fragment {
         //giving the signout button functionality
         view.findViewById(R.id.signOut).setOnClickListener(v -> {
             userViewModel.signOut();
+            userViewModel.getUser().setValue(null);
             //moving to the first game fragment
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, FirstFrag.class, null)
@@ -115,6 +116,7 @@ public class StartFragment extends Fragment {
 
         //giving the back button functionality
         view.findViewById(R.id.back).setOnClickListener(v -> {
+            userViewModel.getUser().setValue(null);
             //moving to the first game fragment
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, FirstFrag.class, null)

@@ -76,6 +76,13 @@ public class LeaderBoardFrag extends Fragment {
             }
         });
 
+        view.findViewById(R.id.lbi_back).setOnClickListener(v -> {
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, StartFragment.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+        });
 
     }
 

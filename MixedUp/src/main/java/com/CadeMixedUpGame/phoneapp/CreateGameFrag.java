@@ -52,9 +52,9 @@ public class CreateGameFrag extends Fragment {
         //giving start button functionality
         view.findViewById(R.id.createGame_start).setOnClickListener(v -> {
 
-            if (userViewModel.getUsers().size() == 0) {
-                userViewModel.loadUsers(userViewModel.myRoom, userViewModel.localName);
-            }
+
+            userViewModel.loadUsers(userViewModel.myRoom);
+
 
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, WaitingForHostFrag.class, null)

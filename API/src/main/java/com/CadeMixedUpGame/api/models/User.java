@@ -17,6 +17,7 @@ public class User implements Comparable<User>{
     public String thenSentence;
     public boolean host;
     public boolean hostStarted;
+    public boolean playAgain;
 
     public User(FirebaseUser user, String userName) {
         this.userID = 0;
@@ -31,6 +32,7 @@ public class User implements Comparable<User>{
         this.thenSentence = "";
         this.host = false;
         this.hostStarted = false;
+        this.playAgain = false;
     }
 
     public User(String userName) {
@@ -46,6 +48,7 @@ public class User implements Comparable<User>{
         this.thenSentence = "";
         this.host = false;
         this.hostStarted = false;
+        this.playAgain = false;
     }
 
     public User() {}
@@ -99,6 +102,10 @@ public class User implements Comparable<User>{
         return hostStarted;
     }
 
+    public boolean isPlayAgain() {
+        return playAgain;
+    }
+
     public void setAccountPlay(Boolean accountPlay) {
         this.accountPlay = accountPlay;
     }
@@ -146,6 +153,11 @@ public class User implements Comparable<User>{
     public void setUserName(String userName) {
         this.userName = userName;
     }
+
+    public void setPlayAgain(boolean playAgain) {
+        this.playAgain = playAgain;
+    }
+
 
     @Override
     public boolean equals(@Nullable Object obj) {

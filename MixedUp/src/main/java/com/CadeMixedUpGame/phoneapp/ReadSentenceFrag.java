@@ -65,6 +65,7 @@ public class ReadSentenceFrag extends Fragment {
         // players finding their index in the array.
         int idx = 0;
         for (User user: userViewModel.getUsers()) {
+            System.out.println(userViewModel.getUser().getValue().thenSentence + " " + user.thenSentence);
             if(user.thenSentence.equals(userViewModel.getUser().getValue().thenSentence)) {
                 System.out.println(user.userName + ": got my own index: " + idx);
                 break;
@@ -75,11 +76,13 @@ public class ReadSentenceFrag extends Fragment {
         // players will get the next persons if in the array, if they are the last person in the array
         // they will get the first persons if in the array. this works because the arrays are in the same order across devices.
         // and array order differs based upon when the users submit there answer
-        if (idx + 1 == userViewModel.getUsers().size()) {
-            myRandomThen = userViewModel.getUsers().get(0).thenSentence;
-        }
-        else {
-            myRandomThen = userViewModel.getUsers().get(idx + 1).thenSentence;
+        System.out.println(idx + " " + userViewModel.getUsers().size());
+        if (userViewModel.getUsers().size() > 0) {
+            if (idx + 1 == userViewModel.getUsers().size()) {
+                myRandomThen = userViewModel.getUsers().get(0).thenSentence;
+            } else {
+                myRandomThen = userViewModel.getUsers().get(idx + 1).thenSentence;
+            }
         }
 
         TextView thenAnswer = getActivity().findViewById(R.id.myThenAnswer_ending);

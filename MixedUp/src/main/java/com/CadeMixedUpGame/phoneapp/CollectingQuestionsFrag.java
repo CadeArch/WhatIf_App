@@ -75,6 +75,7 @@ public class CollectingQuestionsFrag extends Fragment {
 //                System.out.println("SAW CHANGE --------------------");
                 int count = 0;
                 for (User user:userViewModel.getUsers()) {
+                    System.out.println(user.ifFinished);
                     if (user.ifFinished) {
                         count += 1;
                     }
@@ -84,6 +85,7 @@ public class CollectingQuestionsFrag extends Fragment {
                     allIfsFinished = true;
                 }
                 // if then isnt finished fixes for when moving to collecting answers frag
+//                System.out.println("on write then: " + userViewModel.onWriteThen);
                 if (allIfsFinished && !userViewModel.getUser().getValue().thenFinished && !userViewModel.onWriteThen) {
                     System.out.println("Switched to write then frag");
                     getActivity().getSupportFragmentManager().beginTransaction()

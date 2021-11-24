@@ -78,7 +78,8 @@ public class WaitingForHostFrag extends Fragment {
 
             @Override
             public void onItemRangeRemoved(ObservableList<User> sender, int positionStart, int itemCount) {
-
+                MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), userViewModel.getUsers());
+                recyclerView.setAdapter(adapter);
             }
         });
 
@@ -94,6 +95,7 @@ public class WaitingForHostFrag extends Fragment {
             // host started game and setting the value in firebase to be true
             System.out.println("HOST CLICKED BUTTON ------------------");
             userViewModel.getUser().getValue().hostStarted = true;
+            userViewModel.playing = true;
             userViewModel.hostStarted(userViewModel.host.getValue());
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, WriteIfFrag.class, null)
@@ -122,7 +124,7 @@ public class WaitingForHostFrag extends Fragment {
 
                     if (user.hostStarted && !user.ifFinished && !userViewModel.onWriteIf) {
                         System.out.println("-------------" + user.hostStarted + user.ifFinished);
-                        System.out.println("-------------- SwiTCHED TO WRITE IF FRAG");
+                        System.out.println("-------------- SWITCHED TO WRITE IF FRAG");
                         getActivity().getSupportFragmentManager().beginTransaction()
                                 .replace(R.id.fragment_container, WriteIfFrag.class, null)
                                 .setReorderingAllowed(true)
@@ -130,6 +132,7 @@ public class WaitingForHostFrag extends Fragment {
                                 .commit();
                         System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostStarted);
                         userViewModel.onWriteIf = true;
+                        userViewModel.playing = true;
                     }
                 }
             });
