@@ -42,15 +42,16 @@ in setting up write then frag make sure players dont get their own if sentance. 
 set up onlistchanged callback in collecting thens fragment to show who has submitted there answer - DONE
 set up to move to readSentance frag once everyones thens are in. - DONE
 mix up everyones Then sentence so they dont have their own then - DONE
-  add dropdown to read sentence frag if they are account play  
+  add dropdown to read sentence frag if they are account play - DONE
 
-  after they hit next from read sentance have them vote on best sentance (if all users are account play). 
-  then they can return to first frag or play again. - In progress
-
-  create leaderboards fragment and buttons to link to current frags - 
+  after they hit next from read sentance have them vote on best sentance (if all users are account play). - DONE
+  compare with what is on the leaderboards and if the new sentence wins push it to the leaderboards and remove the old one - DONE
   create unlockables class that will be part of user players stored in FB - DONE
-  create ways to unlock each unlockable voice and implement
-  write string mutators to change text based on different voices
+  write string mutators to change text based on different voices - Partly DONE
+  End frag can return to first frag or play again. - In progress
+  create leaderboards fragment and buttons to link to current frags -
+  create ways to unlock each unlockable voice and implement - 
+
 
 
 ## questions

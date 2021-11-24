@@ -38,7 +38,7 @@
         android:id="@+id/joinGame_start"
         android:layout_width="100dp"
         android:layout_height="75dp"
-        android:text="start"
+        android:text="join"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.694"

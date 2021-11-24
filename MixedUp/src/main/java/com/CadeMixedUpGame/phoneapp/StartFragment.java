@@ -1,28 +1,24 @@
 package com.CadeMixedUpGame.phoneapp;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
-import androidx.databinding.ObservableArrayList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
+import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
-
-import java.util.ArrayList;
 
 
 public class StartFragment extends Fragment {
     RoomViewModel roomViewModel;
     UserViewModel userViewModel;
+//    LeaderBoardViewModel leaderBoardViewModel;
 
     public StartFragment() {
         super(R.layout.fragment_start);
@@ -34,6 +30,7 @@ public class StartFragment extends Fragment {
 
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
+//        leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
 
         EditText enterName = view.findViewById(R.id.enterName);
         TextView userName = view.findViewById(R.id.displayName);
@@ -45,12 +42,13 @@ public class StartFragment extends Fragment {
                     view.findViewById(R.id.back).setVisibility(View.GONE);
                     userName.setText(user.userName);
                     enterName.setVisibility(View.GONE);
+                    view.findViewById(R.id.signOut).setVisibility(View.VISIBLE);
                 }
 
                 // if non account play take away log out button and show back button
                 else {
                     view.findViewById(R.id.signOut).setVisibility(View.GONE);
-
+                    view.findViewById(R.id.back).setVisibility(View.VISIBLE);
                 }
             }
         });
@@ -120,6 +118,16 @@ public class StartFragment extends Fragment {
             //moving to the first game fragment
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, FirstFrag.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+        });
+
+        //giving the leaderBoards button functionality
+        view.findViewById(R.id.leaderboards_button).setOnClickListener(v -> {
+            //moving to the leaderboards fragment
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, LeaderBoardFrag.class, null)
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();
