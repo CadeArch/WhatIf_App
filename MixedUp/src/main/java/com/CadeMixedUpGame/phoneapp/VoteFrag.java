@@ -159,8 +159,6 @@ public class VoteFrag extends Fragment {
 
             }
 
-
-
         });
 
     }

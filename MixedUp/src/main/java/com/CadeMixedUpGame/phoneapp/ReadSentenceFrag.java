@@ -107,7 +107,9 @@ public class ReadSentenceFrag extends Fragment {
                     thenContributor = user.userName;
                 }
             }
-            LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf, myRandomThen, ifContributor, thenContributor, userViewModel.getUser().getValue().getUid());
+
+            String uniqueID = roomViewModel.makeRoomID();
+            LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf, myRandomThen, ifContributor, thenContributor, uniqueID);
             leaderBoardViewModel.pushVoteItem(userViewModel.getUser(), lbi);
 
             view.findViewById(R.id.next_frag).setOnClickListener(v -> {

@@ -6,7 +6,7 @@ public class LeaderBoardItem {
     String ifContributor;
     String thenContributor;
     String id;
-    int loadedToLeaderBoard;
+    long loadedToLeaderBoard;
     double percentLoved;
 
 
@@ -25,7 +25,7 @@ public class LeaderBoardItem {
         return id;
     }
 
-    public int getLoadedToLeaderBoard() {
+    public long getLoadedToLeaderBoard() {
         return loadedToLeaderBoard;
     }
 
@@ -47,5 +47,33 @@ public class LeaderBoardItem {
 
     public double getPercentLoved() {
         return percentLoved;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public void setIfContributor(String ifContributor) {
+        this.ifContributor = ifContributor;
+    }
+
+    public void setIfPart(String ifPart) {
+        this.ifPart = ifPart;
+    }
+
+    public void setLoadedToLeaderBoard(long loadedToLeaderBoard) {
+        this.loadedToLeaderBoard = loadedToLeaderBoard;
+    }
+
+    public void setPercentLoved(double percentLoved) {
+        this.percentLoved = percentLoved;
+    }
+
+    public void setThenContributor(String thenContributor) {
+        this.thenContributor = thenContributor;
+    }
+
+    public void setThenPart(String thenPart) {
+        this.thenPart = thenPart;
     }
 }

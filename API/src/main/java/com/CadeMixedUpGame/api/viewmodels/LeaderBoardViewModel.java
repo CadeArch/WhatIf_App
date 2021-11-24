@@ -17,6 +17,7 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Collections;
 
@@ -27,11 +28,13 @@ public class LeaderBoardViewModel extends ViewModel {
     ObservableArrayList<String> castvotes = new ObservableArrayList<>();
     int mostVotes = 0;
     String mostVotedID = "";
+    LeaderBoardItem plbi;
 
     public LeaderBoardViewModel() {
         db = FirebaseDatabase.getInstance().getReference();
         if (leaderBoard == null) {
             leaderBoard = new ObservableArrayList<>();
+            loadLeaderBoardItems();
         }
         if (potentialLeaderBoardItems == null) {
             potentialLeaderBoardItems = new ObservableArrayList<>();
@@ -42,14 +45,13 @@ public class LeaderBoardViewModel extends ViewModel {
         db.child("leaderBoard").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                String child = snapshot.getKey();
-                System.out.println(child);
+                System.out.println(snapshot);
+                System.out.println(snapshot.getValue());
 
-                for(DataSnapshot ds : snapshot.getChildren()) {
-                    LeaderBoardItem lbItem = ds.getValue(LeaderBoardItem.class);
-//                    System.out.println("DB-NEW L-B-Item ADDED---------- " + lbItem.ifPart + lbItem.thenPart);
-                    leaderBoard.add(lbItem);
-                }
+
+                LeaderBoardItem lbItem = snapshot.getValue(LeaderBoardItem.class);
+                leaderBoard.add(lbItem);
+
             }
 
             @Override
@@ -198,9 +200,11 @@ public class LeaderBoardViewModel extends ViewModel {
 
     public boolean isLeaderBoardFull () {
         if(getLeaderBoard().size() < 20) {
+            System.out.println("LEADERBOARD NOT FULL");
             return false;
         }
         else {
+            System.out.println("LEADERBOARD FULL");
             return true;
         }
     }
@@ -208,22 +212,60 @@ public class LeaderBoardViewModel extends ViewModel {
     // todo: finish finding best sentence and if it beats what is on the leaderboard push it to the leaderboard
     // TEST THIS FUNCTION
     public void findBestSentence() {
+
         for (LeaderBoardItem lbi:potentialLeaderBoardItems) {
             int numVotes = Collections.frequency(castvotes, lbi.getId());
 
             if (mostVotes < numVotes) {
                 mostVotes = numVotes;
                 mostVotedID = lbi.getId();
+                plbi = lbi;
             }
         }
+        System.out.println("num votes " + mostVotes + " voteItem: " + mostVotedID + " percentLoved: " + mostVotes/(double)castvotes.size() * 100);
+        plbi.setPercentLoved(mostVotes/(double)castvotes.size() * 100);
+        System.out.println("Items on leaderboard: " + leaderBoard.size());
+        if (isLeaderBoardFull()) {
+            LeaderBoardItem toRemove = removeWhichItem(plbi);
+            if (!toRemove.getId().equals(mostVotedID)) {
+                System.out.println("NEW LBI beat one currently on the leaderboards");
+                removeLBI(toRemove);
+                pushToLeaderBoards(plbi);
+            }
+            else {
+                System.out.println("NEW LBI did not beat what is currently on leaderboard");
+            }
+        }
+        // leaderboard not full
+        else {
+            pushToLeaderBoards(plbi);
+        }
+
+    }
+
+    public void removeLBI(LeaderBoardItem lbi) {
+        System.out.println("removing: " + lbi.getId() + lbi.getPercentLoved());
+        db.child("leaderBoard").child(Long.toString(lbi.getLoadedToLeaderBoard())).removeValue();
+    }
+
+    public void pushToLeaderBoards(LeaderBoardItem lbi) {
+        // Todo fill in all values of lbi
+        System.out.println(mostVotes/(double)castvotes.size() * 100);
+        lbi.setPercentLoved(mostVotes/(double)castvotes.size() * 100);
+        lbi.setLoadedToLeaderBoard(System.currentTimeMillis());
+        db.child("leaderBoard").child(Long.toString(lbi.getLoadedToLeaderBoard())).setValue(lbi);
     }
 
     public LeaderBoardItem removeWhichItem(LeaderBoardItem newlbi) {
 
         LeaderBoardItem removeThis = newlbi;
         for (LeaderBoardItem lbi: getLeaderBoard()) {
+            System.out.println(lbi.getLoadedToLeaderBoard());
+        }
+        for (LeaderBoardItem lbi: getLeaderBoard()) {
             if (lbi.getPercentLoved() < newlbi.getPercentLoved()) {
                 removeThis = lbi;
+                System.out.println("to remove: " + removeThis.getId() + removeThis.getPercentLoved());
                 break;
             }
         }
