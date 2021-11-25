@@ -18,6 +18,7 @@ public class User implements Comparable<User>{
     public boolean host;
     public boolean hostStarted;
     public boolean playAgain;
+    public boolean hostPlayedAgain;
 
     public User(FirebaseUser user, String userName) {
         this.userID = 0;

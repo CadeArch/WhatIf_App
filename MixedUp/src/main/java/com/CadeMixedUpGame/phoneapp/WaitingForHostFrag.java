@@ -50,9 +50,11 @@ public class WaitingForHostFrag extends Fragment {
         gameCode.setText(userViewModel.getUser().getValue().gameRoom);
         // set up the RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
-        recyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 2));
-        MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), userViewModel.getUsers());
+        recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
+        MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getContext(), userViewModel.getUsers());
         recyclerView.setAdapter(adapter);
+
+        System.out.println("User array size upon entry to WFHF: " + userViewModel.getUsers().size());
 
         // when the users array changes reset the adapter to include all people
         userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
@@ -68,7 +70,11 @@ public class WaitingForHostFrag extends Fragment {
 
             @Override
             public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
-                recyclerView.setAdapter(adapter);
+                System.out.println("waitingForHost: inserting name");
+                System.out.println("users array size: WFHF: " + userViewModel.getUsers().size());
+//                MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getContext(), userViewModel.getUsers());
+                    recyclerView.setAdapter(adapter);
+
             }
 
             @Override
@@ -78,8 +84,8 @@ public class WaitingForHostFrag extends Fragment {
 
             @Override
             public void onItemRangeRemoved(ObservableList<User> sender, int positionStart, int itemCount) {
-                MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), userViewModel.getUsers());
-                recyclerView.setAdapter(adapter);
+//                MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), userViewModel.getUsers());
+//                recyclerView.setAdapter(adapter);
             }
         });
 

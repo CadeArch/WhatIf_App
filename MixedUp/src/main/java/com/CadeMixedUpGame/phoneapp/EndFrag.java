@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.CadeMixedUpGame.api.models.User;
@@ -43,8 +44,10 @@ public class EndFrag extends Fragment {
         view.findViewById(R.id.home_ending).setOnClickListener(v -> {
             userViewModel.reset();
             leaderBoardViewModel.reset();
+
+//            userViewModel.setUsers(new ObservableArrayList<User>());
+
             userViewModel.host = new MutableLiveData<User>();
-            userViewModel.removeUserFromGameRoom(userViewModel.getUser());
 
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, StartFragment.class, null)
@@ -56,16 +59,39 @@ public class EndFrag extends Fragment {
         //giving again button functionality
         view.findViewById(R.id.again_ending).setOnClickListener(v -> {
 
-            // here I will need to reset players values and database values to how they would be
-            // at the start of a match
+            userViewModel.getUser().observe(this.getViewLifecycleOwner(), new Observer<User>() {
+                @Override
+                public void onChanged(User user) {
+                    System.out.println("noticed Change on host played again value: " + userViewModel.getUser().getValue().hostPlayedAgain);
+                    if (userViewModel.host.getValue().hostPlayedAgain) {
+                        view.findViewById(R.id.again_ending).setVisibility(View.VISIBLE);
+                    }
+                    else {
+                        getActivity().getSupportFragmentManager().beginTransaction()
+                                .replace(R.id.fragment_container, StartFragment.class, null)
+                                .setReorderingAllowed(true)
+                                .addToBackStack(null)
+                                .commit();
+                        System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostPlayedAgain);
+                    }
+                }
+            });
+
+            // resetting viewModel attributes
             userViewModel.reset();
             leaderBoardViewModel.reset();
-            userViewModel.reInitUserVals(userViewModel.getUser());
-            userViewModel.getUsers().remove(userViewModel.getUser().getValue());
-            userViewModel.getUsers().add(userViewModel.getUser().getValue());
-            for (User user: userViewModel.getUsers()) {
-                System.out.println(" " + user.ifFinished + user.thenFinished + user.ifSentence + user.thenSentence);
-            }
+
+            //resetting users array SET IN RESET FUNCTION
+//            userViewModel.setUsers(new ObservableArrayList<User>());
+
+            // resetting db gameroom to no one in i, as they play again I will push the person back to it
+            userViewModel.nurfAllUsers();
+            userViewModel.pushPerson(userViewModel.getUser());
+
+
+//            for (User user: userViewModel.getUsers()) {
+//                System.out.println(" " + user.ifFinished + user.thenFinished + user.ifSentence + user.thenSentence);
+//            }
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
                     .setReorderingAllowed(true)
