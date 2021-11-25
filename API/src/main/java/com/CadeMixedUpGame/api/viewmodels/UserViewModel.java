@@ -41,6 +41,8 @@ public class UserViewModel extends ViewModel {
     public Boolean onWriteThen = false;
     public Boolean onWriteIf = false;
     public Boolean onWaitingForHost = false;
+    public Boolean onEndFrag = false;
+    public Boolean onCollectingAnswers = false;
     public Boolean playing = false;
     public String localName;
     DatabaseReference db;
@@ -48,6 +50,7 @@ public class UserViewModel extends ViewModel {
     FirebaseAuth auth;
     MutableLiveData<User> user = new MutableLiveData<User>();
     public ObservableArrayList<Unlockable> userUnlocked = new ObservableArrayList<Unlockable>();
+    public ChildEventListener listener;
 
     public UserViewModel() {
         db = FirebaseDatabase.getInstance().getReference();
@@ -90,6 +93,7 @@ public class UserViewModel extends ViewModel {
         user.getValue().setThenFinished(false);
         user.getValue().setThenSentence("");
         user.getValue().setHostStarted(false);
+        user.getValue().setHostPlayedAgain("");
 
     }
 
@@ -190,9 +194,13 @@ public class UserViewModel extends ViewModel {
         this.users = users;
     }
 
+    public void removeListenerOnDB() {
+        db.child("rooms").child(myRoom).child("players").removeEventListener(listener);
+    }
+
     // used in create and join game to see players that join room from firebase
     public void loadUsers(String gameRoom) {
-        db.child("rooms").child(gameRoom).child("players").addChildEventListener(new ChildEventListener() {
+        listener = new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                 System.out.println("On Child Added Called");
@@ -255,7 +263,8 @@ public class UserViewModel extends ViewModel {
             public void onCancelled(@NonNull DatabaseError error) {
                 System.out.println(error.getCode() + ": " + error.getMessage() + ": " + error.getDetails());
             }
-        });
+        };
+        db.child("rooms").child(gameRoom).child("players").addChildEventListener(listener);
     }
 
     //key to update values in firebase
@@ -263,6 +272,23 @@ public class UserViewModel extends ViewModel {
         //updating the status that the host has started the game
         db.child("rooms").child(user.gameRoom).child("players").child(user.userName).child("value").child("hostStarted").setValue(true);
 
+    }
+
+    public void hostPlayedAgain(User user) {
+        System.out.println("Host played again: " + user.hostPlayedAgain + " Updating DB");
+        if (user.hostPlayedAgain.equals("yes")) {
+            db.child("rooms").child(user.gameRoom).child("players").child(user.userName).child("value").child("hostPlayedAgain").setValue("yes");
+            System.out.println("Host Played again set to yes");
+        }
+        else if (user.hostPlayedAgain.equals("no")){
+            db.child("rooms").child(user.gameRoom).child("players").child(user.userName).child("value").child("hostPlayedAgain").setValue("no");
+            System.out.println("Host Played again set to no");
+        }
+        else {
+            db.child("rooms").child(user.gameRoom).child("players").child(user.userName).child("value").child("hostPlayedAgain").setValue("");
+            System.out.println("Host Played again set to NOTHING");
+
+        }
     }
 
     public void listenToHost(MutableLiveData<User> host) {
@@ -277,15 +303,19 @@ public class UserViewModel extends ViewModel {
 //                System.out.println(snapshot.getValue());
 //                System.out.println(snapshot.getKey());
                 User theChanged = snapshot.getValue(User.class);
-                System.out.println(theChanged.userName + theChanged.host + theChanged.hostStarted);
-
+                System.out.println("Host Changed Values in DB: " + theChanged.userName + theChanged.host + theChanged.hostStarted);
+                System.out.println("Host played again in DB: " + theChanged.hostPlayedAgain);
                 if (theChanged.hostStarted) {
                     getUser().getValue().hostStarted = true;
                     getUser().setValue(getUser().getValue());
                 }
 
-                if (theChanged.hostPlayedAgain) {
-                    getUser().getValue().hostPlayedAgain = true;
+                if (theChanged.hostPlayedAgain.equals("yes")) {
+                    getUser().getValue().hostPlayedAgain = "yes";
+                    getUser().setValue(getUser().getValue());
+                }
+                if (theChanged.hostPlayedAgain.equals("no")) {
+                    getUser().getValue().hostPlayedAgain = "no";
                     getUser().setValue(getUser().getValue());
                 }
 //                System.out.println("DATABASE noticed Change On Host Player ");

@@ -45,10 +45,15 @@ public class ReadSentenceFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
+
+//        System.out.println(userViewModel.getUser().getValue());
+        if (userViewModel.getUser().getValue().host) {
+            System.out.println("ReadSentenceFrag: set host play again value to ''");
+            userViewModel.hostPlayedAgain(userViewModel.getUser().getValue());
+        }
 
         TextView ifQuestion = getActivity().findViewById(R.id.myIfQuestion_ending);
 

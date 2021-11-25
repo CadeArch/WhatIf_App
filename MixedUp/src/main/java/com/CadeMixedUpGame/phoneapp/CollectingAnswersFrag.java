@@ -32,6 +32,8 @@ public class CollectingAnswersFrag extends Fragment {
 //        System.out.println("----------------collecting Then frag--------------------------");
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
 
+        userViewModel.onCollectingAnswers = true;
+
         // set up the RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewCollectA);
         recyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 2));
@@ -77,13 +79,14 @@ public class CollectingAnswersFrag extends Fragment {
                 if (count == userViewModel.getUsers().size()) {
                     allThensFinished = true;
                 }
-                if (allThensFinished && userViewModel.playing) {
+                if (allThensFinished && userViewModel.onCollectingAnswers) {
                     System.out.println("going to read sentence frag");
                     getActivity().getSupportFragmentManager().beginTransaction()
                             .replace(R.id.fragment_container, ReadSentenceFrag.class, null)
                             .setReorderingAllowed(true)
                             .addToBackStack(null)
                             .commit();
+                    userViewModel.onCollectingAnswers = false;
                 }
             }
 

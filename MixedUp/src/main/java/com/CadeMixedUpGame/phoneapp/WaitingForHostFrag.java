@@ -46,6 +46,8 @@ public class WaitingForHostFrag extends Fragment {
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
+
+
         TextView gameCode = view.findViewById(R.id.gameCode);
         gameCode.setText(userViewModel.getUser().getValue().gameRoom);
         // set up the RecyclerView

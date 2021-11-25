@@ -2,6 +2,7 @@ package com.CadeMixedUpGame.phoneapp;
 
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
@@ -31,10 +32,48 @@ public class EndFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
+        System.out.println("switching to end frag");
 
+        userViewModel.removeListenerOnDB();
+        userViewModel.getUser().getValue().hostPlayedAgain = "";
+
+        System.out.println("endFrag: " + userViewModel.getUser().getValue().userName + userViewModel.getUser().getValue().host);
+        userViewModel.onEndFrag = true;
         // only host can say to play again
         if (!userViewModel.getUser().getValue().host) {
             view.findViewById(R.id.again_ending).setVisibility(View.GONE);
+
+            userViewModel.getUser().observe(this.getViewLifecycleOwner(), new Observer<User>() {
+                @Override
+                public void onChanged(User user) {
+                    System.out.println("END FRAG: noticed Change on host played again value: " + userViewModel.getUser().getValue().hostPlayedAgain);
+                    if (userViewModel.getUser().getValue().hostPlayedAgain.equals("yes")) {
+                        view.findViewById(R.id.again_ending).setVisibility(View.VISIBLE);
+                        System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostPlayedAgain);
+
+                    }
+                    else if (userViewModel.getUser().getValue().hostPlayedAgain.equals("no") && userViewModel.onEndFrag) {
+                        getActivity().getSupportFragmentManager().beginTransaction()
+                                .replace(R.id.fragment_container, StartFragment.class, null)
+                                .setReorderingAllowed(true)
+                                .addToBackStack(null)
+                                .commit();
+                        userViewModel.onEndFrag = false;
+
+                        //resetting the same as if they hit the home button
+                        userViewModel.reset();
+                        leaderBoardViewModel.reset();
+                        userViewModel.host = new MutableLiveData<User>();
+                        System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostPlayedAgain);
+                        //letting the user know that host quit game
+                        Toast.makeText(
+                                getActivity(),
+                                "host left gameroom!",
+                                Toast.LENGTH_LONG
+                        ).show();
+                    }
+                }
+            });
         }
 
         // TODO: listen to host to see if they hit play again, if so allow players to play again if not kick everyone back to start fragment
@@ -44,10 +83,16 @@ public class EndFrag extends Fragment {
         view.findViewById(R.id.home_ending).setOnClickListener(v -> {
             userViewModel.reset();
             leaderBoardViewModel.reset();
+            userViewModel.host = new MutableLiveData<User>();
 
 //            userViewModel.setUsers(new ObservableArrayList<User>());
 
-            userViewModel.host = new MutableLiveData<User>();
+
+            if(userViewModel.getUser().getValue().host) {
+                userViewModel.getUser().getValue().hostPlayedAgain = "no";
+                userViewModel.hostPlayedAgain(userViewModel.getUser().getValue());
+                userViewModel.deleteRoom(userViewModel.getUser().getValue());
+            }
 
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, StartFragment.class, null)
@@ -58,25 +103,7 @@ public class EndFrag extends Fragment {
 
         //giving again button functionality
         view.findViewById(R.id.again_ending).setOnClickListener(v -> {
-
-            userViewModel.getUser().observe(this.getViewLifecycleOwner(), new Observer<User>() {
-                @Override
-                public void onChanged(User user) {
-                    System.out.println("noticed Change on host played again value: " + userViewModel.getUser().getValue().hostPlayedAgain);
-                    if (userViewModel.host.getValue().hostPlayedAgain) {
-                        view.findViewById(R.id.again_ending).setVisibility(View.VISIBLE);
-                    }
-                    else {
-                        getActivity().getSupportFragmentManager().beginTransaction()
-                                .replace(R.id.fragment_container, StartFragment.class, null)
-                                .setReorderingAllowed(true)
-                                .addToBackStack(null)
-                                .commit();
-                        System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostPlayedAgain);
-                    }
-                }
-            });
-
+            System.out.println("END FRAG: hit again");
             // resetting viewModel attributes
             userViewModel.reset();
             leaderBoardViewModel.reset();
@@ -85,8 +112,16 @@ public class EndFrag extends Fragment {
 //            userViewModel.setUsers(new ObservableArrayList<User>());
 
             // resetting db gameroom to no one in i, as they play again I will push the person back to it
-            userViewModel.nurfAllUsers();
+            if (userViewModel.getUser().getValue().host) {
+                userViewModel.nurfAllUsers();
+                userViewModel.getUser().getValue().hostPlayedAgain = "yes";
+                userViewModel.hostPlayedAgain(userViewModel.getUser().getValue());
+            }
             userViewModel.pushPerson(userViewModel.getUser());
+            userViewModel.getUser().getValue().hostPlayedAgain = "";
+
+            userViewModel.loadUsers(userViewModel.myRoom);
+
 
 
 //            for (User user: userViewModel.getUsers()) {

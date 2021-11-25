@@ -18,7 +18,7 @@ public class User implements Comparable<User>{
     public boolean host;
     public boolean hostStarted;
     public boolean playAgain;
-    public boolean hostPlayedAgain;
+    public String hostPlayedAgain;
 
     public User(FirebaseUser user, String userName) {
         this.userID = 0;
@@ -34,6 +34,7 @@ public class User implements Comparable<User>{
         this.host = false;
         this.hostStarted = false;
         this.playAgain = false;
+        this.hostPlayedAgain = "";
     }
 
     public User(String userName) {
@@ -50,11 +51,15 @@ public class User implements Comparable<User>{
         this.host = false;
         this.hostStarted = false;
         this.playAgain = false;
+        this.hostPlayedAgain = "";
     }
 
     public User() {}
 
 
+    public String getHostPlayedAgain() {
+        return hostPlayedAgain;
+    }
 
     public Boolean getAccountPlay() {
         return accountPlay;
@@ -121,6 +126,10 @@ public class User implements Comparable<User>{
 
     public void setHost(boolean host) {
         this.host = host;
+    }
+
+    public void setHostPlayedAgain(String hostPlayedAgain) {
+        this.hostPlayedAgain = hostPlayedAgain;
     }
 
     public void setHostStarted(boolean hostStarted) {
