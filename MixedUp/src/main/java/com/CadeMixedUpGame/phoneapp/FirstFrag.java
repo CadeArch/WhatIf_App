@@ -30,6 +30,15 @@ public class FirstFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
+        // todo check to see if this fixes issue
+        if (userViewModel.getUser().getValue() != null) {
+            System.out.println("USER NOT NULL");
+            if (userViewModel.getUser().getValue().accountPlay) {
+                userViewModel.signOut();
+                System.out.println("FIRST FRAG: user already signed in: SIGNING OUT");
+            }
+        }
+
         //giving the freeplay game button functionality
         view.findViewById(R.id.freePlay).setOnClickListener(v -> {
 

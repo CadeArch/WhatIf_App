@@ -70,6 +70,9 @@ public class JoinGameFrag extends Fragment {
                 userViewModel.getUser().getValue().gameRoom = myRoom;
 
                 System.out.println("start  button pushed in join game frag");
+
+                // todo check to see if this will assure that someone who has been a host isnt anymore when they join a match
+                userViewModel.getUser().getValue().host = false;
                 userViewModel.pushPerson(userViewModel.getUser());
 
                 //moving to the waiting for host fragment when firebase recieves new user and puts it into observable arraylist

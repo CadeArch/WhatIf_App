@@ -15,7 +15,7 @@
         android:layout_width="250dp"
         android:layout_height="50dp"
         android:layout_marginTop="68dp"
-        android:text="What If..."
+        android:text="Begin your sentence with 'What if'"
         android:textSize="30dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
@@ -25,7 +25,7 @@
     <EditText
         android:id="@+id/ifQuestion"
         android:layout_width="250dp"
-        android:layout_height="50dp"
+        android:layout_height="60dp"
         android:layout_marginTop="164dp"
         android:hint="Enter Question"
         android:textSize="30dp"

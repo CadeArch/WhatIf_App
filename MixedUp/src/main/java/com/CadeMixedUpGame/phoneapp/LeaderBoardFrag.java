@@ -31,11 +31,10 @@ public class LeaderBoardFrag extends Fragment {
 
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
-        leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
-
+        // dont use view model provider so it loads in leaderboard every time
+        leaderBoardViewModel = new LeaderBoardViewModel();
         LinearLayout listOfLeaderBoards = view.findViewById(R.id.listOfLBIs);
 
-//        leaderBoardViewModel.loadLeaderBoardItems();
         leaderBoardViewModel.getLeaderBoard().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<LeaderBoardItem>>() {
             @Override
             public void onChanged(ObservableList<LeaderBoardItem> sender) {
@@ -55,13 +54,14 @@ public class LeaderBoardFrag extends Fragment {
                 TextView thenPart = lbi.findViewById(R.id.then_part_lbi);
                 TextView ifContrib = lbi.findViewById(R.id.if_contributor_lbi);
                 TextView thenContrib = lbi.findViewById(R.id.then_contributor_lbi);
+                TextView percentLoved = lbi.findViewById(R.id.loved);
 
 
                 ifPart.setText(leaderBoardItem.getIfPart());
                 thenPart.setText(leaderBoardItem.getThenPart());
                 ifContrib.setText("If Contributor: " + leaderBoardItem.getIfContributor());
                 thenContrib.setText("then Contributor: " + leaderBoardItem.getThenContributor());
-
+                percentLoved.setText("vote % \n" + leaderBoardItem.getPercentLoved());
                 listOfLeaderBoards.addView(lbi);
             }
 
@@ -77,6 +77,7 @@ public class LeaderBoardFrag extends Fragment {
         });
 
         view.findViewById(R.id.lbi_back).setOnClickListener(v -> {
+            leaderBoardViewModel.setLeaderBoard(null);
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, StartFragment.class, null)
                     .setReorderingAllowed(true)

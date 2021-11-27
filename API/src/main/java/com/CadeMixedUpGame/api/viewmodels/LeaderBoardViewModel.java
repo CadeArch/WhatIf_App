@@ -49,13 +49,16 @@ public class LeaderBoardViewModel extends ViewModel {
         plbi = null;
     }
 
+    public void setLeaderBoard(ObservableArrayList<LeaderBoardItem> leaderBoard) {
+        this.leaderBoard = leaderBoard;
+    }
+
     public void loadLeaderBoardItems() {
         db.child("leaderBoard").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                System.out.println(snapshot);
-                System.out.println(snapshot.getValue());
-
+//                System.out.println(snapshot);
+//                System.out.println(snapshot.getValue());
 
                 LeaderBoardItem lbItem = snapshot.getValue(LeaderBoardItem.class);
                 leaderBoard.add(lbItem);
@@ -89,7 +92,7 @@ public class LeaderBoardViewModel extends ViewModel {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
 
-                System.out.println(snapshot);
+//                System.out.println(snapshot);
                 LeaderBoardItem lbItem = snapshot.getValue(LeaderBoardItem.class);
                 potentialLeaderBoardItems.add(lbItem);
 
@@ -134,7 +137,7 @@ public class LeaderBoardViewModel extends ViewModel {
         db.child("rooms").child(gameroom).child("votes").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                System.out.println(snapshot);
+//                System.out.println(snapshot);
                 String vote = snapshot.getValue(String.class);
                 System.out.println(vote);
                 castvotes.add(vote);
