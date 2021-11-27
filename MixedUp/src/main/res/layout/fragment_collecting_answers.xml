@@ -30,7 +30,7 @@
         android:layout_width="500dp"
         android:layout_height="80dp"
         android:layout_marginTop="68dp"
-        android:text="Collection Answers"
+        android:text="Collecting Answers"
         android:textSize="50dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"

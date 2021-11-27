@@ -26,6 +26,7 @@ public class LeaderBoardViewModel extends ViewModel {
     DatabaseReference db;
     ObservableArrayList<LeaderBoardItem> potentialLeaderBoardItems;
     ObservableArrayList<String> castvotes = new ObservableArrayList<String>();
+    ChildEventListener votesListener;
     int mostVotes = 0;
     String mostVotedID = "";
     LeaderBoardItem plbi;
@@ -42,11 +43,12 @@ public class LeaderBoardViewModel extends ViewModel {
     }
 
     public void reset() {
-        potentialLeaderBoardItems = null;
+        potentialLeaderBoardItems = new ObservableArrayList<LeaderBoardItem>();
         castvotes = new ObservableArrayList<String>();
         mostVotedID = "";
         mostVotes = 0;
         plbi = null;
+        System.out.println("SIZE of cast votes after reset: " + castvotes.size());
     }
 
     public void setLeaderBoard(ObservableArrayList<LeaderBoardItem> leaderBoard) {
@@ -134,14 +136,19 @@ public class LeaderBoardViewModel extends ViewModel {
         System.out.println("VOTE SENT TO DB");
     }
 
+    public void removeCastVotesListener(String gameroom) {
+        db.child("rooms").child(gameroom).child("votes").removeEventListener(votesListener);
+    }
+
     public void createAndListenToCastVotes(String gameroom) {
-        db.child("rooms").child(gameroom).child("votes").addChildEventListener(new ChildEventListener() {
+        votesListener = new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
 //                System.out.println(snapshot);
                 String vote = snapshot.getValue(String.class);
-                System.out.println(vote);
+                System.out.println("Adding a cast vote: " + vote);
                 castvotes.add(vote);
+                System.out.println("ADDING VOTE TO CAST VOTES: castvotes size after adding: " + castvotes.size());
             }
 
             @Override
@@ -163,7 +170,9 @@ public class LeaderBoardViewModel extends ViewModel {
             public void onCancelled(@NonNull DatabaseError error) {
 
             }
-        });
+        };
+
+        db.child("rooms").child(gameroom).child("votes").addChildEventListener(votesListener);
     }
 
     public ObservableArrayList<LeaderBoardItem> getLeaderBoard() {

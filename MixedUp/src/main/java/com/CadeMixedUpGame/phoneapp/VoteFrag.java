@@ -45,6 +45,7 @@ public class VoteFrag extends Fragment {
 
         LinearLayout potentialLBIlist = view.findViewById(R.id.potential_lbiList);
 
+        //TODO why isnt the potentialleaderboarditems list reset when reset game. NURF THEM WHEN HIT AGAIN
         leaderBoardViewModel.getPotentialLeaderBoardItems().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<LeaderBoardItem>>() {
             @Override
             public void onChanged(ObservableList<LeaderBoardItem> sender) {

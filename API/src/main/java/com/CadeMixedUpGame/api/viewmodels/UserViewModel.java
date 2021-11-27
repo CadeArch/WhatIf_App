@@ -394,6 +394,12 @@ public class UserViewModel extends ViewModel {
         db.child("rooms").child(myRoom).child("players").removeValue();
         System.out.println("DELETING ALL IN ROOM");
     }
+    public void deleteVotesAndVotingItems() {
+        db.child("rooms").child(myRoom).child("votes").removeValue();
+        db.child("rooms").child(myRoom).child("votingItems").removeValue();
+        System.out.println("Deleting votes and voting items in gameroom in database");
+
+    }
 
     public void pushAccountPlayer(MutableLiveData<User> user) {
         db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).setValue(user);

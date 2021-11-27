@@ -13,6 +13,7 @@
         android:layout_height="wrap_content"
         android:text="Select your favorite sentence and vote for leaderboards"
         android:textSize="25dp"
+        android:paddingTop="6dp"
         android:gravity="center_horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
