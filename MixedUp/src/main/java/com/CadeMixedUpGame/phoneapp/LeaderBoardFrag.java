@@ -50,18 +50,19 @@ public class LeaderBoardFrag extends Fragment {
             public void onItemRangeInserted(ObservableList<LeaderBoardItem> sender, int positionStart, int itemCount) {
                 LeaderBoardItem leaderBoardItem = leaderBoardViewModel.getLeaderBoard().get(positionStart);
                 View lbi = LayoutInflater.from(getContext()).inflate(R.layout.lb_item, null);
-                TextView ifPart = lbi.findViewById(R.id.if_part_lbi);
-                TextView thenPart = lbi.findViewById(R.id.then_part_lbi);
-                TextView ifContrib = lbi.findViewById(R.id.if_contributor_lbi);
-                TextView thenContrib = lbi.findViewById(R.id.then_contributor_lbi);
-                TextView percentLoved = lbi.findViewById(R.id.loved);
+                TextView ifThen = lbi.findViewById(R.id.if_then);
+//                TextView thenPart = lbi.findViewById(R.id.then_part_lbi);
+//                TextView ifContrib = lbi.findViewById(R.id.if_contributor_lbi);
+                TextView stats = lbi.findViewById(R.id.stats);
+//                TextView percentLoved = lbi.findViewById(R.id.loved);
 
 
-                ifPart.setText(leaderBoardItem.getIfPart());
-                thenPart.setText(leaderBoardItem.getThenPart());
-                ifContrib.setText("If Contributor: " + leaderBoardItem.getIfContributor());
-                thenContrib.setText("then Contributor: " + leaderBoardItem.getThenContributor());
-                percentLoved.setText("vote % \n" + leaderBoardItem.getPercentLoved());
+                ifThen.setText(leaderBoardItem.getIfPart() + ", " + leaderBoardItem.getThenPart());
+                stats.setText("If Contributor: " + leaderBoardItem.getIfContributor() + "      " + "then Contributor: " +
+                        leaderBoardItem.getThenContributor() + "      " + "percent vote: " + leaderBoardItem.getPercentLoved() + "%");
+//                ifContrib.setText("If Contributor: " + leaderBoardItem.getIfContributor());
+//                thenContrib.setText("then Contributor: " + leaderBoardItem.getThenContributor());
+//                percentLoved.setText("percent vote: " + leaderBoardItem.getPercentLoved() + "%");
                 listOfLeaderBoards.addView(lbi);
             }
 
