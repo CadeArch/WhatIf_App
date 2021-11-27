@@ -52,11 +52,20 @@ public class WriteIfFrag extends Fragment {
 
             userViewModel.pushIf(userViewModel.getUser());
 
-            getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
+            if (ifSentence.getText().toString().equals("")) {
+                Toast.makeText(
+                        getActivity(),
+                        "Question needed",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+            else {
+                getActivity().getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
+                        .setReorderingAllowed(true)
+                        .addToBackStack(null)
+                        .commit();
+            }
         });
 
     }

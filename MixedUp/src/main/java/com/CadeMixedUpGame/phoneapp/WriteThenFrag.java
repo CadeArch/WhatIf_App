@@ -79,18 +79,27 @@ public class WriteThenFrag extends Fragment {
         //giving submit button functionality
         view.findViewById(R.id.writeThen_submit).setOnClickListener(v -> {
 
-            // need to push the then sentance to firebase and change thenComplete to true
-            System.out.println("ButtonPressed to move to collecting answers frag");
-            userViewModel.getUser().getValue().thenSentence = thenSentence.getText().toString();
-            userViewModel.getUser().getValue().thenFinished = true;
+            if (thenSentence.getText().toString().equals("")) {
+                Toast.makeText(
+                        getActivity(),
+                        "Response needed",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+            else {
+                userViewModel.getUser().getValue().thenSentence = thenSentence.getText().toString();
+                userViewModel.getUser().getValue().thenFinished = true;
 
-            userViewModel.pushThen(userViewModel.getUser());
+                userViewModel.pushThen(userViewModel.getUser());
 
-            getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, CollectingAnswersFrag.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
+                System.out.println("ButtonPressed to move to collecting answers frag");
+
+                getActivity().getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, CollectingAnswersFrag.class, null)
+                        .setReorderingAllowed(true)
+                        .addToBackStack(null)
+                        .commit();
+            }
         });
 
 

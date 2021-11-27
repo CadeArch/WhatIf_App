@@ -122,7 +122,7 @@ public class VoteFrag extends Fragment {
             System.out.println("Sentences selected: " + sentencesSelected);
             // if more than one guide user
             if (sentencesSelected > 1 || sentencesSelected == 0) {
-                // creating toast and switching text in viewmodel
+                // creating toast to notify user how to vote
                 Toast.makeText(
                         getActivity(),
                         "Please select 1 sentence",
