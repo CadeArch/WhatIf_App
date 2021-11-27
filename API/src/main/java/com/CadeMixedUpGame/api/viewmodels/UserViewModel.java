@@ -44,7 +44,7 @@ public class UserViewModel extends ViewModel {
     public Boolean onEndFrag = false;
     public Boolean onCollectingAnswers = false;
     public Boolean playing = false;
-    public String localName;
+    public String localName = "";
     DatabaseReference db;
     public String myRoom;
     FirebaseAuth auth;

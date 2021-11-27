@@ -33,6 +33,10 @@ public class StartFragment extends Fragment {
 //        leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
 
         EditText enterName = view.findViewById(R.id.enterName);
+        // if user has set name autofil to what user had it set to when on this fragment
+        if (!userViewModel.localName.equals("guest-")) {
+            enterName.setText(userViewModel.localName.replace("guest-", ""));
+        }
         TextView userName = view.findViewById(R.id.displayName);
 
         userViewModel.getUser().observe(getViewLifecycleOwner(), user -> {

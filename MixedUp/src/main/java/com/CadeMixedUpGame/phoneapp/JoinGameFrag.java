@@ -35,6 +35,7 @@ public class JoinGameFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+
         //giving back button functionality
         view.findViewById(R.id.joinGame_back).setOnClickListener(v -> {
             getActivity().getSupportFragmentManager().beginTransaction()

@@ -128,8 +128,9 @@ public class LeaderBoardViewModel extends ViewModel {
         System.out.println("Pushed Potential LBI to temp voting in database");
     }
 
+    //changed to userName and userID instead of just username in case users have same name todo MAKE SURE IT DIDNT BREAK ANYTHING
     public void castVote(MutableLiveData<User> user, String vote) {
-        db.child("rooms").child(user.getValue().gameRoom).child("votes").child(user.getValue().userName).setValue(vote);
+        db.child("rooms").child(user.getValue().gameRoom).child("votes").child(user.getValue().userName + "-" + user.getValue().userID).setValue(vote);
         System.out.println("VOTE SENT TO DB");
     }
 
