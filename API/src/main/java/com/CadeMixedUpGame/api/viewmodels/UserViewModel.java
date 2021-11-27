@@ -270,29 +270,29 @@ public class UserViewModel extends ViewModel {
     //key to update values in firebase
     public void hostStarted(User user) {
         //updating the status that the host has started the game
-        db.child("rooms").child(user.gameRoom).child("players").child(user.userName).child("value").child("hostStarted").setValue(true);
+        db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostStarted").setValue(true);
 
     }
 
     public void hostPlayedAgain(User user) {
         System.out.println("Host played again: " + user.hostPlayedAgain + " Updating DB");
         if (user.hostPlayedAgain.equals("yes")) {
-            db.child("rooms").child(user.gameRoom).child("players").child(user.userName).child("value").child("hostPlayedAgain").setValue("yes");
+            db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostPlayedAgain").setValue("yes");
             System.out.println("Host Played again set to yes");
         }
         else if (user.hostPlayedAgain.equals("no")){
-            db.child("rooms").child(user.gameRoom).child("players").child(user.userName).child("value").child("hostPlayedAgain").setValue("no");
+            db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostPlayedAgain").setValue("no");
             System.out.println("Host Played again set to no");
         }
         else {
-            db.child("rooms").child(user.gameRoom).child("players").child(user.userName).child("value").child("hostPlayedAgain").setValue("");
+            db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostPlayedAgain").setValue("");
             System.out.println("Host Played again set to NOTHING");
 
         }
     }
 
     public void listenToHost(MutableLiveData<User> host) {
-        db.child("rooms").child(host.getValue().gameRoom).child("players").child(host.getValue().userName).addChildEventListener(new ChildEventListener() {
+        db.child("rooms").child(host.getValue().gameRoom).child("players").child(host.getValue().userName+ "-" + host.getValue().userID).addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
 
@@ -360,8 +360,14 @@ public class UserViewModel extends ViewModel {
 
     public void pushPerson(MutableLiveData<User> user) {
         int userID = (int)(Math.random() * 100000);
-        user.getValue().userID = userID;
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).setValue(user).addOnCompleteListener(new OnCompleteListener<Void>() {
+        if (user.getValue().userID == 0) {
+            user.getValue().userID = userID;
+            System.out.println("UserID set -------------------");
+        }
+        else {
+            System.out.println("UserID already set -----------------");
+        }
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName + "-" + user.getValue().userID).setValue(user).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()){
@@ -386,6 +392,7 @@ public class UserViewModel extends ViewModel {
 //        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("thenFinished").setValue(user.getValue().thenFinished);
 //        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("hostStarted").setValue(user.getValue().hostStarted);
         db.child("rooms").child(myRoom).child("players").removeValue();
+        System.out.println("DELETING ALL IN ROOM");
     }
 
     public void pushAccountPlayer(MutableLiveData<User> user) {
@@ -393,13 +400,13 @@ public class UserViewModel extends ViewModel {
     }
 
     public void pushIf(MutableLiveData<User> user) {
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("ifSentence").setValue(user.getValue().ifSentence);
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("ifFinished").setValue(user.getValue().ifFinished);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifSentence").setValue(user.getValue().ifSentence);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifFinished").setValue(user.getValue().ifFinished);
     }
 
     public void pushThen(MutableLiveData<User> user) {
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("thenSentence").setValue(user.getValue().thenSentence);
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("thenFinished").setValue(user.getValue().thenFinished);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenSentence").setValue(user.getValue().thenSentence);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenFinished").setValue(user.getValue().thenFinished);
     }
 
     public void fillUnlockables(MutableLiveData<User> user) {

@@ -30,7 +30,7 @@ iterating through views help - https://stackoverflow.com/questions/4809834/how-t
 
 collections help - https://stackoverflow.com/questions/22989806/find-the-most-common-string-in-arraylist
 
-
+scroll view fix - https://stackoverflow.com/questions/38663428/android-scrollview-gets-cut-off-at-the-bottom (answer by Ross)
 
 
 ## todo
