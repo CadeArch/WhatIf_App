@@ -31,6 +31,7 @@ public class FirstFrag extends Fragment {
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
         // todo check to see if this fixes issue
+        // This did get called, will assure a user isnt signed into a device upon start of app, will need to sign back in
         if (userViewModel.getUser().getValue() != null) {
             System.out.println("USER NOT NULL");
             if (userViewModel.getUser().getValue().accountPlay) {

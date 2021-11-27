@@ -117,6 +117,7 @@ public class ReadSentenceFrag extends Fragment {
             }
 
             String uniqueID = roomViewModel.makeRoomID();
+            // could add if and then contributor user id to the item to be able to know who made the sentences later on
             LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf, myRandomThen, ifContributor, thenContributor, uniqueID);
             leaderBoardViewModel.pushVoteItem(userViewModel.getUser(), lbi);
 
