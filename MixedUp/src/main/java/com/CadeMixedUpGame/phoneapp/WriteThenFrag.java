@@ -89,7 +89,8 @@ public class WriteThenFrag extends Fragment {
             else {
                 String thenSent = thenSentence.getText().toString();
                 thenSent = thenSent.replaceAll("\\p{Punct}","");
-
+                thenSent = thenSent.replaceAll("\\s+$", "");
+                thenSent = thenSent.replaceAll("^\\s+", "");
                 userViewModel.getUser().getValue().thenSentence = thenSent;
                 userViewModel.getUser().getValue().thenFinished = true;
 

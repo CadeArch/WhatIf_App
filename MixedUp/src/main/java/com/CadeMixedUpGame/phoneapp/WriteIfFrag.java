@@ -49,6 +49,8 @@ public class WriteIfFrag extends Fragment {
             String ifsent = ifSentence.getText().toString();
             ifsent = ifsent.replaceAll("\\p{Punct}","");
             ifsent = ifsent.substring(0, 1).toUpperCase() + ifsent.substring(1);
+            ifsent = ifsent.replaceAll("\\s+$", "");
+            ifsent = ifsent.replaceAll("^\\s+", "");
             userViewModel.getUser().getValue().ifSentence = ifsent;
             userViewModel.getUser().getValue().ifFinished = true;
 
