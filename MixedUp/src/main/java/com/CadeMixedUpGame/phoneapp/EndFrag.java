@@ -93,7 +93,7 @@ public class EndFrag extends Fragment {
         //giving home button functionality
         view.findViewById(R.id.home_ending).setOnClickListener(v -> {
 
-            if (userViewModel.getUsers().size() != leaderBoardViewModel.getCastvotes().size()) {
+            if (userViewModel.getUsers().size() != leaderBoardViewModel.getCastvotes().size() && allAccountPlayers) {
                 Toast.makeText(
                         getActivity(),
                         "not all votes sent",
@@ -125,7 +125,7 @@ public class EndFrag extends Fragment {
         view.findViewById(R.id.again_ending).setOnClickListener(v -> {
             System.out.println("END FRAG: hit again");
 
-            if (userViewModel.getUsers().size() != leaderBoardViewModel.getCastvotes().size()) {
+            if (userViewModel.getUsers().size() != leaderBoardViewModel.getCastvotes().size() && allAccountPlayers) {
                 Toast.makeText(
                         getActivity(),
                         "not all votes sent",
