@@ -46,7 +46,7 @@ public class WaitingForHostFrag extends Fragment {
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
-
+        roomViewModel.gameInProgressFalse();
 
         TextView gameCode = view.findViewById(R.id.gameCode);
         gameCode.setText(userViewModel.getUser().getValue().gameRoom);
@@ -97,11 +97,11 @@ public class WaitingForHostFrag extends Fragment {
             System.out.println("I am the host and have set the host value: " + userViewModel.host.getValue().userName);
         }
 
-        // TODO sometimes host stalls here and doesnt go farther in frag and button wont work FIXED?
         // giving button functionality
         view.findViewById(R.id.waitingForHost_start).setOnClickListener(v -> {
             // host started game and setting the value in firebase to be true
             System.out.println("HOST CLICKED BUTTON ------------------");
+            roomViewModel.gameInProgressTrue();
             userViewModel.getUser().getValue().hostStarted = true;
             userViewModel.playing = true;
             userViewModel.hostStarted(userViewModel.host.getValue());

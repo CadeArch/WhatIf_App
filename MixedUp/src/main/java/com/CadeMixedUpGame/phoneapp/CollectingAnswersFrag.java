@@ -29,7 +29,7 @@ public class CollectingAnswersFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-//        System.out.println("----------------collecting Then frag--------------------------");
+        System.out.println("----------------collecting Then frag--------------------------");
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
 
         userViewModel.onCollectingAnswers = true;

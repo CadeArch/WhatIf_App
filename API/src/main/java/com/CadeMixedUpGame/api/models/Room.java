@@ -4,9 +4,11 @@ import androidx.annotation.Nullable;
 
 public class Room {
     public String roomID;
+    public boolean gameInProgress;
 
     public Room(String roomID) {
         this.roomID = roomID;
+        this.gameInProgress = false;
     }
 
     @Override

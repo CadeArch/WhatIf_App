@@ -79,6 +79,8 @@ public class UserViewModel extends ViewModel {
 
     public void reset() {
         signInToast = new MutableLiveData<>();
+        // not sure if this is good reseting db member variable
+        db = FirebaseDatabase.getInstance().getReference();
 
         localRandIf = "";
         onWriteThen = false;
@@ -214,9 +216,11 @@ public class UserViewModel extends ViewModel {
 //                    System.out.println("DB-NEW PLAYER ADDED---------- " + user.userName);
                     users.add(user);
                 }
+                System.out.println("Users in user array after child added");
                 for(User user: users) {
                     System.out.println(user.userName);
                 }
+                System.out.println("users array size after added: " + users.size());
             }
 
             @Override
