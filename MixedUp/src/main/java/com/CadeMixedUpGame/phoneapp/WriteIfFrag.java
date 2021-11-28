@@ -46,8 +46,10 @@ public class WriteIfFrag extends Fragment {
                  ) {
                 System.out.println("ORDER IN WRITE IF FRAG ------------- " + user.userName);
             }
-
-            userViewModel.getUser().getValue().ifSentence = ifSentence.getText().toString();
+            String ifsent = ifSentence.getText().toString();
+            ifsent = ifsent.replaceAll("\\p{Punct}","");
+            ifsent = ifsent.substring(0, 1).toUpperCase() + ifsent.substring(1);
+            userViewModel.getUser().getValue().ifSentence = ifsent;
             userViewModel.getUser().getValue().ifFinished = true;
 
             userViewModel.pushIf(userViewModel.getUser());
