@@ -32,6 +32,9 @@ collections help - https://stackoverflow.com/questions/22989806/find-the-most-co
 
 scroll view fix - https://stackoverflow.com/questions/38663428/android-scrollview-gets-cut-off-at-the-bottom (answer by Ross)
 
+disabling nightview = https://stackoverflow.com/questions/57175226/how-to-disable-night-mode-in-my-application-even-if-night-mode-is-enable-in-andr
+
+button help - https://stackoverflow.com/questions/15615823/setenabled-vs-setclickable-what-is-the-difference
 
 ## todo
 send players if statements to db - DONE

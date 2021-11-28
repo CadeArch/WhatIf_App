@@ -1,5 +1,6 @@
 package com.CadeMixedUpGame.phoneapp;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
@@ -54,14 +55,19 @@ public class EndFrag extends Fragment {
         userViewModel.onEndFrag = true;
         // only host can say to play again
         if (!userViewModel.getUser().getValue().host) {
-            view.findViewById(R.id.again_ending).setVisibility(View.GONE);
+            // may not need the background color change with set enabled
+            view.findViewById(R.id.again_ending).setBackgroundColor(Color.GRAY);
+            view.findViewById(R.id.again_ending).setEnabled(false);
 
             userViewModel.getUser().observe(this.getViewLifecycleOwner(), new Observer<User>() {
                 @Override
                 public void onChanged(User user) {
                     System.out.println("END FRAG: noticed Change on host played again value: " + userViewModel.getUser().getValue().hostPlayedAgain);
                     if (userViewModel.getUser().getValue().hostPlayedAgain.equals("yes")) {
-                        view.findViewById(R.id.again_ending).setVisibility(View.VISIBLE);
+                        // if host hits again button will be clickable for rest of players
+                        view.findViewById(R.id.again_ending).setEnabled(true);
+                        view.findViewById(R.id.again_ending).setBackgroundColor(Color.parseColor("#FF6200EE"));
+
                         System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostPlayedAgain);
 
                     }
