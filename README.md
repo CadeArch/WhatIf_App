@@ -62,7 +62,7 @@ mix up everyones Then sentence so they dont have their own then - DONE
 
 ## First User test
     found a bunch of issues I didnt think of, created a list of 22 things to fix:
-# DONE
+### DONE
     - assure that a phone with dark mode on doesnt change text color in app
     - if free play has written name in field have it auto populate field with users name
     - assure text in if and then sentence fields 
@@ -79,7 +79,7 @@ mix up everyones Then sentence so they dont have their own then - DONE
     - fixed leaderboards not loading in every time users try to go to them
     - fixed scrollview issues in leaderboard and vote frags
     - fix small UI issues with edit texts and some textviews 
-# NOT DONE
+### NOT DONE
     - alert users if they have a sentence in the leaderboards
     - assure pushing and pulling from database is successful if connection fails
     - check constraint layout on frags to assure UI is good
