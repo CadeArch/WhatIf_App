@@ -61,6 +61,7 @@ mix up everyones Then sentence so they dont have their own then - DONE
 
 
 ## First User test
+    5 players
     found a bunch of issues I didnt think of, created a list of 22 things to fix:
 ### DONE
     - assure that a phone with dark mode on doesnt change text color in app
@@ -79,15 +80,16 @@ mix up everyones Then sentence so they dont have their own then - DONE
     - fixed leaderboards not loading in every time users try to go to them
     - fixed scrollview issues in leaderboard and vote frags
     - fix small UI issues with edit texts and some textviews 
-### NOT DONE
-    - alert users if they have a sentence in the leaderboards
-    - assure pushing and pulling from database is successful if connection fails
-    - check constraint layout on frags to assure UI is good
     - add period to leaderboards sentences    
-    - strip whitespace on account frag
     - line up sentences in vote frag
+### NOT DONE
+    - strip whitespace on account frag
+    - alert users if they have a sentence in the leaderboards
+    - check constraint layout on frags to assure UI is good
+    - assure pushing and pulling from database is successful if connection fails
 
 ## second user test
+    3 players
     - a group played game smoothly multiple times no issue!
     - need to fix when players from group split and go to new group, 
       issues with a user that wasnt a host goes to new group and isnt a host there as well
@@ -95,4 +97,11 @@ mix up everyones Then sentence so they dont have their own then - DONE
 
 ## questions
     - is there a good way to reinitialize a db reference to have no listeners at the end of a match?
+    - is the db listeners on the db reference object?
     - 
+
+## ideas
+    - remove ambiguous letters from game code generation
+    - make the username the account players email address and what is currently the user name the display name
+    - app design - don't allow the user to make a mistake if possible (vote frag selecting more than one sentence)
+    - leaderboards (currently isnt showing which player is the best player, food for thought)

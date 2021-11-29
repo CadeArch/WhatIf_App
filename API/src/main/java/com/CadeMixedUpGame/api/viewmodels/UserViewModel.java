@@ -207,6 +207,7 @@ public class UserViewModel extends ViewModel {
 
     // used in create and join game to see players that join room from firebase
     public void loadUsers(String gameRoom) {
+        System.out.println("LOAD USERS CALLED: adding a listener to gameroom: " + gameRoom);
         listener = new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {

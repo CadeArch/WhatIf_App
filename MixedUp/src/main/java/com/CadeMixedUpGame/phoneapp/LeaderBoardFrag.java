@@ -57,7 +57,7 @@ public class LeaderBoardFrag extends Fragment {
 //                TextView percentLoved = lbi.findViewById(R.id.loved);
 
 
-                ifThen.setText(leaderBoardItem.getIfPart() + ", " + leaderBoardItem.getThenPart());
+                ifThen.setText(leaderBoardItem.getIfPart() + ", " + leaderBoardItem.getThenPart() + ".");
                 stats.setText("If Contributor: " + leaderBoardItem.getIfContributor() + "      " + "then Contributor: " +
                         leaderBoardItem.getThenContributor() + "      " + "percent vote: " + leaderBoardItem.getPercentLoved() + "%");
 //                ifContrib.setText("If Contributor: " + leaderBoardItem.getIfContributor());

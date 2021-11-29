@@ -65,12 +65,10 @@ public class VoteFrag extends Fragment {
                 TextView ifPart = voteItem.findViewById(R.id.if_part);
                 TextView thenPart = voteItem.findViewById(R.id.then_part);
                 TextView sentID = voteItem.findViewById(R.id.sentence_id);
-//                TextView fixHighlight = voteItem.findViewById(R.id.fixHighlight_NOTUSED);
 
                 ifPart.setText(leaderBoardItem.getIfPart());
                 thenPart.setText(leaderBoardItem.getThenPart());
                 sentID.setText(leaderBoardItem.getId());
-//                fixHighlight.setText("0000000000000000000asdfasdfasdfffffffffffffffffffffffffffffffffffffffasdfasdfasdfasdfadsssssssssssssssssssssssssssss0000");
 
                 voteItem.setBackgroundColor(Color.parseColor("#0000FF00"));
 
