@@ -36,6 +36,8 @@ disabling nightview = https://stackoverflow.com/questions/57175226/how-to-disabl
 
 button help - https://stackoverflow.com/questions/15615823/setenabled-vs-setclickable-what-is-the-difference
 
+Maybe randomize then sentence based on the person before them instead of after since if is after??
+
 ## todo
 send players if statements to db - DONE
 set up observer on database to see changes and to add new user to list of users - DONE
@@ -50,13 +52,47 @@ mix up everyones Then sentence so they dont have their own then - DONE
   after they hit next from read sentance have them vote on best sentance (if all users are account play). - DONE
   compare with what is on the leaderboards and if the new sentence wins push it to the leaderboards and remove the old one - DONE
   create unlockables class that will be part of user players stored in FB - DONE
+  End frag can return to first frag or play again. - Done
+  create leaderboards fragment and buttons to link to current frags - DONE
   write string mutators to change text based on different voices - Partly DONE
-  End frag can return to first frag or play again. - In progress
-  create leaderboards fragment and buttons to link to current frags -
-  create ways to unlock each unlockable voice and implement - 
+  create player profile that fills with user info, and games played -
+  create ways to unlock each unlockable voice and implement - DO NEXT
+  create push notifications - DO NEXT
 
 
+## First User test
+    found a bunch of issues I didnt think of, created a list of 22 things to fix:
+# DONE
+    - assure that a phone with dark mode on doesnt change text color in app
+    - if free play has written name in field have it auto populate field with users name
+    - assure text in if and then sentence fields 
+    - fix highlighting in vote frag
+    - lockdown gameroom if game is in progress so no one else can join
+    - provide more back buttons on select fragments
+    - android version compatibility is 25 and greater
+    - strip whitespace on if and then sentences, remove punctuation so it can be standardized
+    - assure first letter of if sentence is capitol
+    - make again button greyed out on ending frag for those who arent host, then enable when host plays again
+    - make sure all votes are cast before host clicks again or home on end frag.
+    - fix issue where voting items in database arent reset when players play again
+    - assure guests and users with same name in gameroom doesnt cause issues with db
+    - fixed leaderboards not loading in every time users try to go to them
+    - fixed scrollview issues in leaderboard and vote frags
+    - fix small UI issues with edit texts and some textviews 
+# NOT DONE
+    - alert users if they have a sentence in the leaderboards
+    - assure pushing and pulling from database is successful if connection fails
+    - check constraint layout on frags to assure UI is good
+    - add period to leaderboards sentences    
+    - strip whitespace on account frag
+    - line up sentences in vote frag
+
+## second user test
+    - a group played game smoothly multiple times no issue!
+    - need to fix when players from group split and go to new group, 
+      issues with a user that wasnt a host goes to new group and isnt a host there as well
+    
 
 ## questions
-- any way to lock down the back button on the phone
-- FUNCTIONALITY: if host doesnt hit again terminate for all users?
+    - is there a good way to reinitialize a db reference to have no listeners at the end of a match?
+    - 

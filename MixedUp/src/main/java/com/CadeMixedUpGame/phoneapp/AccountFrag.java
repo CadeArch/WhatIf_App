@@ -36,7 +36,16 @@ public class AccountFrag extends Fragment {
         EditText userName = view.findViewById(R.id.userName);
         Button signin = view.findViewById(R.id.signIn);
         Button signup = view.findViewById(R.id.signUp);
+        Button back = view.findViewById(R.id.back_account);
 
+        back.setOnClickListener(v -> {
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, FirstFrag.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+
+        });
 
 
         //giving sign in button functionality
