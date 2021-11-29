@@ -101,10 +101,10 @@ public class JoinGameFrag extends Fragment {
                                 @Override
                                 public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
                                     // if the user exists in the observable array then we know that its gotten pushed to firebase and added to my observable array
-//                        System.out.println("num in user array JOIN FRAG----" + userViewModel.getUsers().size());
-//                        for (User person:userViewModel.getUsers()) {
-//                            System.out.println("PERSON------" + person.userName);
-//                        }
+//                                    System.out.println("num in user array JOIN FRAG----" + userViewModel.getUsers().size());
+//                                    for (User person:userViewModel.getUsers()) {
+//                                        System.out.println("PERSON------" + person.userName);
+//                                    }
                                     // TODO this gets run A BUNCH
                                     // could figure out how to use the contains array function?
                                     for (User player : userViewModel.getUsers()) {

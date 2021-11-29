@@ -100,8 +100,8 @@ public class RoomViewModel extends ViewModel {
         db.child("rooms").child(room.roomID).child("gameInProgress").setValue(true);
     }
 
-    public void gameInProgressFalse() {
-        db.child("rooms").child(room.roomID).child("gameInProgress").setValue(false);
+    public void gameInProgressFalse(String room) {
+        db.child("rooms").child(room).child("gameInProgress").setValue(false);
     }
 
     public void checkIfInProgress(String room) {

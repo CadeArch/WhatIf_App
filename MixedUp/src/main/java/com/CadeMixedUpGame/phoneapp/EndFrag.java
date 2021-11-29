@@ -109,9 +109,7 @@ public class EndFrag extends Fragment {
                 userViewModel.reset();
                 leaderBoardViewModel.reset();
                 userViewModel.host = new MutableLiveData<User>();
-
-//            userViewModel.setUsers(new ObservableArrayList<User>());
-
+                
 
                 if (userViewModel.getUser().getValue().host) {
                     userViewModel.getUser().getValue().hostPlayedAgain = "no";

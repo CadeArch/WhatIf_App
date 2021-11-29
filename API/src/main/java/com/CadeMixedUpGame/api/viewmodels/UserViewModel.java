@@ -165,15 +165,20 @@ public class UserViewModel extends ViewModel {
 //                    System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
                     if (task.getException().getMessage().equals("The password is invalid or the user does not have a password.")) {
                         signInToast.getValue().setText("Invalid Password");
+                        System.out.println("bad password");
                     }
                     else if (task.getException().getMessage().equals("There is no user record corresponding to this identifier. The user may have been deleted.")) {
                         signInToast.getValue().setText("Invalid Email");
+                        System.out.println("invalid Email");
+
                     }
                     else if (task.getException().getMessage().equals("The email address is badly formatted.")) {
                         signInToast.getValue().setText("Email Badly Formatted");
+                        System.out.println("bad email");
                     }
                     else {
                         signInToast.getValue().setText("User Disabled");
+                        System.out.println("userDisabled");
                     }
                 }
             }

@@ -14,7 +14,7 @@ import android.widget.Toast;
 
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
-import com.google.firebase.auth.FirebaseUser;
+//import com.google.firebase.auth.FirebaseUser;
 
 
 public class AccountFrag extends Fragment {
