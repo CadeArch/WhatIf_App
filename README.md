@@ -98,7 +98,7 @@ mix up everyones Then sentence so they dont have their own then - DONE
 ## questions
     - is there a good way to reinitialize a db reference to have no listeners at the end of a match?
     - is the db listeners on the db reference object?
-    - 
+    - if a push or a pull to the db fails is there a way to retry until it is successful?
 
 ## ideas
     - remove ambiguous letters from game code generation
