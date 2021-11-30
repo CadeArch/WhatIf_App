@@ -8,7 +8,9 @@ import androidx.lifecycle.ViewModelProvider;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
@@ -18,6 +20,7 @@ import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 public class StartFragment extends Fragment {
     RoomViewModel roomViewModel;
     UserViewModel userViewModel;
+    LeaderBoardViewModel leaderBoardViewModel;
 //    LeaderBoardViewModel leaderBoardViewModel;
 
     public StartFragment() {
@@ -30,7 +33,44 @@ public class StartFragment extends Fragment {
 
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
-//        leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
+        leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
+
+        // checking to see if user can unlock any voices based on whether or not they are on the leaderboards
+        // assuring leaderboards isnt empty so it wont break, if they are on the leaderboards they can unlock it
+        // but it wont notify or try to unlock it again if the player has already unlocked that value
+        System.out.println(userViewModel.getUser().getValue().accountPlay);
+        if (userViewModel.getUser().getValue().accountPlay) {
+            System.out.println("Leaderboard Size: " + leaderBoardViewModel.getLeaderBoard().size());
+            if (leaderBoardViewModel.getLeaderBoard().size() > 0) {
+                for (LeaderBoardItem lbi : leaderBoardViewModel.getLeaderBoard()) {
+                    if (lbi.getIfContributorID().equals(userViewModel.getUser().getValue().getUid()) &&
+                            lbi.getThenContributorID().equals(userViewModel.getUser().getValue().getUid())) {
+                        if (!userViewModel.getUser().getValue().perfectLeaderBoard) {
+                            userViewModel.getUser().getValue().perfectLeaderBoard = true;
+                            userViewModel.unlockVoice(userViewModel.getUser(), "leaderBoards");
+                            Toast.makeText(
+                                    getActivity(),
+                                    "unlocked pig latin google voice!",
+                                    Toast.LENGTH_LONG
+                            ).show();
+                            System.out.println("perfect Leader Board");
+                        }
+                    } else if (lbi.getIfContributorID().equals(userViewModel.getUser().getValue().getUid()) ||
+                            lbi.getThenContributorID().equals(userViewModel.getUser().getValue().getUid())) {
+                        if (!userViewModel.getUser().getValue().madeLeaderBoard) {
+                            userViewModel.getUser().getValue().madeLeaderBoard = true;
+                            userViewModel.unlockVoice(userViewModel.getUser(), "leaderBoards");
+                            Toast.makeText(
+                                    getActivity(),
+                                    "unlocked fuddify google voice!",
+                                    Toast.LENGTH_LONG
+                            ).show();
+//                        System.out.println("on Leader Board");
+                        }
+                    }
+                }
+            }
+        }
 
         EditText enterName = view.findViewById(R.id.enterName);
         // if user has set name autofil to what user had it set to when on this fragment

@@ -17,6 +17,8 @@ import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
+import java.util.Objects;
+
 public class EndFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
@@ -36,6 +38,13 @@ public class EndFrag extends Fragment {
         leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
         System.out.println("switching to end frag");
         System.out.println("END FRAG: users and cast votes: " + userViewModel.getUsers().size() + " " + leaderBoardViewModel.getCastvotes().size());
+
+        // incrementing num of total games played for account player
+        if (Objects.requireNonNull(userViewModel.getUser().getValue()).accountPlay) {
+            userViewModel.getGamesPlayed(userViewModel.getUser(), true);
+            userViewModel.getMadeLeaderBoard(userViewModel.getUser());
+            userViewModel.getMadePerfectLeaderBoard(userViewModel.getUser());
+        }
 
         // so database resets temp votes and vote items as well if all are account players
         int counter = 0;

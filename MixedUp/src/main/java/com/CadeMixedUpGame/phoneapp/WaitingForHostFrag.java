@@ -20,6 +20,7 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.widget.GridLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
@@ -46,6 +47,17 @@ public class WaitingForHostFrag extends Fragment {
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
+        // this will unlock voices based on number of games played unlocking here in case players hit the play again button
+        if (userViewModel.getUser().getValue().accountPlay) {
+            userViewModel.unlockVoice(userViewModel.getUser(), "numGames");
+            if (userViewModel.getUser().getValue().gamesPlayed == 5) {
+                Toast.makeText(
+                        getActivity(),
+                        "unlocked backwords google voice!",
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+        }
 
         TextView gameCode = view.findViewById(R.id.gameCode);
         gameCode.setText(userViewModel.getUser().getValue().gameRoom);

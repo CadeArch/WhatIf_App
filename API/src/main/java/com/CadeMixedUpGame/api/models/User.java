@@ -19,6 +19,9 @@ public class User implements Comparable<User>{
     public boolean hostStarted;
     public boolean playAgain;
     public String hostPlayedAgain;
+    public int gamesPlayed;
+    public boolean madeLeaderBoard;
+    public boolean perfectLeaderBoard;
 
     public User(FirebaseUser user, String userName) {
         this.userID = 0;
@@ -35,6 +38,8 @@ public class User implements Comparable<User>{
         this.hostStarted = false;
         this.playAgain = false;
         this.hostPlayedAgain = "";
+        this.madeLeaderBoard = false;
+        this.perfectLeaderBoard = false;
     }
 
     public User(String userName) {
@@ -52,6 +57,8 @@ public class User implements Comparable<User>{
         this.hostStarted = false;
         this.playAgain = false;
         this.hostPlayedAgain = "";
+        this.madeLeaderBoard = false;
+        this.perfectLeaderBoard = false;
     }
 
     public User() {}

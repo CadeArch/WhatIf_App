@@ -106,19 +106,23 @@ public class ReadSentenceFrag extends Fragment {
 
             String ifContributor = "";
             String thenContributor = "";
+            String ifContributorID = "";
+            String thenContributorID = "";
             // finding the contributors to the if and then
             for (User user: userViewModel.getUsers()) {
                 if (user.ifSentence.equals(myRandomIf)) {
                     ifContributor = user.userName;
+                    ifContributorID = user.uid;
                 }
                 if (user.thenSentence.equals(myRandomThen)) {
                     thenContributor = user.userName;
+                    thenContributorID = user.uid;
                 }
             }
 
             String uniqueID = roomViewModel.makeRoomID();
             // could add if and then contributor user id to the item to be able to know who made the sentences later on
-            LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf, myRandomThen, ifContributor, thenContributor, uniqueID);
+            LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf, myRandomThen, ifContributor, thenContributor, ifContributorID, thenContributorID, uniqueID);
             leaderBoardViewModel.pushVoteItem(userViewModel.getUser(), lbi);
 
             view.findViewById(R.id.next_frag).setOnClickListener(v -> {

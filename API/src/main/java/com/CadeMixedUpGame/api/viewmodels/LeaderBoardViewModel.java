@@ -284,6 +284,7 @@ public class LeaderBoardViewModel extends ViewModel {
             System.out.println(lbi.getLoadedToLeaderBoard());
         }
         for (LeaderBoardItem lbi: getLeaderBoard()) {
+//            System.out.println(lbi.getPercentLoved());
             if (lbi.getPercentLoved() < newlbi.getPercentLoved()) {
                 removeThis = lbi;
                 System.out.println("to remove: " + removeThis.getId() + removeThis.getPercentLoved());

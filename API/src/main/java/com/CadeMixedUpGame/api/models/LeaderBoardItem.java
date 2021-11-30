@@ -5,21 +5,33 @@ public class LeaderBoardItem {
     String thenPart;
     String ifContributor;
     String thenContributor;
+    String ifContributorID;
+    String thenContributorID;
     String id;
     long loadedToLeaderBoard;
     double percentLoved;
 
 
 
-    public LeaderBoardItem(String ifPart, String thenPart, String ifContributor, String thenContributor, String id) {
+    public LeaderBoardItem(String ifPart, String thenPart, String ifContributor, String thenContributor, String ifContributorID, String thenContributorID, String id) {
         this.ifPart = ifPart;
         this.thenPart = thenPart;
         this.ifContributor = ifContributor;
         this.thenContributor = thenContributor;
+        this.ifContributorID = ifContributorID;
+        this.thenContributorID = thenContributorID;
         this.id = id;
     }
 
     public LeaderBoardItem() {}
+
+    public String getIfContributorID() {
+        return ifContributorID;
+    }
+
+    public String getThenContributorID() {
+        return thenContributorID;
+    }
 
     public String getId() {
         return id;
@@ -76,4 +88,14 @@ public class LeaderBoardItem {
     public void setThenPart(String thenPart) {
         this.thenPart = thenPart;
     }
+
+
+    public void setIfContributorID(String ifContributorID) {
+        this.ifContributorID = ifContributorID;
+    }
+
+    public void setThenContributorID(String thenContributorID) {
+        this.thenContributorID = thenContributorID;
+    }
+
 }

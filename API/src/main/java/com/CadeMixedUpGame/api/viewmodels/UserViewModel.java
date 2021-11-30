@@ -110,7 +110,7 @@ public class UserViewModel extends ViewModel {
 
                     //setting the username of the account to whatever they put in the box when signing up
                     FirebaseUser fBuser = FirebaseAuth.getInstance().getCurrentUser();
-                    buildUser(fBuser, userName);
+                    buildUser(fBuser, userName, false);
 
 //                    System.out.println(" -----------------------------\n " + "email: " + email + "\npassword: " + password + "\nusername: " + userName);
                     // setting username in Firebase account
@@ -125,6 +125,7 @@ public class UserViewModel extends ViewModel {
                             getUser().getValue().userName = fBuser.getDisplayName();
                             pushAccountPlayer(user);
                             fillUnlockables(user);
+                            fillGamesPlayed(user);
                         }
                     });
                 }
@@ -157,7 +158,9 @@ public class UserViewModel extends ViewModel {
                     Log.d("Success: ", "signInWithEmail:success--------------");
                     FirebaseUser fbUser = auth.getCurrentUser();
                     localName = fbUser.getDisplayName();
-                    buildUser(fbUser, localName);
+                    buildUser(fbUser, localName, true);
+                    getGamesPlayed(user, false);
+//                    System.out.println("UPON SIGN IN - user has played " + user.getValue().gamesPlayed + " matches");
                     signInToast.getValue().setText("Sign in Complete");
 
                 } else {
@@ -183,6 +186,18 @@ public class UserViewModel extends ViewModel {
                 }
             }
         });
+    }
+
+    //used when a user signs up for the first time and when the user logs in
+    public MutableLiveData<User> buildUser(FirebaseUser fbUser, String username, boolean signIn) {
+        user.setValue(new User(fbUser, username));
+        user.getValue().accountPlay = true;
+        if (signIn) {
+            getMadeLeaderBoard(user);
+            getMadePerfectLeaderBoard(user);
+        }
+
+        return user;
     }
 
     public void signOut() {
@@ -348,13 +363,32 @@ public class UserViewModel extends ViewModel {
         });
     }
 
-    //used when a user signs up for the first time and when the user logs in
-    public MutableLiveData<User> buildUser(FirebaseUser fbUser, String username) {
-        user.setValue(new User(fbUser, username));
-        user.getValue().accountPlay = true;
-
-        return user;
+    public void getMadeLeaderBoard(MutableLiveData<User> user) {
+        Task<DataSnapshot> madeLeader = db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("value").child("madeLeaderBoard").get();
+        madeLeader.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DataSnapshot> task) {
+                DataSnapshot snapshot = madeLeader.getResult();
+                boolean inDB = snapshot.getValue(Boolean.class);
+                user.getValue().madeLeaderBoard = inDB;
+                System.out.println("Made LeaderBoard ----- " + user.getValue().madeLeaderBoard);
+            }
+        });
     }
+
+    public void getMadePerfectLeaderBoard(MutableLiveData<User> user) {
+        Task<DataSnapshot> madePerfectLeader = db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("value").child("perfectLeaderBoard").get();
+        madePerfectLeader.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DataSnapshot> task) {
+                DataSnapshot snapshot = madePerfectLeader.getResult();
+                boolean inDB = snapshot.getValue(Boolean.class);
+                user.getValue().perfectLeaderBoard = inDB;
+                System.out.println("Made Perfect LeaderBoard ----- " + user.getValue().perfectLeaderBoard);
+            }
+        });
+    }
+
     //in freeplay to build the user
     public MutableLiveData<User> buildUserFree(String username) {
         user.setValue(new User(username));
@@ -444,6 +478,49 @@ public class UserViewModel extends ViewModel {
 
     }
 
+    public void fillGamesPlayed(MutableLiveData<User> user) {
+        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("gamesPlayed").setValue(0);
+    }
+
+    public void getGamesPlayed(MutableLiveData<User> user, boolean increment) {
+        Task<DataSnapshot> gamesPlayed = db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("gamesPlayed").get();
+        gamesPlayed.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DataSnapshot> task) {
+                DataSnapshot snapshot = gamesPlayed.getResult();
+                int totalPlayed = snapshot.getValue(Integer.class);
+                user.getValue().gamesPlayed = totalPlayed;
+                System.out.println("GAMES PLAYED ----- " + user.getValue().gamesPlayed);
+                if (increment) {
+                    incrementGamesPlayed(user);
+                }
+            }
+        });
+    }
+
+    public void incrementGamesPlayed(MutableLiveData<User> user) {
+        user.getValue().gamesPlayed += 1;
+        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("gamesPlayed").setValue(user.getValue().gamesPlayed);
+    }
+
+    public void unlockVoice(MutableLiveData<User> user, String which) {
+        if (user.getValue().gamesPlayed >= 5 && which.equals("numGames")) {
+            db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child("backwords").child("unlocked").setValue(true);
+            System.out.println("more than 5 games played ----- backwords unlocked");
+        }
+        if (user.getValue().madeLeaderBoard && which.equals("leaderBoards")) {
+            db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child("fuddify").child("unlocked").setValue(true);
+            db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("value").child("madeLeaderBoard").setValue(true);
+            System.out.println("made leaderboard ------ fuddify unlocked");
+        }
+        if (user.getValue().perfectLeaderBoard && which.equals("leaderBoards")) {
+            db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child("pig latin").child("unlocked").setValue(true);
+            db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("value").child("perfectLeaderBoard").setValue(true);
+            System.out.println("made perfect leaderboard ------ pig latin unlocked");
+
+        }
+
+    }
 
     public void getUnlocked(MutableLiveData<User> user) {
         Task<DataSnapshot> unlocked = db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").get();
