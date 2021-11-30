@@ -21,7 +21,6 @@ public class StartFragment extends Fragment {
     RoomViewModel roomViewModel;
     UserViewModel userViewModel;
     LeaderBoardViewModel leaderBoardViewModel;
-//    LeaderBoardViewModel leaderBoardViewModel;
 
     public StartFragment() {
         super(R.layout.fragment_start);
@@ -174,6 +173,16 @@ public class StartFragment extends Fragment {
             //moving to the leaderboards fragment
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, LeaderBoardFrag.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+        });
+
+        //giving the profile button functionality
+        view.findViewById(R.id.profile_button).setOnClickListener(v -> {
+            //moving to the leaderboards fragment
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, ProfileFrag.class, null)
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();
