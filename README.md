@@ -55,8 +55,8 @@ mix up everyones Then sentence so they dont have their own then - DONE
   End frag can return to first frag or play again. - Done
   create leaderboards fragment and buttons to link to current frags - DONE
   write string mutators to change text based on different voices - Partly DONE
-  create player profile that fills with user info, and games played -
-  create ways to unlock each unlockable voice and implement - DO NEXT
+  create player profile that fills with user info, and games played - DONE
+  create ways to unlock each unlockable voice and implement - DONE
   create push notifications - DO NEXT
 
 
@@ -84,8 +84,8 @@ mix up everyones Then sentence so they dont have their own then - DONE
     - line up sentences in vote frag
 ### NOT DONE
     - strip whitespace on account frag
-    - alert users if they have a sentence in the leaderboards
-    - check constraint layout on frags to assure UI is good
+    - alert users if they have a sentence in the leaderboards - KINDA DONE
+    - check constraint layout on frags to assure UI is good - check again
     - assure pushing and pulling from database is successful if connection fails
 
 ## second user test
