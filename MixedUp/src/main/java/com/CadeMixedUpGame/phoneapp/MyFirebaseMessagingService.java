@@ -5,6 +5,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
@@ -17,12 +18,18 @@ import com.google.firebase.messaging.RemoteMessage;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
     private static final String TAG = "MESSAGING SERVICE";
-    boolean longerThanTwoWeeks = true;
+    boolean longerThanTwoWeeks = false;
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
         System.out.println("------------------ MESSSAGE RECIEVED ---------------");
-        // TODO: get shared preference of when user last logged on, if it has been longer than two weeks set LONGERTHANTWO WEEKS to true else false
+        // TODO: get shared preference of when user last logged on, if it has been longer than two weeks set LONGERTHANTWO WEEKS to true else false check mode
+        SharedPreferences sh = getSharedPreferences("MixedUpSharedPrefs", 0);
+        long lastLoggedOn = sh.getLong("logged-on",0);
+        // if duration between now and last logged on is > 2 weeks set class variable to true and send the notification
+        if (System.currentTimeMillis() - lastLoggedOn >  1209600000) {
+            longerThanTwoWeeks = true;
+        }
         // Not getting messages here? See why this may be: https://goo.gl/39bRNJ
         Log.d(TAG, "From: " + remoteMessage.getFrom());
 

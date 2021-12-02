@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.annotation.SuppressLint;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
@@ -66,6 +67,21 @@ public class MainActivity extends AppCompatActivity {
 
         //MyFirebaseMessagingService msg = new MyFirebaseMessagingService();
         //todo whenever they launch the app store get time value into shared preferences which will be used by the notification handler
+
+
+        // Storing data into SharedPreferences
+        SharedPreferences sharedPreferences = getSharedPreferences("MixedUpSharedPrefs",MODE_PRIVATE);
+
+        // Creating an Editor object to edit(write to the file)
+        SharedPreferences.Editor myEdit = sharedPreferences.edit();
+
+        // Storing the key and its value as the data fetched from edittext
+        myEdit.putLong("logged-on", System.currentTimeMillis());
+
+        // Once the changes have been made,
+        // we need to commit to apply those changes made,
+        // otherwise, it will throw an error
+        myEdit.commit();
 
 
         // which fragment to display first
