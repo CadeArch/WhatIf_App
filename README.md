@@ -36,6 +36,11 @@ disabling nightview = https://stackoverflow.com/questions/57175226/how-to-disabl
 
 button help - https://stackoverflow.com/questions/15615823/setenabled-vs-setclickable-what-is-the-difference
 
+
+
+push notification - https://firebase.google.com/docs/cloud-messaging/android/send-multiple
+                  - https://firebase.google.com/docs/cloud-messaging/android/first-message#java_2
+
 Maybe randomize then sentence based on the person before them instead of after since if is after??
 
 ## todo

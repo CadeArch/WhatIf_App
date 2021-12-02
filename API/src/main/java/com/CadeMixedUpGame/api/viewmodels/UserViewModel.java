@@ -193,6 +193,7 @@ public class UserViewModel extends ViewModel {
         user.setValue(new User(fbUser, username));
         user.getValue().accountPlay = true;
         if (signIn) {
+            // todo this is finishing after the start fragment loads in, causing the toast to show
             getMadeLeaderBoard(user);
             getMadePerfectLeaderBoard(user);
         }

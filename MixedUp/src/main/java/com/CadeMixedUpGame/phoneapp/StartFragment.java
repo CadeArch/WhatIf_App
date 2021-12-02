@@ -86,12 +86,15 @@ public class StartFragment extends Fragment {
                     userName.setText(user.userName);
                     enterName.setVisibility(View.GONE);
                     view.findViewById(R.id.signOut).setVisibility(View.VISIBLE);
+                    view.findViewById(R.id.profile_button).setVisibility(View.VISIBLE);
+
                 }
 
                 // if non account play take away log out button and show back button
                 else {
                     view.findViewById(R.id.signOut).setVisibility(View.GONE);
                     view.findViewById(R.id.back).setVisibility(View.VISIBLE);
+                    view.findViewById(R.id.profile_button).setVisibility(View.GONE);
                 }
             }
         });
