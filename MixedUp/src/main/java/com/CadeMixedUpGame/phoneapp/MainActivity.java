@@ -14,6 +14,7 @@ import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.RemoteMessage;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -27,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
 
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
 
+        // showing users token to test messages from firebase
         FirebaseMessaging.getInstance().getToken()
                 .addOnCompleteListener(new OnCompleteListener<String>() {
                     @Override
@@ -39,16 +41,14 @@ public class MainActivity extends AppCompatActivity {
                         // Get new FCM registration token
                         String token = task.getResult();
                         System.out.println("TOKEN---------------" + token);
-                        // Log and toast
-                        String msg = token;
-                        Log.d(TAG, msg);
-                        Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
+
                     }
 
 
                 });
 
-        FirebaseMessaging.getInstance().subscribeToTopic("Generic Msg")
+        // subscribing to my message compaign to send messages every 2 weeks on a friday
+        FirebaseMessaging.getInstance().subscribeToTopic("MixedUp")
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull Task<Void> task) {
@@ -63,6 +63,10 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
                     }
                 });
+
+        //MyFirebaseMessagingService msg = new MyFirebaseMessagingService();
+        //todo whenever they launch the app store get time value into shared preferences which will be used by the notification handler
+
 
         // which fragment to display first
         if (savedInstanceState == null) {

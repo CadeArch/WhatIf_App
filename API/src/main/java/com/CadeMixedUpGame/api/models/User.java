@@ -38,8 +38,8 @@ public class User implements Comparable<User>{
         this.hostStarted = false;
         this.playAgain = false;
         this.hostPlayedAgain = "";
-        this.madeLeaderBoard = false;
-        this.perfectLeaderBoard = false;
+        this.madeLeaderBoard = true;
+        this.perfectLeaderBoard = true;
     }
 
     public User(String userName) {
