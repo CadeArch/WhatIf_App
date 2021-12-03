@@ -94,8 +94,8 @@ mix up everyones Then sentence so they dont have their own then - DONE
     - line up sentences in vote frag
     - fixed bug where players joining another gameroom from an old one called load users too many times
     - fixed bug where players hoststarted value wasnt being reset to false at the end of a match
-### NOT DONE
     - strip whitespace on account frag
+### NOT DONE
     - alert users if they have a sentence in the leaderboards - KINDA DONE
     - check constraint layout on frags to assure UI is good - check again
     - assure pushing and pulling from database is successful if connection fails
@@ -104,8 +104,7 @@ mix up everyones Then sentence so they dont have their own then - DONE
 ## second user test
     3 players
     - a group played game smoothly multiple times no issue!
-    - need to fix when players from group split and go to new group, 
-      issues with a user that wasnt a host goes to new group and isnt a host there as well
+    - need to fix when players from group split and go to new group, DONE
     
 
 ## questions

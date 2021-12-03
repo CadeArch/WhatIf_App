@@ -38,6 +38,7 @@ public class AccountFrag extends Fragment {
         Button signup = view.findViewById(R.id.signUp);
         Button back = view.findViewById(R.id.back_account);
 
+        // going back to first frag back button functionality
         back.setOnClickListener(v -> {
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, FirstFrag.class, null)
@@ -60,7 +61,7 @@ public class AccountFrag extends Fragment {
             }
             else {
                 userViewModel.signIn(
-                        email.getText().toString(),
+                        email.getText().toString().replace(" ", ""),
                         password.getText().toString()
 
                 );
@@ -104,7 +105,7 @@ public class AccountFrag extends Fragment {
             else {
                 userViewModel.localName = userName.getText().toString();
                 userViewModel.signUp(
-                        email.getText().toString(),
+                        email.getText().toString().replace(" ", ""),
                         password.getText().toString(),
                         userName.getText().toString()
                 );
