@@ -133,8 +133,15 @@ public class WaitingForHostFrag extends Fragment {
 
             // setting listener on host location in database if hostStarted changes to true
             // hostStarted will be changed to true on this user
-            userViewModel.listenToHost(userViewModel.host);
-            System.out.println("This user isnt host: HOST IS: " + userViewModel.host.getValue().userName);
+            // todo may not need to observe the host
+            userViewModel.host.observe(this.getViewLifecycleOwner(), new Observer<User>() {
+                @Override
+                public void onChanged(User user) {
+                    userViewModel.listenToHost(userViewModel.host);
+                    System.out.println("This user isnt host: HOST IS: " + userViewModel.host.getValue().userName);
+
+                }
+            });
             // when observer notices change on user data move to next frag
             userViewModel.getUser().observe(this.getViewLifecycleOwner(), new Observer<User>() {
                 @Override

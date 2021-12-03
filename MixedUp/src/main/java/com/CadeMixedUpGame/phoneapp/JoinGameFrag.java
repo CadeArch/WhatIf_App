@@ -63,8 +63,6 @@ public class JoinGameFrag extends Fragment {
             // data to firebase, else it will let the user know it doesnt exist
             if (allrooms.contains(myRoom)) {
 
-                // TODO this appears to be working but for some reason on second go around has many users loading into WFH frag.
-                //  TODO I THINK I NEED TO REMOVE LISTENER ON PREVIOUS GAMEROOM
                 roomViewModel.checkIfInProgress(myRoom);
 
                 roomViewModel.inProgress.observe(this.getViewLifecycleOwner(), new Observer<Boolean>() {

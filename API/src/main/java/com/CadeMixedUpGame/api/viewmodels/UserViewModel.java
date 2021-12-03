@@ -319,6 +319,8 @@ public class UserViewModel extends ViewModel {
     }
 
     public void listenToHost(MutableLiveData<User> host) {
+        //todo in one use case this produced a null pointer somewhere and killed for a non host player
+        System.out.println("putting listen to host listener on db: HOST IS " + host.getValue().userName);
         db.child("rooms").child(host.getValue().gameRoom).child("players").child(host.getValue().userName+ "-" + host.getValue().userID).addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
