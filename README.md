@@ -67,7 +67,7 @@ mix up everyones Then sentence so they dont have their own then - DONE
   write string mutators to change text based on different voices - Partly DONE
   create player profile that fills with user info, and games played - DONE
   create ways to unlock each unlockable voice and implement - DONE
-  create push notifications - DO NEXT
+  create push notifications - DONE
 
 
 ## First User test
@@ -92,11 +92,14 @@ mix up everyones Then sentence so they dont have their own then - DONE
     - fix small UI issues with edit texts and some textviews 
     - add period to leaderboards sentences    
     - line up sentences in vote frag
+    - fixed bug where players joining another gameroom from an old one called load users too many times
+    - fixed bug where players hoststarted value wasnt being reset to false at the end of a match
 ### NOT DONE
     - strip whitespace on account frag
     - alert users if they have a sentence in the leaderboards - KINDA DONE
     - check constraint layout on frags to assure UI is good - check again
     - assure pushing and pulling from database is successful if connection fails
+    - if user hits join game on a game that is in progress issues with joining a game that isnt in progress later. but if user hits back and join game again it fixes it.
 
 ## second user test
     3 players
