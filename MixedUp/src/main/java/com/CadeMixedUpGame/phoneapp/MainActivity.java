@@ -27,6 +27,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // assure nightmode wont work in app
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
 
         // showing users token to test messages from firebase
@@ -41,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
 
                         // Get new FCM registration token
                         String token = task.getResult();
-                        System.out.println("TOKEN---------------" + token);
+//                        System.out.println("TOKEN---------------" + token);
 
                     }
 
@@ -59,9 +60,9 @@ public class MainActivity extends AppCompatActivity {
                             System.out.println("SUBSCRIPTION FAILED");
                             System.out.println(task.getException().getMessage());
                         }
-                        System.out.println(msg);
+//                        System.out.println(msg);
                         Log.d(TAG, msg);
-                        Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
+//                        Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
                     }
                 });
 
@@ -74,13 +75,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Creating an Editor object to edit(write to the file)
         SharedPreferences.Editor myEdit = sharedPreferences.edit();
-
         // Storing the key and its value as the data fetched from edittext
         myEdit.putLong("logged-on", System.currentTimeMillis());
-
-        // Once the changes have been made,
-        // we need to commit to apply those changes made,
-        // otherwise, it will throw an error
         myEdit.commit();
 
 

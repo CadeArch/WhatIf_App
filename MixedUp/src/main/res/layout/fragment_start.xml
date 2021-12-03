@@ -33,7 +33,7 @@
         app:layout_constraintTop_toTopOf="@+id/layout" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/start"
+        android:id="@+id/create_game"
         android:layout_width="350dp"
         android:layout_height="75dp"
         android:text="Create Game"

@@ -27,6 +27,7 @@ import java.util.ArrayList;
 public class JoinGameFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
+    boolean loadedUsers = false;
 
     public JoinGameFrag() {
         super(R.layout.fragment_join_game);
@@ -65,6 +66,7 @@ public class JoinGameFrag extends Fragment {
                 // TODO this appears to be working but for some reason on second go around has many users loading into WFH frag.
                 //  TODO I THINK I NEED TO REMOVE LISTENER ON PREVIOUS GAMEROOM
                 roomViewModel.checkIfInProgress(myRoom);
+
                 roomViewModel.inProgress.observe(this.getViewLifecycleOwner(), new Observer<Boolean>() {
                     @Override
                     public void onChanged(Boolean aBoolean) {
@@ -74,7 +76,10 @@ public class JoinGameFrag extends Fragment {
                             }
                             //storing the room to join locally and loading in the users and pushing the user to the database
 //                System.out.println("userName--joinGame ---" + userViewModel.localName);
-                            userViewModel.loadUsers(myRoom);
+                            if (!loadedUsers) {
+                                userViewModel.loadUsers(myRoom);
+                                loadedUsers = true;
+                            }
                             userViewModel.myRoom = myRoom;
 
                             //storing users gameroom locally
@@ -84,6 +89,7 @@ public class JoinGameFrag extends Fragment {
 
                             // todo check to see if this will assure that someone who has been a host isnt anymore when they join a match
                             userViewModel.getUser().getValue().host = false;
+                            userViewModel.getUser().getValue().hostStarted = false;
                             userViewModel.pushPerson(userViewModel.getUser());
 
                             //moving to the waiting for host fragment when firebase recieves new user and puts it into observable arraylist

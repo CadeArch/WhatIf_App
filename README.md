@@ -36,10 +36,15 @@ disabling nightview = https://stackoverflow.com/questions/57175226/how-to-disabl
 
 button help - https://stackoverflow.com/questions/15615823/setenabled-vs-setclickable-what-is-the-difference
 
-
-
 push notification - https://firebase.google.com/docs/cloud-messaging/android/send-multiple
                   - https://firebase.google.com/docs/cloud-messaging/android/first-message#java_2
+                  - https://firebase.google.com/docs/cloud-messaging/concept-options
+                  - https://stackoverflow.com/questions/37358462/firebase-onmessagereceived-not-called-when-app-in-background (zohab ali)
+
+shared prefs help - https://www.geeksforgeeks.org/shared-preferences-in-android-with-examples/
+
+# promote to app store help
+https://www.goodbarber.com/blog/how-to-publish-your-app-on-google-play-and-the-app-store-a107/
 
 Maybe randomize then sentence based on the person before them instead of after since if is after??
 

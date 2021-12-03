@@ -100,7 +100,7 @@ public class StartFragment extends Fragment {
         });
 
         //giving create game button functionality MAYBE MAKE THIS ONLY AVAILABLE TO ACCOUNT PLAY
-        view.findViewById(R.id.start).setOnClickListener(v -> {
+        view.findViewById(R.id.create_game).setOnClickListener(v -> {
 
             // storing the name locally to push up to firebase in the join game fragment for non account play
             if (!userViewModel.getUser().getValue().accountPlay) {
@@ -120,6 +120,7 @@ public class StartFragment extends Fragment {
             MutableLiveData<User> newUser = userViewModel.getUser();
             newUser.getValue().userName = userViewModel.localName;
             newUser.getValue().host = true;
+            newUser.getValue().hostStarted = false;
             newUser.getValue().gameRoom = userViewModel.myRoom;
 
             userViewModel.pushPerson(newUser);

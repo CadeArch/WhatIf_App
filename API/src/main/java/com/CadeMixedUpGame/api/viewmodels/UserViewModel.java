@@ -80,6 +80,7 @@ public class UserViewModel extends ViewModel {
     public void reset() {
         signInToast = new MutableLiveData<>();
         // not sure if this is good reseting db member variable
+        db = null;
         db = FirebaseDatabase.getInstance().getReference();
 
         localRandIf = "";
