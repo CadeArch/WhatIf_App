@@ -13,10 +13,10 @@
         android:id="@+id/enterName"
         android:layout_width="250dp"
         android:layout_height="50dp"
-        android:layout_marginTop="60dp"
+        android:layout_marginTop="32dp"
         android:hint="enter your name..."
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.505"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/layout" />
 
@@ -24,12 +24,13 @@
         android:id="@+id/displayName"
         android:layout_width="250dp"
         android:layout_height="50dp"
-        android:layout_marginTop="60dp"
-        android:textSize="40sp"
-        android:hint=""
+
+        android:layout_marginTop="32dp"
         android:gravity="center_horizontal"
+        android:hint=""
+        android:textSize="40sp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.505"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/layout" />
 
@@ -38,26 +39,23 @@
         android:layout_width="350dp"
         android:layout_height="75dp"
         android:text="Create Game"
-
-
         app:layout_constraintBottom_toBottomOf="@+id/layout"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="@+id/layout"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.401" />
+        app:layout_constraintTop_toBottomOf="@+id/enterName"
+        app:layout_constraintVertical_bias="0.0" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/joinGame"
         android:layout_width="350dp"
         android:layout_height="75dp"
+        android:layout_marginTop="4dp"
         android:text="Join Game"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.69" />
+        app:layout_constraintTop_toBottomOf="@+id/create_game" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/signOut"
@@ -68,8 +66,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.697"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.952" />
+        app:layout_constraintTop_toBottomOf="@+id/joinGame"
+        app:layout_constraintVertical_bias="0.37" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/back"
@@ -80,8 +78,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.697"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.952" />
+        app:layout_constraintTop_toBottomOf="@+id/joinGame"
+        app:layout_constraintVertical_bias="0.37" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/leaderboards_button"
@@ -92,8 +90,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.301"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.952" />
+        app:layout_constraintTop_toBottomOf="@+id/joinGame"
+        app:layout_constraintVertical_bias="0.37" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/profile_button"
@@ -104,7 +102,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.499"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.952" />
+        app:layout_constraintTop_toBottomOf="@+id/joinGame"
+        app:layout_constraintVertical_bias="0.37" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

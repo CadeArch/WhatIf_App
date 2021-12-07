@@ -12,27 +12,32 @@
 
     <TextView
 
+        android:id="@+id/textView10"
         android:layout_width="250dp"
         android:layout_height="50dp"
-        android:layout_marginTop="68dp"
+        android:gravity="center_horizontal"
         android:text="Game Code"
         android:textSize="30dp"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintHorizontal_bias="0.501"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/layout" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.243" />
 
     <TextView
+        android:gravity="center_horizontal"
+
         android:id="@+id/replace"
         android:layout_width="250dp"
         android:layout_height="50dp"
-        android:layout_marginTop="128dp"
+        android:layout_marginTop="0dp"
         android:text="REPLACE"
         android:textSize="30dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.505"
+        app:layout_constraintHorizontal_bias="0.501"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/layout" />
+        app:layout_constraintTop_toBottomOf="@+id/textView10" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/createGame_start"
@@ -41,10 +46,10 @@
         android:text="create"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.705"
+        app:layout_constraintHorizontal_bias="0.619"
         app:layout_constraintStart_toStartOf="@+id/layout"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.672" />
+        app:layout_constraintTop_toBottomOf="@+id/replace"
+        app:layout_constraintVertical_bias="0.353" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/createGame_back"
@@ -54,9 +59,9 @@
         android:text="back"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@+id/layout"
-        app:layout_constraintHorizontal_bias="0.316"
+        app:layout_constraintHorizontal_bias="0.381"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.672" />
+        app:layout_constraintTop_toBottomOf="@+id/replace"
+        app:layout_constraintVertical_bias="0.353" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
