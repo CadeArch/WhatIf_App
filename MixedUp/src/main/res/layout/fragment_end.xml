@@ -10,15 +10,30 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="If the host plays again you will have the option to play
-again as well. Else you will be redirected to the home screen."
-        android:textSize="20dp"
-        android:paddingLeft="95dp"
-        android:paddingTop="10dp"
-        app:layout_constraintBottom_toTopOf="@+id/again_ending"
+        android:gravity="center_horizontal"
+        android:textSize="25dp"
+        android:text="What if that was really fun! then you would play again!"
+        app:layout_constraintBottom_toTopOf="@+id/textView12"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/textView12"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="100dp"
+        android:paddingTop="10dp"
+        android:paddingRight="100dp"
+        android:text="If the host plays again you will have the option to play
+again as well. Else you will be redirected to the home screen."
+        android:textSize="20dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.277" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/home_ending"
@@ -29,8 +44,7 @@ again as well. Else you will be redirected to the home screen."
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.741"
         app:layout_constraintStart_toStartOf="@+id/layout"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.764" />
+        app:layout_constraintTop_toBottomOf="@+id/textView12" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/again_ending"
@@ -41,8 +55,7 @@ again as well. Else you will be redirected to the home screen."
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.263"
         app:layout_constraintStart_toStartOf="@+id/layout"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.764" />
+        app:layout_constraintTop_toBottomOf="@+id/textView12" />
 
 <!--    <com.google.android.material.button.MaterialButton-->
 <!--        android:id="@+id/again_unclickable"-->
