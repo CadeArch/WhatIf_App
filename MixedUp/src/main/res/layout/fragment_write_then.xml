@@ -25,8 +25,8 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="85dp"
-        android:layout_marginTop="64dp"
-        app:layout_constraintTop_toTopOf="@+id/layout"
+        android:id="@+id/scroller"
+        app:layout_constraintTop_toBottomOf="@+id/instructions"
         tools:layout_editor_absoluteX="0dp">
 
         <TextView
@@ -49,13 +49,13 @@
         android:id="@+id/thenAnswer"
         android:layout_width="400dp"
         android:layout_height="60dp"
-        android:layout_marginTop="164dp"
+
         android:hint="then..."
         android:textSize="20dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/layout" />
+        app:layout_constraintTop_toBottomOf="@+id/scroller" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/writeThen_submit"
@@ -66,8 +66,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="@+id/layout"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.764" />
+        app:layout_constraintTop_toBottomOf="@+id/thenAnswer" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

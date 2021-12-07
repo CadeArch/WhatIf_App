@@ -34,12 +34,15 @@ public class StartFragment extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
 
+
         // checking to see if user can unlock any voices based on whether or not they are on the leaderboards
         // assuring leaderboards isnt empty so it wont break, if they are on the leaderboards they can unlock it
         // but it wont notify or try to unlock it again if the player has already unlocked that value
         System.out.println(userViewModel.getUser().getValue().accountPlay);
         if (userViewModel.getUser().getValue().accountPlay) {
             System.out.println("Leaderboard Size: " + leaderBoardViewModel.getLeaderBoard().size());
+            userViewModel.getMadeLeaderBoard(userViewModel.getUser());
+            userViewModel.getMadePerfectLeaderBoard(userViewModel.getUser());
             if (leaderBoardViewModel.getLeaderBoard().size() > 0) {
                 for (LeaderBoardItem lbi : leaderBoardViewModel.getLeaderBoard()) {
                     if (lbi.getIfContributorID().equals(userViewModel.getUser().getValue().getUid()) &&
@@ -184,6 +187,7 @@ public class StartFragment extends Fragment {
 
         //giving the profile button functionality
         view.findViewById(R.id.profile_button).setOnClickListener(v -> {
+
             //moving to the leaderboards fragment
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, ProfileFrag.class, null)

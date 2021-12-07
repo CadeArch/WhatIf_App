@@ -12,13 +12,14 @@
 
     <TextView
 
+        android:id="@+id/textView13"
         android:layout_width="500dp"
         android:layout_height="50dp"
-        android:layout_marginTop="68dp"
+        android:layout_marginTop="56dp"
         android:text='Begin your sentence with "What if"'
         android:textSize="30dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/layout" />
 
@@ -26,25 +27,26 @@
         android:id="@+id/ifQuestion"
         android:layout_width="400dp"
         android:layout_height="60dp"
-        android:layout_marginTop="164dp"
+        android:layout_marginTop="36dp"
         android:hint="Enter Question"
         android:textSize="20dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/layout" />
+        app:layout_constraintTop_toBottomOf="@+id/textView13" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/writeIf_submit"
         android:layout_width="100dp"
         android:layout_height="75dp"
+        android:layout_marginBottom="36dp"
         android:text="Submit"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintHorizontal_bias="0.499"
         app:layout_constraintStart_toStartOf="@+id/layout"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.764" />
+        app:layout_constraintTop_toBottomOf="@+id/ifQuestion"
+        app:layout_constraintVertical_bias="0.704" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
