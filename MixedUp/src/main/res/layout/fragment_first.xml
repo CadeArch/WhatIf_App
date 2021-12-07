@@ -12,7 +12,7 @@
     <com.google.android.material.button.MaterialButton
         android:id="@+id/accountPlay"
         android:layout_width="350dp"
-        android:layout_height="125dp"
+        android:layout_height="100dp"
         android:text="Account Play"
         android:textSize="25sp"
         app:layout_constraintBottom_toTopOf="@+id/textView11"
@@ -34,7 +34,7 @@
     <com.google.android.material.button.MaterialButton
         android:id="@+id/freePlay"
         android:layout_width="350dp"
-        android:layout_height="125dp"
+        android:layout_height="100dp"
 
         android:text="Free Play"
         android:textSize="25sp"
