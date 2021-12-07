@@ -13,7 +13,8 @@
         android:text="If the host plays again you will have the option to play
 again as well. Else you will be redirected to the home screen."
         android:textSize="20dp"
-        android:paddingLeft="30dp"
+        android:paddingLeft="95dp"
+        android:paddingTop="10dp"
         app:layout_constraintBottom_toTopOf="@+id/again_ending"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

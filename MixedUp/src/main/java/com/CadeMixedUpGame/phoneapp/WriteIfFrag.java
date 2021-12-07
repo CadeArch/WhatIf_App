@@ -46,15 +46,7 @@ public class WriteIfFrag extends Fragment {
                  ) {
                 System.out.println("ORDER IN WRITE IF FRAG ------------- " + user.userName);
             }
-            String ifsent = ifSentence.getText().toString();
-            ifsent = ifsent.replaceAll("\\p{Punct}","");
-            ifsent = ifsent.substring(0, 1).toUpperCase() + ifsent.substring(1);
-            ifsent = ifsent.replaceAll("\\s+$", "");
-            ifsent = ifsent.replaceAll("^\\s+", "");
-            userViewModel.getUser().getValue().ifSentence = ifsent;
-            userViewModel.getUser().getValue().ifFinished = true;
 
-            userViewModel.pushIf(userViewModel.getUser());
 
             if (ifSentence.getText().toString().equals("")) {
                 Toast.makeText(
@@ -64,6 +56,16 @@ public class WriteIfFrag extends Fragment {
                 ).show();
             }
             else {
+                String ifsent = ifSentence.getText().toString();
+                ifsent = ifsent.replaceAll("\\p{Punct}","");
+                ifsent = ifsent.substring(0, 1).toUpperCase() + ifsent.substring(1);
+                ifsent = ifsent.replaceAll("\\s+$", "");
+                ifsent = ifsent.replaceAll("^\\s+", "");
+                userViewModel.getUser().getValue().ifSentence = ifsent;
+                userViewModel.getUser().getValue().ifFinished = true;
+
+                userViewModel.pushIf(userViewModel.getUser());
+
                 getActivity().getSupportFragmentManager().beginTransaction()
                         .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
                         .setReorderingAllowed(true)

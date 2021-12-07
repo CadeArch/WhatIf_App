@@ -15,7 +15,7 @@
         android:layout_width="470dp"
         android:layout_height="50dp"
         android:layout_marginTop="16dp"
-        android:text="Write your response beginning with then"
+        android:text='Write your response beginning with "then"'
         android:textSize="25dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
@@ -47,11 +47,11 @@
 
     <EditText
         android:id="@+id/thenAnswer"
-        android:layout_width="250dp"
+        android:layout_width="400dp"
         android:layout_height="60dp"
         android:layout_marginTop="164dp"
         android:hint="then..."
-        android:textSize="30dp"
+        android:textSize="20dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
