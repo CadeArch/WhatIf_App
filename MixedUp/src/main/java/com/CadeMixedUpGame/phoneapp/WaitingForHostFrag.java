@@ -29,11 +29,13 @@ import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
 import java.util.Observable;
+import java.util.TreeMap;
 
 
 public class WaitingForHostFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
+    boolean onWaitingForHost;
 
 
     public WaitingForHostFrag() {
@@ -46,7 +48,7 @@ public class WaitingForHostFrag extends Fragment {
 
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
-
+        onWaitingForHost = true;
         // this will unlock voices based on number of games played unlocking here in case players hit the play again button
         if (userViewModel.getUser().getValue().accountPlay) {
             userViewModel.unlockVoice(userViewModel.getUser(), "numGames");
@@ -86,10 +88,12 @@ public class WaitingForHostFrag extends Fragment {
 
             @Override
             public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
-                System.out.println("waitingForHost: inserting name");
-                System.out.println("users array size: WFHF: " + userViewModel.getUsers().size());
+                if (onWaitingForHost) {
+                    System.out.println("waitingForHost: inserting name");
+                    System.out.println("users array size: WFHF: " + userViewModel.getUsers().size());
 //                MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getContext(), userViewModel.getUsers());
                     recyclerView.setAdapter(adapter);
+                }
 
             }
 
@@ -119,6 +123,7 @@ public class WaitingForHostFrag extends Fragment {
             userViewModel.getUser().getValue().hostStarted = true;
             userViewModel.playing = true;
             userViewModel.hostStarted(userViewModel.host.getValue());
+            onWaitingForHost = false;
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, WriteIfFrag.class, null)
                     .setReorderingAllowed(true)
@@ -154,6 +159,7 @@ public class WaitingForHostFrag extends Fragment {
                     if (user.hostStarted && !user.ifFinished && !userViewModel.onWriteIf) {
                         System.out.println("-------------" + user.hostStarted + user.ifFinished);
                         System.out.println("-------------- SWITCHED TO WRITE IF FRAG");
+                        onWaitingForHost = false;
                         getActivity().getSupportFragmentManager().beginTransaction()
                                 .replace(R.id.fragment_container, WriteIfFrag.class, null)
                                 .setReorderingAllowed(true)

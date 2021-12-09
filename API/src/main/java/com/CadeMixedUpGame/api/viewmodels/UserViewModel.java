@@ -460,11 +460,13 @@ public class UserViewModel extends ViewModel {
     }
 
     public void pushIf(MutableLiveData<User> user) {
+
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifSentence").setValue(user.getValue().ifSentence);
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifFinished").setValue(user.getValue().ifFinished);
     }
 
     public void pushThen(MutableLiveData<User> user) {
+
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenSentence").setValue(user.getValue().thenSentence);
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenFinished").setValue(user.getValue().thenFinished);
     }

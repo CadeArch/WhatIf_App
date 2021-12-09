@@ -20,7 +20,7 @@ public class CollectingAnswersFrag extends Fragment {
     UserViewModel userViewModel;
     Boolean allThensFinished = false;
     ObservableArrayList<User> whoSubmittedThen = new ObservableArrayList<>();
-
+    Boolean onCollectingAnswers;
     public CollectingAnswersFrag() {
         super(R.layout.fragment_collecting_answers);
     }
@@ -33,10 +33,11 @@ public class CollectingAnswersFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
 
         userViewModel.onCollectingAnswers = true;
-
+        onCollectingAnswers = true;
         // set up the RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewCollectA);
-        recyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 2));
+        recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
+        MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), whoSubmittedThen);
 
         // seeing who has submitted
         for (User user:userViewModel.getUsers()) {
@@ -46,13 +47,30 @@ public class CollectingAnswersFrag extends Fragment {
         }
 
         // populating view with those who have submitted there if
-        MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), whoSubmittedThen);
+        recyclerView.setAdapter(adapter);
+
+//        int numFinishedAnswers = 0;
+//        for (User user:userViewModel.getUsers()) {
+//            if (user.ifSentence.length() != 0) {
+//                numFinishedAnswers += 1;
+//            }
+//        }
+//        if (numFinishedAnswers == userViewModel.getUsers().size()) {
+//            System.out.println("going to read sentence frag: MISTAKE OCCURED");
+//            getActivity().getSupportFragmentManager().beginTransaction()
+//                    .replace(R.id.fragment_container, ReadSentenceFrag.class, null)
+//                    .setReorderingAllowed(true)
+//                    .addToBackStack(null)
+//                    .commit();
+//            userViewModel.onCollectingAnswers = false;
+//            onCollectingAnswers = false;
+//        }
 
         // when the users array changes reset the adapter to include all people
         userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
             @Override
             public void onChanged(ObservableList<User> sender) {
-
+                System.out.println("user array changed not inserted");
             }
 
             @Override
@@ -62,31 +80,34 @@ public class CollectingAnswersFrag extends Fragment {
             @Override
             public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
                 // if they have finished their if sentance add it to the who submitted array and reset adapter to inflate text
-                if (userViewModel.getUsers().get(positionStart).thenFinished) {
-                    whoSubmittedThen.add(userViewModel.getUsers().get(positionStart));
-                    recyclerView.setAdapter(adapter);
-                }
-//                System.out.println("SAW CHANGE --------------------");
-                int count = 0;
-                for (User user:userViewModel.getUsers()) {
-                    System.out.println("CollectingAnswersfrag: " + user.thenSentence + " " + user.thenFinished);
-                    if (user.thenFinished) {
-                        count += 1;
-                        System.out.println("Count incremented: CAF");
+                if (onCollectingAnswers) {
+                    if (userViewModel.getUsers().get(positionStart).thenFinished) {
+                        whoSubmittedThen.add(userViewModel.getUsers().get(positionStart));
+                        recyclerView.setAdapter(adapter);
                     }
-                }
-                System.out.println(count + " ------------------ " + userViewModel.getUsers().size());
-                if (count == userViewModel.getUsers().size()) {
-                    allThensFinished = true;
-                }
-                if (allThensFinished && userViewModel.onCollectingAnswers) {
-                    System.out.println("going to read sentence frag");
-                    getActivity().getSupportFragmentManager().beginTransaction()
-                            .replace(R.id.fragment_container, ReadSentenceFrag.class, null)
-                            .setReorderingAllowed(true)
-                            .addToBackStack(null)
-                            .commit();
-                    userViewModel.onCollectingAnswers = false;
+                    System.out.println("SAW CHANGE CAF --------------------");
+                    int count = 0;
+                    for (User user : userViewModel.getUsers()) {
+                        System.out.println("CollectingAnswersfrag: " + user.thenSentence + " " + user.thenFinished);
+                        if (user.thenFinished) {
+                            count += 1;
+                            System.out.println("Count incremented: CAF");
+                        }
+                    }
+                    System.out.println(count + " ------------------ " + userViewModel.getUsers().size());
+                    if (count == userViewModel.getUsers().size()) {
+                        allThensFinished = true;
+                    }
+                    if (allThensFinished && userViewModel.onCollectingAnswers) {
+                        System.out.println("going to read sentence frag");
+                        getActivity().getSupportFragmentManager().beginTransaction()
+                                .replace(R.id.fragment_container, ReadSentenceFrag.class, null)
+                                .setReorderingAllowed(true)
+                                .addToBackStack(null)
+                                .commit();
+                        userViewModel.onCollectingAnswers = false;
+                        onCollectingAnswers = false;
+                    }
                 }
             }
 

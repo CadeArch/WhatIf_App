@@ -70,12 +70,14 @@ public class ReadSentenceFrag extends Fragment {
         // players finding their index in the array.
         int idx = 0;
         for (User user: userViewModel.getUsers()) {
-            System.out.println(userViewModel.getUser().getValue().thenSentence + " " + user.thenSentence);
+            System.out.println("My then sentence, my then sentence from DB: " + userViewModel.getUser().getValue().thenSentence + " " + user.thenSentence);
             if(user.thenSentence.equals(userViewModel.getUser().getValue().thenSentence)) {
                 System.out.println(user.userName + ": got my own index: " + idx);
                 break;
             }
-            idx += 1;
+//            if (user.thenSentence.length() > 0) {
+                idx += 1;
+//            }
         }
 
         // players will get the next persons if in the array, if they are the last person in the array

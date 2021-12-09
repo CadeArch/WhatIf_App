@@ -97,8 +97,9 @@ mix up everyones Then sentence so they dont have their own then - DONE
     - strip whitespace on account frag
     - alert users if they have a sentence in the leaderboards - KINDA DONE
     - check constraint layout on frags to assure UI is good - check again
-### NOT DONE
     - E/RecyclerView: No adapter attached; skipping layout Bug that pauses on collecting answers and questions frag
+### NOT DONE
+    - collecting ifs and collecting thens frags every once in a while it will freeze, and not move to next frag, not noticing change?
     - if user hits join game on a game that is in progress issues with joining a game that isnt in progress later. but if user hits back and join game again it fixes it.
     - assure pushing and pulling from database is successful if connection fails?
 
@@ -106,7 +107,6 @@ mix up everyones Then sentence so they dont have their own then - DONE
     3 players
     - a group played game smoothly multiple times no issue!
     - need to fix when players from group split and go to new group, DONE
-    
 
 ## questions
     - is there a good way to reinitialize a db reference to have no listeners at the end of a match?
