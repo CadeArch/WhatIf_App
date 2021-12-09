@@ -51,6 +51,7 @@ public class AccountFrag extends Fragment {
 
         //giving sign in button functionality
         signin.setOnClickListener(v -> {
+            System.out.println("button clicked");
             if (email.getText().toString().length() == 0 || password.getText().toString().length() == 0) {
                 // creating toast and switching text in viewmodel
                 Toast.makeText(
@@ -94,6 +95,7 @@ public class AccountFrag extends Fragment {
 
         //giving sign up button functionality
         signup.setOnClickListener(v -> {
+            System.out.println("sign up clicked");
             if (email.getText().toString().length() == 0 || password.getText().toString().length() == 0 || userName.getText().toString().length() == 0) {
                 // creating toast and switching text in viewmodel
                 Toast.makeText(

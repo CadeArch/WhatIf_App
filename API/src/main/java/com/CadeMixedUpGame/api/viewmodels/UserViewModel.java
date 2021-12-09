@@ -135,13 +135,17 @@ public class UserViewModel extends ViewModel {
 //                    System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
                     if (task.getException().getMessage().equals("The email address is badly formatted.")) {
                         signInToast.getValue().setText("Email Badly Formatted");
+                        System.out.println("bad email");
                     } else if (task.getException().getMessage().equals("The given password is invalid. [ Password should be at least 6 characters ]")) {
                         signInToast.getValue().setText("Weak Password");
+                        System.out.println("weak password");
                     } else if (task.getException().getMessage().equals("The email address is already in use by another account.")) {
                         signInToast.getValue().setText("Email in Use");
+                        System.out.println("email in use");
                     } else {
                         System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
                         signInToast.getValue().setText("Error");
+                        System.out.println("error");
                     }
                 }
 
