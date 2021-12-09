@@ -75,7 +75,7 @@ public class EndFrag extends Fragment {
                     if (userViewModel.getUser().getValue().hostPlayedAgain.equals("yes")) {
                         // if host hits again button will be clickable for rest of players
                         view.findViewById(R.id.again_ending).setEnabled(true);
-                        view.findViewById(R.id.again_ending).setBackgroundColor(Color.parseColor("#FF6200EE"));
+                        view.findViewById(R.id.again_ending).setBackgroundColor(Color.parseColor("#FFEDA6EC"));
 
                         System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostPlayedAgain);
 
