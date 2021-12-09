@@ -121,6 +121,9 @@ public class CollectingAnswersFrag extends Fragment {
 
             }
         });
+
+        userViewModel.pushThen(userViewModel.getUser());
+
     }
 }
 

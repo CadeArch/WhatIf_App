@@ -94,8 +94,6 @@ public class WriteThenFrag extends Fragment {
                 userViewModel.getUser().getValue().thenSentence = thenSent;
                 userViewModel.getUser().getValue().thenFinished = true;
 
-                userViewModel.pushThen(userViewModel.getUser());
-
                 System.out.println("ButtonPressed to move to collecting answers frag");
 
                 getActivity().getSupportFragmentManager().beginTransaction()

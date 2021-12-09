@@ -64,8 +64,6 @@ public class WriteIfFrag extends Fragment {
                 userViewModel.getUser().getValue().ifSentence = ifsent;
                 userViewModel.getUser().getValue().ifFinished = true;
 
-                userViewModel.pushIf(userViewModel.getUser());
-
                 getActivity().getSupportFragmentManager().beginTransaction()
                         .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
                         .setReorderingAllowed(true)

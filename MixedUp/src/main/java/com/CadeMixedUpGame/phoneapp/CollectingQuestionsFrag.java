@@ -133,6 +133,8 @@ public class CollectingQuestionsFrag extends Fragment {
             }
         });
 
+        userViewModel.pushIf(userViewModel.getUser());
+
 
     }
 }
