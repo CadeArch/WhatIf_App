@@ -95,11 +95,12 @@ mix up everyones Then sentence so they dont have their own then - DONE
     - fixed bug where players joining another gameroom from an old one called load users too many times
     - fixed bug where players hoststarted value wasnt being reset to false at the end of a match
     - strip whitespace on account frag
-### NOT DONE
     - alert users if they have a sentence in the leaderboards - KINDA DONE
     - check constraint layout on frags to assure UI is good - check again
-    - assure pushing and pulling from database is successful if connection fails
+### NOT DONE
+    - E/RecyclerView: No adapter attached; skipping layout Bug that pauses on collecting answers and questions frag
     - if user hits join game on a game that is in progress issues with joining a game that isnt in progress later. but if user hits back and join game again it fixes it.
+    - assure pushing and pulling from database is successful if connection fails?
 
 ## second user test
     3 players
@@ -113,7 +114,8 @@ mix up everyones Then sentence so they dont have their own then - DONE
     - if a push or a pull to the db fails is there a way to retry until it is successful?
 
 ## ideas
-    - remove ambiguous letters from game code generation
+    - remove ambiguous letters from game code generation - check I and l with new font
+    - make short timer for last person to submit the question or answer so the frag movement isnt instantaneous.
     - make the username the account players email address and what is currently the user name the display name
     - app design - don't allow the user to make a mistake if possible (vote frag selecting more than one sentence)
     - leaderboards (currently isnt showing which player is the best player, food for thought)

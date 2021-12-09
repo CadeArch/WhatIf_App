@@ -47,7 +47,7 @@
 
         android:id="@+id/textView"
         android:layout_width="400dp"
-        android:layout_height="65dp"
+        android:layout_height="75dp"
         android:text="Players Joining"
         android:textSize="50dp"
         app:layout_constraintBottom_toBottomOf="parent"

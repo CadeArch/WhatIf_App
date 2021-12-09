@@ -41,7 +41,7 @@ public class StartFragment extends Fragment {
         System.out.println(userViewModel.getUser().getValue().accountPlay);
         if (userViewModel.getUser().getValue().accountPlay) {
             System.out.println("Leaderboard Size: " + leaderBoardViewModel.getLeaderBoard().size());
-            if (userViewModel.getUser().getValue().gamesPlayed > 5) {
+            if (userViewModel.getUser().getValue().gamesPlayed > 0) {
                 userViewModel.getMadeLeaderBoard(userViewModel.getUser());
                 userViewModel.getMadePerfectLeaderBoard(userViewModel.getUser());
             }

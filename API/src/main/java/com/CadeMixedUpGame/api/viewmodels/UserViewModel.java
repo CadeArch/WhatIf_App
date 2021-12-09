@@ -124,6 +124,8 @@ public class UserViewModel extends ViewModel {
 //                            System.out.println("DISPLAY NAME ----------------" + fBuser.getDisplayName());
                             // assuring their username is set when they create an account
                             getUser().getValue().userName = fBuser.getDisplayName();
+                            getUser().getValue().perfectLeaderBoard = false;
+                            getUser().getValue().madeLeaderBoard = false;
                             pushAccountPlayer(user);
                             fillUnlockables(user);
                             fillGamesPlayed(user);
