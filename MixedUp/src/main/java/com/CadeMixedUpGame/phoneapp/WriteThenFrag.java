@@ -73,7 +73,7 @@ public class WriteThenFrag extends Fragment {
             System.out.println("hit else");
         }
 
-        ifQuestion.setText(myRandomIf);
+        ifQuestion.setText(myRandomIf + "?");
 
 
         //giving submit button functionality

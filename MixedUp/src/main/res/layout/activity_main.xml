@@ -11,6 +11,7 @@
        android:layout_width="match_parent"
        android:layout_height="match_parent"
        android:src="@drawable/lined_papers"
+       android:alpha=".75"
        android:scaleX="3"
        android:scaleY="3"
        android:translationX="50dp"/>

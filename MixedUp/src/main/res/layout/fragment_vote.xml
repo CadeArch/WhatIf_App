@@ -10,13 +10,13 @@
     <TextView
         android:id="@+id/textView9"
         android:layout_width="match_parent"
+        android:textStyle="bold"
+        android:paddingLeft="95dp"
         android:layout_height="wrap_content"
-        android:text="Select your favorite sentence and vote for leaderboards"
-        android:textSize="25dp"
-        android:paddingTop="11dp"
-        android:gravity="center_horizontal"
-
-
+        android:text="Select your favorite sentence and vote for leaderboards."
+        android:textSize="30dp"
+        android:paddingTop="28dp"
+        android:paddingEnd="35dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -26,6 +26,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:paddingTop="8dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -55,7 +56,10 @@
         app:layout_constraintHorizontal_bias="0.91"
         app:layout_constraintStart_toStartOf="@+id/layout"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.85" />
+        app:layout_constraintVertical_bias="0.85"
+        app:strokeColor="@color/dark_pink"
+        app:strokeWidth="6dp"
+        android:textStyle="bold"/>
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

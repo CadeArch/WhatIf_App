@@ -18,7 +18,10 @@
         app:layout_constraintHorizontal_bias="0.499"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/linearLayout"
-        app:layout_constraintVertical_bias="0.587" />
+        app:layout_constraintVertical_bias="0.587"
+        app:strokeColor="@color/dark_pink"
+        app:strokeWidth="6dp"
+        android:textStyle="bold"/>
 
     <TextView
         android:id="@+id/player_name_profile"
@@ -39,6 +42,7 @@
         android:layout_marginTop="4dp"
         android:orientation="vertical"
         android:paddingLeft="15dp"
+        android:paddingRight="15dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"

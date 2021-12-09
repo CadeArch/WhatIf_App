@@ -64,7 +64,7 @@ public class ReadSentenceFrag extends Fragment {
         }
 
         myRandomIf = userViewModel.localRandIf;
-        ifQuestion.setText(myRandomIf);
+        ifQuestion.setText(myRandomIf + "?");
 
         // making sure all then sentances are used.
         // players finding their index in the array.
@@ -91,7 +91,7 @@ public class ReadSentenceFrag extends Fragment {
         }
 
         TextView thenAnswer = getActivity().findViewById(R.id.myThenAnswer_ending);
-        thenAnswer.setText(myRandomThen);
+        thenAnswer.setText(myRandomThen + ".");
 
         // checking to see if all users are account players
         int numAccountPlayers = 0;
@@ -122,7 +122,7 @@ public class ReadSentenceFrag extends Fragment {
 
             String uniqueID = roomViewModel.makeRoomID();
             // could add if and then contributor user id to the item to be able to know who made the sentences later on
-            LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf, myRandomThen, ifContributor, thenContributor, ifContributorID, thenContributorID, uniqueID);
+            LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf + "?", myRandomThen + ".", ifContributor, thenContributor, ifContributorID, thenContributorID, uniqueID);
             leaderBoardViewModel.pushVoteItem(userViewModel.getUser(), lbi);
 
             view.findViewById(R.id.next_frag).setOnClickListener(v -> {

@@ -31,7 +31,7 @@
 
         android:hint="Enter Join Code"
         android:gravity="center_horizontal"
-        android:textSize="30dp"
+        android:textSize="20dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.505"
@@ -49,7 +49,10 @@
         app:layout_constraintHorizontal_bias="0.622"
         app:layout_constraintStart_toStartOf="@+id/layout"
         app:layout_constraintTop_toBottomOf="@+id/enterGameCode"
-        app:layout_constraintVertical_bias="0.364" />
+        app:layout_constraintVertical_bias="0.364"
+        app:strokeColor="@color/dark_pink"
+        app:strokeWidth="6dp"
+        android:textStyle="bold"/>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/joinGame_back"
@@ -62,6 +65,9 @@
         app:layout_constraintHorizontal_bias="0.38"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/enterGameCode"
-        app:layout_constraintVertical_bias="0.364" />
+        app:layout_constraintVertical_bias="0.364"
+        app:strokeColor="@color/dark_pink"
+        app:strokeWidth="6dp"
+        android:textStyle="bold"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

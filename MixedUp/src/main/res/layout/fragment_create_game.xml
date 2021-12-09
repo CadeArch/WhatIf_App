@@ -49,7 +49,10 @@
         app:layout_constraintHorizontal_bias="0.619"
         app:layout_constraintStart_toStartOf="@+id/layout"
         app:layout_constraintTop_toBottomOf="@+id/replace"
-        app:layout_constraintVertical_bias="0.353" />
+        app:layout_constraintVertical_bias="0.353"
+        app:strokeColor="@color/dark_pink"
+        app:strokeWidth="6dp"
+        android:textStyle="bold"/>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/createGame_back"
@@ -62,6 +65,9 @@
         app:layout_constraintHorizontal_bias="0.381"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/replace"
-        app:layout_constraintVertical_bias="0.353" />
+        app:layout_constraintVertical_bias="0.353"
+        app:strokeColor="@color/dark_pink"
+        app:strokeWidth="6dp"
+        android:textStyle="bold"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

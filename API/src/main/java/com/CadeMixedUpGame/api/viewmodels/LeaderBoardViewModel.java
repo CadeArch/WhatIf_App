@@ -64,7 +64,7 @@ public class LeaderBoardViewModel extends ViewModel {
 
                 LeaderBoardItem lbItem = snapshot.getValue(LeaderBoardItem.class);
                 // todo make sure this isnt breaking anything, why would leaderboard be null?
-                if (leaderBoard != null) {
+                if (leaderBoard != null || lbItem != null) {
                     leaderBoard.add(lbItem);
                 }
 
