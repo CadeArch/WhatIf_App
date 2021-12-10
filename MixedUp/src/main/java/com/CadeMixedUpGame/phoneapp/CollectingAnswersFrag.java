@@ -49,23 +49,6 @@ public class CollectingAnswersFrag extends Fragment {
         // populating view with those who have submitted there if
         recyclerView.setAdapter(adapter);
 
-//        int numFinishedAnswers = 0;
-//        for (User user:userViewModel.getUsers()) {
-//            if (user.ifSentence.length() != 0) {
-//                numFinishedAnswers += 1;
-//            }
-//        }
-//        if (numFinishedAnswers == userViewModel.getUsers().size()) {
-//            System.out.println("going to read sentence frag: MISTAKE OCCURED");
-//            getActivity().getSupportFragmentManager().beginTransaction()
-//                    .replace(R.id.fragment_container, ReadSentenceFrag.class, null)
-//                    .setReorderingAllowed(true)
-//                    .addToBackStack(null)
-//                    .commit();
-//            userViewModel.onCollectingAnswers = false;
-//            onCollectingAnswers = false;
-//        }
-
         // when the users array changes reset the adapter to include all people
         userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
             @Override

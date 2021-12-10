@@ -57,24 +57,6 @@ public class CollectingQuestionsFrag extends Fragment {
         MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), whoSubmitted);
         recyclerView.setAdapter(adapter);
 
-//        int numFinishedQuestions = 0;
-
-//        for (User user:userViewModel.getUsers()) {
-//            if (user.ifSentence.length() != 0) {
-//                numFinishedQuestions += 1;
-//            }
-//        }
-//        if (numFinishedQuestions == userViewModel.getUsers().size()) {
-//            System.out.println("Switched to write then frag: MISTAKE OCCURED");
-//            onCollectingQuestionsFrag = false;
-//            getActivity().getSupportFragmentManager().beginTransaction()
-//                    .replace(R.id.fragment_container, WriteThenFrag.class, null)
-//                    .setReorderingAllowed(true)
-//                    .addToBackStack(null)
-//                    .commit();
-//            userViewModel.onWriteThen = true;
-//        }
-
         // when the users array changes reset the adapter to include all people
         userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
             @Override
