@@ -243,7 +243,9 @@ public class UserViewModel extends ViewModel {
 //                    Log.d("result", "User name: " + user.getUserName() + ", email " + user.getEmail());
 //                    System.out.println("Not Null user FROM-DB? ------------ " + user.userName);
 //                    System.out.println("DB-NEW PLAYER ADDED---------- " + user.userName);
-                    users.add(user);
+                    if (user != null) {
+                        users.add(user);
+                    }
                 }
                 System.out.println("Users in user array after child added");
                 for(User user: users) {

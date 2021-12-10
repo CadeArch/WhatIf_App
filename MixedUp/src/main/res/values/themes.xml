@@ -16,5 +16,10 @@
 
         <item name="android:fontFamily">@font/bubbly_font</item>
 
+
+
+    </style>
+    <style name="ThemeOverlay.AppTheme.TextInputEditText.Box" parent="">
+        <item name="colorControlActivated">@color/black</item>
     </style>
 </resources>

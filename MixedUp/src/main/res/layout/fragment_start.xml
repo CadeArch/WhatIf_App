@@ -9,17 +9,51 @@
 
     <!-- TODO: Update blank fragment layout -->
 
-    <EditText
-        android:id="@+id/enterName"
+<!--        <EditText-->
+<!--        android:id="@+id/enterName"-->
+<!--        android:layout_width="350dp"-->
+<!--        android:layout_height="50dp"-->
+<!--        android:layout_marginTop="32dp"-->
+<!--        android:textColorHint="@color/black"-->
+<!--        android:hint="enter your name..."-->
+<!--        android:gravity="center_horizontal"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        app:layout_constraintHorizontal_bias="0.498"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        app:layout_constraintTop_toTopOf="@+id/layout" />-->
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/textLayout"
         android:layout_width="350dp"
-        android:layout_height="50dp"
-        android:layout_marginTop="32dp"
-        android:hint="enter your name..."
-        android:gravity="center_horizontal"
+        android:layout_height="wrap_content"
+        android:hint="enter your name"
+        app:endIconMode="clear_text"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintHorizontal_bias="0.496"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/layout" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:hintTextColor="@color/white"
+        android:alpha=".75"
+        app:boxBackgroundColor="@color/light_orange"
+        app:boxStrokeColor="@color/black"
+        app:boxStrokeWidth="5dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/enterName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:gravity="center_horizontal"
+            android:textColorHint="@color/black"
+            android:textCursorDrawable="@null"
+            android:textColor="@color/black"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.498"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/layout" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
 
     <TextView
         android:id="@+id/displayName"
@@ -41,6 +75,7 @@
         android:layout_height="75dp"
         android:layout_marginTop="16dp"
         android:text="Create Game"
+        app:cornerRadius="20dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="@+id/layout"
@@ -48,6 +83,7 @@
         app:strokeColor="@color/dark_pink"
         app:strokeWidth="6dp"
         android:textStyle="bold"
+        android:textSize="18dp"
         />
 
     <com.google.android.material.button.MaterialButton

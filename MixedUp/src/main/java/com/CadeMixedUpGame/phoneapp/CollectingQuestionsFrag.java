@@ -112,6 +112,11 @@ public class CollectingQuestionsFrag extends Fragment {
                     if (allIfsFinished && !userViewModel.getUser().getValue().thenFinished && !userViewModel.onWriteThen) {
                         System.out.println("Switched to write then frag");
                         onCollectingQuestionsFrag = false;
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                         getActivity().getSupportFragmentManager().beginTransaction()
                                 .replace(R.id.fragment_container, WriteThenFrag.class, null)
                                 .setReorderingAllowed(true)
@@ -134,6 +139,7 @@ public class CollectingQuestionsFrag extends Fragment {
         });
 
         userViewModel.pushIf(userViewModel.getUser());
+
 
 
     }
