@@ -77,12 +77,12 @@ public class VoteFrag extends Fragment {
                     public void onClick(View v) {
                         int color = ((ColorDrawable) v.getBackground()).getColor();
                         System.out.println(color);
-                        if (color == 1726848574) {
+                        if (color == 2012063468) {
                             v.setBackgroundColor(Color.parseColor("#0000FF00")); // 65280
 
                         }
                         else {
-                            v.setBackgroundColor(Color.parseColor("#66ED9E3E")); // 1726848574
+                            v.setBackgroundColor(Color.parseColor("#77EDA6EC")); // 2012063468
                             System.out.println(v.getBackground());
                         }
 
@@ -116,7 +116,7 @@ public class VoteFrag extends Fragment {
             for (int i = 0; i < potentialLBIlist.getChildCount(); i++) {
                 View pot = potentialLBIlist.getChildAt(i);
                 int color = ((ColorDrawable) pot.getBackground()).getColor();
-                if (color == 1726848574) {
+                if (color == 2012063468) {
                     sentencesSelected += 1;
                 }
             }
@@ -137,7 +137,7 @@ public class VoteFrag extends Fragment {
                 for (int i = 0; i < potentialLBIlist.getChildCount(); i++) {
                     View pot = potentialLBIlist.getChildAt(i);
                     int color = ((ColorDrawable) pot.getBackground()).getColor();
-                    if (color == 1726848574) {
+                    if (color == 2012063468) {
                         TextView selectedVoteID = pot.findViewById(R.id.sentence_id);
                         String id = selectedVoteID.getText().toString();
                         leaderBoardViewModel.castVote(userViewModel.getUser(), id);

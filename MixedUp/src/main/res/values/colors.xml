@@ -10,9 +10,8 @@
     <color name="white">#FFFFFFFF</color>
     <color name="dark_pink">#FFCA89BB</color>
     <color name="light_pink">#FFEDA6EC</color>
-    <color name="orange">#FFED9E3E</color>
     <color name="light_orange">#FFEDAF64</color>
-
+    <color name="orange">#FFC4791D</color>
 
 
 </resources>

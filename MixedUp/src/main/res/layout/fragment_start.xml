@@ -9,50 +9,19 @@
 
     <!-- TODO: Update blank fragment layout -->
 
-<!--        <EditText-->
-<!--        android:id="@+id/enterName"-->
-<!--        android:layout_width="350dp"-->
-<!--        android:layout_height="50dp"-->
-<!--        android:layout_marginTop="32dp"-->
-<!--        android:textColorHint="@color/black"-->
-<!--        android:hint="enter your name..."-->
-<!--        android:gravity="center_horizontal"-->
-<!--        app:layout_constraintEnd_toEndOf="parent"-->
-<!--        app:layout_constraintHorizontal_bias="0.498"-->
-<!--        app:layout_constraintStart_toStartOf="parent"-->
-<!--        app:layout_constraintTop_toTopOf="@+id/layout" />-->
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/textLayout"
+        <EditText
+        android:id="@+id/enterName"
         android:layout_width="350dp"
-        android:layout_height="wrap_content"
-        android:hint="enter your name"
-        app:endIconMode="clear_text"
+        android:layout_height="50dp"
+        android:layout_marginTop="32dp"
+        android:textColorHint="@color/black"
+        android:hint="Enter your name..."
+        android:gravity="center_horizontal"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.496"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:hintTextColor="@color/white"
-        android:alpha=".75"
-        app:boxBackgroundColor="@color/light_orange"
-        app:boxStrokeColor="@color/black"
-        app:boxStrokeWidth="5dp">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/enterName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
-            android:gravity="center_horizontal"
-            android:textColorHint="@color/black"
-            android:textCursorDrawable="@null"
-            android:textColor="@color/black"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.498"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/layout" />
-
-    </com.google.android.material.textfield.TextInputLayout>
+        app:layout_constraintTop_toTopOf="@+id/layout"
+        />
 
 
     <TextView
@@ -75,12 +44,12 @@
         android:layout_height="75dp"
         android:layout_marginTop="16dp"
         android:text="Create Game"
-        app:cornerRadius="20dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="@+id/layout"
         app:layout_constraintTop_toBottomOf="@+id/displayName"
-        app:strokeColor="@color/dark_pink"
+        app:cornerRadius="15dp"
+        app:strokeColor="@color/orange"
         app:strokeWidth="6dp"
         android:textStyle="bold"
         android:textSize="18dp"
@@ -92,8 +61,10 @@
         android:layout_height="75dp"
         android:layout_marginTop="4dp"
         android:text="Join Game"
-        app:strokeColor="@color/dark_pink"
+        app:cornerRadius="15dp"
+        app:strokeColor="@color/orange"
         app:strokeWidth="6dp"
+        android:textSize="18dp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
@@ -105,7 +76,8 @@
         android:layout_width="100dp"
         android:layout_height="75dp"
         android:text="Sign Out"
-        app:strokeColor="@color/dark_pink"
+        app:cornerRadius="15dp"
+        app:strokeColor="@color/orange"
         app:strokeWidth="6dp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -120,7 +92,8 @@
         android:layout_width="100dp"
         android:layout_height="75dp"
         android:text="back"
-        app:strokeColor="@color/dark_pink"
+        app:cornerRadius="15dp"
+        app:strokeColor="@color/orange"
         app:strokeWidth="6dp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -135,7 +108,8 @@
         android:layout_width="100dp"
         android:layout_height="75dp"
         android:text="leader boards"
-        app:strokeColor="@color/dark_pink"
+        app:cornerRadius="15dp"
+        app:strokeColor="@color/orange"
         app:strokeWidth="6dp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -150,7 +124,8 @@
         android:layout_width="100dp"
         android:layout_height="75dp"
         android:text="profile"
-        app:strokeColor="@color/dark_pink"
+        app:cornerRadius="15dp"
+        app:strokeColor="@color/orange"
         app:strokeWidth="6dp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"

@@ -2,12 +2,12 @@
     <!-- Base application theme. -->
     <style name="Theme.Android3200StarterApplication" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/light_pink</item>
-        <item name="colorPrimaryVariant">@color/dark_pink</item>
+        <item name="colorPrimary">@color/light_orange</item>
+        <item name="colorPrimaryVariant">@color/orange</item>
         <item name="colorOnPrimary">@color/white</item>
         <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/orange</item>
-        <item name="colorSecondaryVariant">@color/light_orange</item>
+        <item name="colorSecondary">@color/dark_pink</item>
+        <item name="colorSecondaryVariant">@color/light_pink</item>
         <item name="colorOnSecondary">@color/black</item>
         <!-- Status bar color. -->
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>

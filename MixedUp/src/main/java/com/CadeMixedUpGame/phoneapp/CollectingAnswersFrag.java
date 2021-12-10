@@ -101,7 +101,7 @@ public class CollectingAnswersFrag extends Fragment {
                     if (allThensFinished && userViewModel.onCollectingAnswers) {
                         System.out.println("going to read sentence frag");
                         try {
-                            Thread.sleep(1000);
+                            Thread.sleep(1500);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }

@@ -101,6 +101,7 @@ mix up everyones Then sentence so they dont have their own then - DONE
     - collecting ifs and collecting thens frags every once in a while it will freeze, and not move to next frag, not noticing change?
 ### NOT DONE
     - if user hits join game on a game that is in progress issues with joining a game that isnt in progress later. but if user hits back and join game again it fixes it.
+    - make name populate before the wait timer starts in collecting frags
     - assure pushing and pulling from database is successful if connection fails?
 
 ## second user test

@@ -113,7 +113,7 @@ public class CollectingQuestionsFrag extends Fragment {
                         System.out.println("Switched to write then frag");
                         onCollectingQuestionsFrag = false;
                         try {
-                            Thread.sleep(1000);
+                            Thread.sleep(1500);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }

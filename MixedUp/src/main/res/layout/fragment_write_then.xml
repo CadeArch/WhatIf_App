@@ -50,7 +50,7 @@
         android:id="@+id/thenAnswer"
         android:layout_width="400dp"
         android:layout_height="60dp"
-
+        android:textColorHint="@color/black"
         android:hint="then..."
         android:textSize="20dp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -60,15 +60,17 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/writeThen_submit"
-        android:layout_width="100dp"
+        android:layout_width="115dp"
         android:layout_height="75dp"
         android:text="Submit"
+        android:textSize="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="@+id/layout"
         app:layout_constraintTop_toBottomOf="@+id/thenAnswer"
-        app:strokeColor="@color/dark_pink"
+        app:cornerRadius="15dp"
+        app:strokeColor="@color/orange"
         app:strokeWidth="6dp"
         android:textStyle="bold"/>
 
