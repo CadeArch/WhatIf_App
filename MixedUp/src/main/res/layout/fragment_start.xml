@@ -23,6 +23,7 @@
         app:layout_constraintTop_toTopOf="@+id/layout"
         />
 
+<!--    android:background="@drawable/custom_edit_text"-->
 
     <TextView
         android:id="@+id/displayName"
