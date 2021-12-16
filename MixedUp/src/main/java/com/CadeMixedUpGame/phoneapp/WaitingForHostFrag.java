@@ -1,35 +1,19 @@
 package com.CadeMixedUpGame.phoneapp;
 
 import android.os.Bundle;
-
 import androidx.annotation.NonNull;
-import androidx.databinding.ObservableArrayList;
 import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentActivity;
-import androidx.fragment.app.FragmentManager;
-import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.ViewParent;
-import android.widget.GridLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
-import com.google.android.material.button.MaterialButton;
-
-import java.util.ArrayList;
-import java.util.Observable;
-import java.util.TreeMap;
 
 
 public class WaitingForHostFrag extends Fragment {
@@ -89,8 +73,8 @@ public class WaitingForHostFrag extends Fragment {
             @Override
             public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
                 if (onWaitingForHost) {
-                    System.out.println("waitingForHost: inserting name");
-                    System.out.println("users array size: WFHF: " + userViewModel.getUsers().size());
+//                    System.out.println("waitingForHost: inserting name");
+//                    System.out.println("users array size: WFHF: " + userViewModel.getUsers().size());
 //                MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getContext(), userViewModel.getUsers());
                     recyclerView.setAdapter(adapter);
                 }
@@ -112,13 +96,13 @@ public class WaitingForHostFrag extends Fragment {
         // if the current persons device is the host set the host value since the host wont have gone through the join game frag
         if (userViewModel.getUser().getValue().host) {
             userViewModel.host = userViewModel.getUser();
-            System.out.println("I am the host and have set the host value: " + userViewModel.host.getValue().userName);
+//            System.out.println("I am the host and have set the host value: " + userViewModel.host.getValue().userName);
         }
 
         // giving button functionality
         view.findViewById(R.id.waitingForHost_start).setOnClickListener(v -> {
             // host started game and setting the value in firebase to be true
-            System.out.println("HOST CLICKED BUTTON ------------------");
+//            System.out.println("HOST CLICKED BUTTON ------------------");
             roomViewModel.gameInProgressTrue();
             userViewModel.getUser().getValue().hostStarted = true;
             userViewModel.playing = true;
@@ -157,15 +141,15 @@ public class WaitingForHostFrag extends Fragment {
                     userViewModel.hostStarted(userViewModel.getUser().getValue());
 
                     if (user.hostStarted && !user.ifFinished && !userViewModel.onWriteIf) {
-                        System.out.println("-------------" + user.hostStarted + user.ifFinished);
-                        System.out.println("-------------- SWITCHED TO WRITE IF FRAG");
+//                        System.out.println("WFH frag-----host started-----ifFinished---" + user.hostStarted + " " + user.ifFinished);
+                        System.out.println("WFH frag-------------- SWITCHED TO WRITE IF FRAG");
                         onWaitingForHost = false;
                         getActivity().getSupportFragmentManager().beginTransaction()
                                 .replace(R.id.fragment_container, WriteIfFrag.class, null)
                                 .setReorderingAllowed(true)
                                 .addToBackStack(null)
                                 .commit();
-                        System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostStarted);
+//                        System.out.println("WFH frag MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostStarted);
                         userViewModel.onWriteIf = true;
                         userViewModel.playing = true;
                     }

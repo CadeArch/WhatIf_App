@@ -1,27 +1,16 @@
 package com.CadeMixedUpGame.phoneapp;
 
 import android.os.Bundle;
-
 import androidx.annotation.NonNull;
-import androidx.databinding.ObservableArrayList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
-
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 
 
 public class WriteThenFrag extends Fragment {
@@ -35,6 +24,13 @@ public class WriteThenFrag extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
+        // this puts a pause on the collecting questions fragment so the last player to submit
+        // doesn't whizz past the screen
+        try {
+            Thread.sleep(1500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         super.onViewCreated(view, savedInstanceState);
 
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
@@ -65,12 +61,12 @@ public class WriteThenFrag extends Fragment {
         if (idx + 1 == userViewModel.getUsers().size()) {
             myRandomIf = userViewModel.getUsers().get(0).ifSentence;
             userViewModel.localRandIf = myRandomIf;
-            System.out.println("WRITE THEN FRAG: hit if");
+//            System.out.println("WRITE THEN FRAG: hit if");
         }
         else {
             myRandomIf = userViewModel.getUsers().get(idx + 1).ifSentence;
             userViewModel.localRandIf = myRandomIf;
-            System.out.println("hit else");
+//            System.out.println("WRITE THEN FRAG: hit else");
         }
 
         ifQuestion.setText(myRandomIf + "?");
@@ -94,7 +90,7 @@ public class WriteThenFrag extends Fragment {
                 userViewModel.getUser().getValue().thenSentence = thenSent;
                 userViewModel.getUser().getValue().thenFinished = true;
 
-                System.out.println("ButtonPressed to move to collecting answers frag");
+//                System.out.println("ButtonPressed to move to collecting answers frag");
 
                 getActivity().getSupportFragmentManager().beginTransaction()
                         .replace(R.id.fragment_container, CollectingAnswersFrag.class, null)

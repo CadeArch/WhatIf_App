@@ -6,22 +6,12 @@ import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
 import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentActivity;
-import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.ViewParent;
-
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
-import com.google.android.material.button.MaterialButton;
-
-import java.util.ArrayList;
 
 
 public class CollectingQuestionsFrag extends Fragment {
@@ -29,6 +19,7 @@ public class CollectingQuestionsFrag extends Fragment {
     Boolean allIfsFinished = false;
     ObservableArrayList<User> whoSubmitted = new ObservableArrayList<>();
     Boolean onCollectingQuestionsFrag;
+    MyRecyclerViewAdapter adapter;
 
 
     public CollectingQuestionsFrag() {
@@ -54,7 +45,7 @@ public class CollectingQuestionsFrag extends Fragment {
         }
 
         // populating view with those who have submitted there if
-        MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), whoSubmitted);
+        adapter = new MyRecyclerViewAdapter(getContext(), whoSubmitted);
         recyclerView.setAdapter(adapter);
 
         // when the users array changes reset the adapter to include all people
@@ -74,8 +65,14 @@ public class CollectingQuestionsFrag extends Fragment {
                 if (onCollectingQuestionsFrag) {
                     // if they have finished their if sentance add it to the who submitted array and reset adapter to inflate text
                     if (userViewModel.getUsers().get(positionStart).ifFinished) {
+//                        System.out.println(recyclerView.getAdapter().getItemCount() + " REC VIEW COUNT ------------++++++++++++");
                         whoSubmitted.add(userViewModel.getUsers().get(positionStart));
-                        recyclerView.setAdapter(adapter);
+//                        System.out.println(whoSubmitted.size() + " SIZE of WHO SUBMITTED ARRAY ");
+                        //todo which way is better i do it differently on collecting answers frag
+//                        recyclerView.setAdapter(adapter);
+                        adapter.notifyDataSetChanged();
+//                        System.out.println(recyclerView.getAdapter().getItemCount() + " REC VIEW COUNT ---------------+++++++++++++++");
+
                     }
                     System.out.println("SAW CHANGE CQF --------------------");
                     int count = 0;
@@ -94,11 +91,7 @@ public class CollectingQuestionsFrag extends Fragment {
                     if (allIfsFinished && !userViewModel.getUser().getValue().thenFinished && !userViewModel.onWriteThen) {
                         System.out.println("Switched to write then frag");
                         onCollectingQuestionsFrag = false;
-                        try {
-                            Thread.sleep(1500);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+//                        System.out.println(recyclerView.getAdapter().getItemCount() + " REC VIEW COUNT +++++++++++++++");
                         getActivity().getSupportFragmentManager().beginTransaction()
                                 .replace(R.id.fragment_container, WriteThenFrag.class, null)
                                 .setReorderingAllowed(true)
@@ -121,8 +114,6 @@ public class CollectingQuestionsFrag extends Fragment {
         });
 
         userViewModel.pushIf(userViewModel.getUser());
-
-
 
     }
 }

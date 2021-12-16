@@ -5,12 +5,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
-
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;

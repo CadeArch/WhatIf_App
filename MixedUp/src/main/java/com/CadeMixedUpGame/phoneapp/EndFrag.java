@@ -4,19 +4,15 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
-
 import androidx.annotation.NonNull;
-import androidx.databinding.ObservableArrayList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
-
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
-
 import java.util.Objects;
 
 public class EndFrag extends Fragment {
@@ -36,7 +32,7 @@ public class EndFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
-        System.out.println("switching to end frag");
+//        System.out.println("switching to end frag");
         System.out.println("END FRAG: users and cast votes: " + userViewModel.getUsers().size() + " " + leaderBoardViewModel.getCastvotes().size());
 
         // incrementing num of total games played for account player
@@ -77,7 +73,7 @@ public class EndFrag extends Fragment {
                         view.findViewById(R.id.again_ending).setEnabled(true);
                         view.findViewById(R.id.again_ending).setBackgroundColor(Color.parseColor("#FFEDA6EC"));
 
-                        System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostPlayedAgain);
+//                        System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostPlayedAgain);
 
                     }
                     else if (userViewModel.getUser().getValue().hostPlayedAgain.equals("no") && userViewModel.onEndFrag) {
@@ -92,7 +88,7 @@ public class EndFrag extends Fragment {
                         userViewModel.reset();
                         leaderBoardViewModel.reset();
                         userViewModel.host = new MutableLiveData<User>();
-                        System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostPlayedAgain);
+//                        System.out.println("MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostPlayedAgain);
                         //letting the user know that host quit game
                         Toast.makeText(
                                 getActivity(),

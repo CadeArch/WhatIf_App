@@ -2,28 +2,22 @@ package com.CadeMixedUpGame.phoneapp;
 
 import android.content.res.Resources;
 import android.os.Bundle;
-
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
-
 import android.speech.tts.TextToSpeech;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Spinner;
 import android.widget.TextView;
-
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Locale;
 
 
@@ -43,6 +37,13 @@ public class ReadSentenceFrag extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
+        // this puts a pause on the collecting answers fragment so the last player to submit
+        // doesn't whizz past the screen
+        try {
+            Thread.sleep(1500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         super.onViewCreated(view, savedInstanceState);
 
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);

@@ -3,11 +3,9 @@ package com.CadeMixedUpGame.phoneapp;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
-
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;

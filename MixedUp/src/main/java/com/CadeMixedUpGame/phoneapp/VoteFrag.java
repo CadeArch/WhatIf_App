@@ -5,22 +5,17 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
-import androidx.databinding.ObservableArrayList;
 import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
-
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
-import java.util.ArrayList;
 
 public class VoteFrag extends Fragment {
     UserViewModel userViewModel;

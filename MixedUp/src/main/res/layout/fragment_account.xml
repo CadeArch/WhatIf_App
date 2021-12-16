@@ -18,7 +18,7 @@
         android:layout_marginTop="10dp"
         android:paddingLeft="30dp"
         android:paddingRight="10dp"
-        android:text="What If you already had an account... then you would sign in!"
+        android:text="What If you already had an account? Then you would sign in!"
         android:textSize="25dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/back_account"

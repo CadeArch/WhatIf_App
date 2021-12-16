@@ -1,15 +1,14 @@
 package com.CadeMixedUpGame.phoneapp;
+
 import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelProvider;
-
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
@@ -33,7 +32,6 @@ public class StartFragment extends Fragment {
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
-
 
         // checking to see if user can unlock any voices based on whether or not they are on the leaderboards
         // assuring leaderboards isnt empty so it wont break, if they are on the leaderboards they can unlock it

@@ -34,6 +34,8 @@ public class MyRecyclerViewAdapter extends RecyclerView.Adapter<MyRecyclerViewAd
     public void onBindViewHolder(ViewHolder holder, int position) {
         User user = mData.get(position);
         holder.myTextView.setText(user.userName);
+        System.out.println("text set~~~~~~~~~~~~~~~~~~~~");
+
     }
 
     // total number of rows

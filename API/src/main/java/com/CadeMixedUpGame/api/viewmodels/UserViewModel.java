@@ -1,22 +1,15 @@
 package com.CadeMixedUpGame.api.viewmodels;
+
 import android.util.Log;
 import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.databinding.ObservableArrayList;
-import androidx.databinding.ObservableList;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
-
-import com.CadeMixedUpGame.api.models.LeaderBoardItem;
-import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
-
-import com.google.android.gms.common.internal.ConnectionErrorMessages;
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
@@ -27,11 +20,6 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-
 
 public class UserViewModel extends ViewModel {
     public MutableLiveData<Toast> signInToast = new MutableLiveData<>();
@@ -247,11 +235,11 @@ public class UserViewModel extends ViewModel {
                         users.add(user);
                     }
                 }
-                System.out.println("Users in user array after child added");
+//                System.out.println("Users in user array after child added");
                 for(User user: users) {
                     System.out.println(user.userName);
                 }
-                System.out.println("users array size after added: " + users.size());
+//                System.out.println("users array size after added: " + users.size());
             }
 
             @Override
@@ -337,11 +325,10 @@ public class UserViewModel extends ViewModel {
 
             @Override
             public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-//                System.out.println(snapshot.getValue());
-//                System.out.println(snapshot.getKey());
+
                 User theChanged = snapshot.getValue(User.class);
-                System.out.println("Host Changed Values in DB: " + theChanged.userName + theChanged.host + theChanged.hostStarted);
-                System.out.println("Host played again in DB: " + theChanged.hostPlayedAgain);
+//                System.out.println("Host Changed Values in DB: " + theChanged.userName + theChanged.host + theChanged.hostStarted);
+//                System.out.println("Host played again in DB: " + theChanged.hostPlayedAgain);
                 if (theChanged.hostStarted) {
                     getUser().getValue().hostStarted = true;
                     getUser().setValue(getUser().getValue());
@@ -418,7 +405,7 @@ public class UserViewModel extends ViewModel {
         int userID = (int)(Math.random() * 100000);
         if (user.getValue().userID == 0) {
             user.getValue().userID = userID;
-            System.out.println("UserID set -------------------");
+//            System.out.println("UserID set -------------------");
         }
         else {
             System.out.println("UserID already set -----------------");
@@ -442,11 +429,6 @@ public class UserViewModel extends ViewModel {
     }
 
     public void nurfAllUsers() {
-//        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("ifSentence").setValue(user.getValue().ifSentence);
-//        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("thenSentence").setValue(user.getValue().thenSentence);
-//        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("ifFinished").setValue(user.getValue().ifFinished);
-//        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("thenFinished").setValue(user.getValue().thenFinished);
-//        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName).child("value").child("hostStarted").setValue(user.getValue().hostStarted);
         db.child("rooms").child(myRoom).child("players").removeValue();
         System.out.println("DELETING ALL IN ROOM");
     }

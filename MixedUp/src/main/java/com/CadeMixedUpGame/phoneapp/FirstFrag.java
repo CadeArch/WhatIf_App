@@ -2,19 +2,13 @@ package com.CadeMixedUpGame.phoneapp;
 
 import android.os.Bundle;
 import androidx.annotation.NonNull;
-import androidx.databinding.ObservableArrayList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
-
 import android.view.View;
-import android.widget.EditText;
-
-import com.CadeMixedUpGame.api.models.Room;
-import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
-import java.util.ArrayList;
+
 
 public class FirstFrag extends Fragment {
     RoomViewModel roomViewModel;

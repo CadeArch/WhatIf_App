@@ -12,12 +12,12 @@
         android:id="@+id/back_profile"
         android:layout_width="100dp"
         android:layout_height="75dp"
+        android:layout_marginBottom="2dp"
         android:text="back"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.499"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/linearLayout"
         app:layout_constraintVertical_bias="0.587"
         app:cornerRadius="15dp"
         app:strokeColor="@color/orange"
@@ -35,68 +35,83 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-
-    <LinearLayout
-        android:id="@+id/linearLayout"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll_profile"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:orientation="vertical"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:paddingLeft="15dp"
         android:paddingRight="15dp"
+        app:layout_constraintBottom_toTopOf="@+id/back_profile"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/player_name_profile">
+        app:layout_constraintTop_toBottomOf="@+id/player_name_profile"
+        android:scrollbars="vertical"
+        android:fadeScrollbars="false"
+        >
 
-
-        <TextView
-            android:id="@+id/games_played"
+        <LinearLayout
+            android:id="@+id/linearLayout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Total games played: "
-            android:textSize="20dp" />
+            android:layout_height="match_parent"
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/made_leaderboard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Contributed to only part of a leaderboard item: "
-            android:textSize="20dp" />
 
-        <TextView
-            android:id="@+id/perfect_leaderboard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Contributed to both parts of a single leaderboard item: "
-            android:textSize="20dp" />
+            <TextView
+                android:id="@+id/games_played"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Total games played: "
+                android:textSize="20dp" />
 
-        <TextView
-            android:id="@+id/user_email"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Email: "
-            android:textSize="20dp" />
+            <TextView
+                android:id="@+id/made_leaderboard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Contributed to only part of a leaderboard item: "
+                android:textSize="20dp" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="5dp"
-            android:text="To unlock backwords google voice play 5 games. "
-            android:textSize="15dp" />
+            <TextView
+                android:id="@+id/perfect_leaderboard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Contributed to both parts of a single leaderboard item: "
+                android:textSize="20dp" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="To unlock fuddify google voice contribute to part of a sentence that makes it to the leaderboards. "
-            android:textSize="15dp" />
+            <TextView
+                android:id="@+id/user_email"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Email: "
+                android:textSize="20dp" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="To unlock pig latin google voice contribute to both parts of a sentence that makes it to the leaderboards. "
-            android:textSize="15dp" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="5dp"
+                android:text="To unlock backwords google voice play 5 games. "
+                android:textSize="15dp" />
 
-    </LinearLayout>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="To unlock fuddify google voice contribute to part of a sentence that makes it to the leaderboards. "
+                android:textSize="15dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="To unlock pig latin google voice contribute to both parts of a sentence that makes it to the leaderboards. "
+                android:textSize="15dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="To unlock some google voice play 20 games. "
+                android:textSize="15dp" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
