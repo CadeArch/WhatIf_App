@@ -63,9 +63,16 @@ public class LeaderBoardViewModel extends ViewModel {
 //                System.out.println(snapshot.getValue());
 
                 LeaderBoardItem lbItem = snapshot.getValue(LeaderBoardItem.class);
-                // todo make sure this isnt breaking anything, why would leaderboard be null?
-                if (leaderBoard != null || lbItem != null) {
-                    leaderBoard.add(lbItem);
+                System.out.println(leaderBoard.toString() + lbItem + " ");
+                // todo make sure this isnt breaking anything, why would leaderboard be null? something is still null
+                try {
+                    if (leaderBoard != null || lbItem != null) {
+                        leaderBoard.add(lbItem);
+                    }
+                }
+                catch (Exception e) {
+                    System.out.println(e.getMessage());
+                    System.out.println("--------- ERROR -----------");
                 }
 
             }

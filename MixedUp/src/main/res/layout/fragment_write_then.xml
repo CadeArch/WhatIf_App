@@ -49,10 +49,11 @@
     <EditText
         android:id="@+id/thenAnswer"
         android:layout_width="400dp"
-        android:layout_height="60dp"
+        android:layout_height="120dp"
         android:textColorHint="@color/black"
-        android:hint="then..."
+        android:hint="Enter Response"
         android:textSize="20dp"
+        android:gravity="center"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
