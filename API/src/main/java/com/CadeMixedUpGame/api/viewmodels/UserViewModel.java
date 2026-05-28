@@ -22,7 +22,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 public class UserViewModel extends ViewModel {
-    public MutableLiveData<Toast> signInToast = new MutableLiveData<>();
+    public MutableLiveData<Toast> signInToast = new MutableLiveData<Toast>();
     ObservableArrayList<User> users;
     public MutableLiveData<User> host = new MutableLiveData<User>();
     public String localRandIf = "";

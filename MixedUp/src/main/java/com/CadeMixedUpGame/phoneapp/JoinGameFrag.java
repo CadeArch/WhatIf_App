@@ -12,9 +12,7 @@ import android.widget.Toast;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
-
 import java.util.ArrayList;
-
 
 public class JoinGameFrag extends Fragment {
     UserViewModel userViewModel;
@@ -29,14 +27,9 @@ public class JoinGameFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-
         //giving back button functionality
         view.findViewById(R.id.joinGame_back).setOnClickListener(v -> {
-            getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, StartFragment.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
+            Utils.navigateToFragment(getActivity(), StartFragment.class);
         });
 
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
@@ -44,40 +37,31 @@ public class JoinGameFrag extends Fragment {
 
         EditText roomToJoin = view.findViewById(R.id.enterGameCode);
 
-
-        //giving joinGame start button funcitonality
+        // giving joinGame start button functionality
         view.findViewById(R.id.joinGame_start).setOnClickListener(v -> {
-
             ArrayList<String> allrooms = roomViewModel.roomNames;
             String myRoom = roomToJoin.getText().toString();
 
-            //if the room they want to join exists out there it will add them to the room and push their
-            // data to firebase, else it will let the user know it doesnt exist
+            // if the room they want to join exists out there it will add them to the room and push their
+            // data to firebase, else it will let the user know it doesn't exist
+            // TODO: functionalize a bit more for readability
             if (allrooms.contains(myRoom)) {
-
                 roomViewModel.checkIfInProgress(myRoom);
-
                 roomViewModel.inProgress.observe(this.getViewLifecycleOwner(), new Observer<Boolean>() {
                     @Override
                     public void onChanged(Boolean aBoolean) {
                         if (!aBoolean) {
-                            for (String room : allrooms) {
-//                    System.out.println(room);
-                            }
-                            //storing the room to join locally and loading in the users and pushing the user to the database
-//                System.out.println("userName--joinGame ---" + userViewModel.localName);
+                            // storing the room to join locally and loading in the users and pushing the user to the database
                             if (!loadedUsers) {
                                 userViewModel.loadUsers(myRoom);
                                 loadedUsers = true;
                             }
                             userViewModel.myRoom = myRoom;
 
-                            //storing users gameroom locally
+                            //storing users game-room locally
                             userViewModel.getUser().getValue().gameRoom = myRoom;
 
-                            System.out.println("start  button pushed in join game frag");
-
-                            // todo check to see if this will assure that someone who has been a host isnt anymore when they join a match
+                            // todo check to see if this will assure that someone who has been a host isn't anymore when they join a match
                             userViewModel.getUser().getValue().host = false;
                             userViewModel.getUser().getValue().hostStarted = false;
                             userViewModel.pushPerson(userViewModel.getUser());
@@ -104,17 +88,8 @@ public class JoinGameFrag extends Fragment {
                                     // TODO this gets run A BUNCH
                                     // could figure out how to use the contains array function?
                                     for (User player : userViewModel.getUsers()) {
-                                        // if the local name matches the players name move to waiting for host.
-                                        // and if host started = false fixes issue when moving to collecting ifs frag
-                                        System.out.println(userViewModel.localName.equals(player.userName) + " " + !player.hostStarted + " " + !userViewModel.onWaitingForHost);
                                         if (userViewModel.localName.equals(player.userName) && !player.hostStarted && !userViewModel.onWaitingForHost) {
-//                                System.out.println("switching to waiting for host frag");
-                                            getActivity().getSupportFragmentManager().beginTransaction()
-                                                    .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
-                                                    .setReorderingAllowed(true)
-                                                    .addToBackStack(null)
-                                                    .commit();
-//                                System.out.println("on waiting for host switched to TRUE");
+                                            Utils.navigateToFragment(getActivity(), WaitingForHostFrag.class);
                                             userViewModel.onWaitingForHost = true;
                                         }
                                         if (player.host) {
@@ -122,7 +97,6 @@ public class JoinGameFrag extends Fragment {
                                             userViewModel.host.setValue(player);
                                         }
                                     }
-
                                 }
 
                                 @Override
@@ -137,27 +111,24 @@ public class JoinGameFrag extends Fragment {
                             });
                         }
                         else {
-                            //letting the user know that that gameroom doesnt exist
+                            //letting the user know that that game-room doesn't exist
                             Toast.makeText(
-                                    getActivity(),
-                                    "Game in progress!",
-                                    Toast.LENGTH_LONG
+                                getActivity(),
+                                "Game in progress!",
+                                Toast.LENGTH_LONG
                             ).show();
                         }
                     }
                 });
-
-
             }
             else {
-                //letting the user know that that gameroom doesnt exist
+                //letting the user know that that game-room doesn't exist
                 Toast.makeText(
-                        getActivity(),
-                        "That Game Room Doesnt Exist!",
-                        Toast.LENGTH_LONG
+                    getActivity(),
+                    "That Game Room Doesn't Exist!",
+                    Toast.LENGTH_LONG
                 ).show();
             }
         });
-
     }
 }

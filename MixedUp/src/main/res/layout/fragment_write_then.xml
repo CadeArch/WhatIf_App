@@ -50,14 +50,16 @@
         android:id="@+id/thenAnswer"
         android:layout_width="400dp"
         android:layout_height="wrap_content"
-        android:textColorHint="@color/black"
-        android:hint="Enter Response"
-        android:textSize="20dp"
         android:gravity="center"
+        android:hint="Enter Response"
+        android:textColorHint="@color/black"
+        android:textSize="20dp"
+        app:layout_constraintBottom_toTopOf="@+id/writeThen_submit"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/scroller" />
+        app:layout_constraintTop_toBottomOf="@+id/scroller"
+        app:layout_constraintVertical_bias="0.0" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/writeThen_submit"
