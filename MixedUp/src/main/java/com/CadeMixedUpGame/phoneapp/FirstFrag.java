@@ -1,17 +1,15 @@
 package com.CadeMixedUpGame.phoneapp;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 public class FirstFrag extends Fragment {
-    private static final String TAG = "Landing (First) Screen";
-
     RoomViewModel roomViewModel;
     UserViewModel userViewModel;
 
@@ -28,10 +26,10 @@ public class FirstFrag extends Fragment {
 
         // This did get called, will assure a user isnt signed into a device upon start of app, will need to sign back in
         if (userViewModel.getUser().getValue() != null) {
-            Log.d(TAG, "USER NOT NULL");
+            AppLog.d(AppLog.AUTH, "Landing screen found existing user");
             if (userViewModel.getUser().getValue().accountPlay) {
                 userViewModel.signOut();
-                Log.d(TAG, "onViewCreated: user already signed in: SIGNING OUT");
+                AppLog.i(AppLog.AUTH, "Signed out existing account player on landing screen");
             }
         }
 

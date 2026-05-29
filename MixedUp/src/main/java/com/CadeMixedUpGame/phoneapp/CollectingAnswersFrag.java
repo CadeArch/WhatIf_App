@@ -1,6 +1,8 @@
 package com.CadeMixedUpGame.phoneapp;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
@@ -12,15 +14,22 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.view.View;
 
+import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 
 public class CollectingAnswersFrag extends Fragment {
+    private static final long MIN_WAITING_SCREEN_MS = 2000L;
+
     UserViewModel userViewModel;
     Boolean allThensFinished = false;
     ObservableArrayList<User> whoSubmittedThen = new ObservableArrayList<>();
     Boolean onCollectingAnswers;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private boolean navigationScheduled = false;
+
     public CollectingAnswersFrag() {
         super(R.layout.fragment_collecting_answers);
     }
@@ -29,8 +38,9 @@ public class CollectingAnswersFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        System.out.println("----------------collecting Then frag--------------------------");
+        AppLog.i(AppLog.GAME_FLOW, "Collecting Then sentences screen opened");
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
+        userViewModel.gamePhase.setValue(GamePhase.COLLECTING_THENS);
 
         userViewModel.onCollectingAnswers = true;
         onCollectingAnswers = true;
@@ -41,9 +51,7 @@ public class CollectingAnswersFrag extends Fragment {
 
         // seeing who has submitted
         for (User user:userViewModel.getUsers()) {
-            if (user.thenFinished) {
-                whoSubmittedThen.add(user);
-            }
+            addThenSubmittedUser(user);
         }
 
         // populating view with those who have submitted there if
@@ -53,7 +61,7 @@ public class CollectingAnswersFrag extends Fragment {
         userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
             @Override
             public void onChanged(ObservableList<User> sender) {
-                System.out.println("user array changed not inserted");
+                AppLog.d(AppLog.GAME_FLOW, "Collecting Then user list changed");
             }
 
             @Override
@@ -62,36 +70,8 @@ public class CollectingAnswersFrag extends Fragment {
 
             @Override
             public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
-                // if they have finished their if sentance add it to the who submitted array and reset adapter to inflate text
                 if (onCollectingAnswers) {
-                    if (userViewModel.getUsers().get(positionStart).thenFinished) {
-                        whoSubmittedThen.add(userViewModel.getUsers().get(positionStart));
-                        recyclerView.setAdapter(adapter);
-                    }
-                    System.out.println("SAW CHANGE CAF --------------------");
-                    int count = 0;
-                    for (User user : userViewModel.getUsers()) {
-                        System.out.println("CollectingAnswersfrag: " + user.thenSentence + " " + user.thenFinished);
-                        if (user.thenFinished) {
-                            count += 1;
-                            System.out.println("Count incremented: CAF");
-                        }
-                    }
-                    System.out.println(count + " ------------------ " + userViewModel.getUsers().size());
-                    if (count == userViewModel.getUsers().size()) {
-                        allThensFinished = true;
-                    }
-                    if (allThensFinished && userViewModel.onCollectingAnswers) {
-                        System.out.println("going to read sentence frag");
-
-                        getActivity().getSupportFragmentManager().beginTransaction()
-                                .replace(R.id.fragment_container, ReadSentenceFrag.class, null)
-                                .setReorderingAllowed(true)
-                                .addToBackStack(null)
-                                .commit();
-                        userViewModel.onCollectingAnswers = false;
-                        onCollectingAnswers = false;
-                    }
+                    handleThenUserInserted(positionStart, adapter);
                 }
             }
 
@@ -110,6 +90,57 @@ public class CollectingAnswersFrag extends Fragment {
 
 
 
+    }
+
+    private void addThenSubmittedUser(User user) {
+        if (user != null && user.thenFinished && !whoSubmittedThen.contains(user)) {
+            whoSubmittedThen.add(user);
+        }
+    }
+
+    private void handleThenUserInserted(int positionStart, MyRecyclerViewAdapter adapter) {
+        addThenSubmittedUser(userViewModel.getUsers().get(positionStart));
+        adapter.notifyDataSetChanged();
+        int finishedCount = countFinishedThens();
+        AppLog.d(AppLog.GAME_FLOW, "Collecting Then progress: finished=" + finishedCount + ", total=" + userViewModel.getUsers().size());
+        allThensFinished = finishedCount == userViewModel.getUsers().size();
+        if (allThensFinished && userViewModel.onCollectingAnswers && !navigationScheduled) {
+            navigateToReadSentence();
+        }
+    }
+
+    private int countFinishedThens() {
+        int count = 0;
+        for (User user : userViewModel.getUsers()) {
+            if (user.thenFinished) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    private void navigateToReadSentence() {
+        AppLog.i(AppLog.GAME_FLOW, "CollectingAnswersFrag -> ReadSentenceFrag after waiting screen delay");
+        navigationScheduled = true;
+        onCollectingAnswers = false;
+        handler.postDelayed(() -> {
+            if (!isAdded()) {
+                return;
+            }
+            userViewModel.gamePhase.setValue(GamePhase.READING);
+            requireActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, ReadSentenceFrag.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+            userViewModel.onCollectingAnswers = false;
+        }, MIN_WAITING_SCREEN_MS);
+    }
+
+    @Override
+    public void onDestroyView() {
+        handler.removeCallbacksAndMessages(null);
+        super.onDestroyView();
     }
 }
 

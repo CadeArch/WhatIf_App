@@ -2,11 +2,14 @@ package com.CadeMixedUpGame.phoneapp;
 
 import android.os.Bundle;
 import android.view.View;
+import android.widget.EditText;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelProvider;
+import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
@@ -34,9 +37,8 @@ public class StartFragment extends Fragment {
         // checking to see if user can unlock any voices based on whether or not they are on the leaderboards
         // assuring leaderboards isnt empty so it wont break, if they are on the leaderboards they can unlock it
         // but it wont notify or try to unlock it again if the player has already unlocked that value
-        System.out.println(userViewModel.getUser().getValue().accountPlay);
         if (userViewModel.getUser().getValue().accountPlay) {
-            System.out.println("Leaderboard Size: " + leaderBoardViewModel.getLeaderBoard().size());
+            AppLog.d(AppLog.UI, "Start screen account player; leaderboard size=" + leaderBoardViewModel.getLeaderBoard().size());
             if (userViewModel.getUser().getValue().gamesPlayed > 0) {
                 userViewModel.getMadeLeaderBoard(userViewModel.getUser());
                 userViewModel.getMadePerfectLeaderBoard(userViewModel.getUser());
@@ -48,23 +50,15 @@ public class StartFragment extends Fragment {
                         if (!userViewModel.getUser().getValue().perfectLeaderBoard) {
                             userViewModel.getUser().getValue().perfectLeaderBoard = true;
                             userViewModel.unlockVoice(userViewModel.getUser(), "leaderBoards");
-                            Toast.makeText(
-                                    getActivity(),
-                                    "unlocked pig latin google voice!",
-                                    Toast.LENGTH_LONG
-                            ).show();
-                            System.out.println("perfect Leader Board");
+                            UiMessenger.showSnackbar(view, "Unlocked pig latin google voice!");
+                            AppLog.i(AppLog.AUTH, "Perfect leaderboard unlock triggered");
                         }
                     } else if (lbi.getIfContributorID().equals(userViewModel.getUser().getValue().getUid()) ||
                             lbi.getThenContributorID().equals(userViewModel.getUser().getValue().getUid())) {
                         if (!userViewModel.getUser().getValue().madeLeaderBoard) {
                             userViewModel.getUser().getValue().madeLeaderBoard = true;
                             userViewModel.unlockVoice(userViewModel.getUser(), "leaderBoards");
-                            Toast.makeText(
-                                    getActivity(),
-                                    "unlocked fuddify google voice!",
-                                    Toast.LENGTH_LONG
-                            ).show();
+                            UiMessenger.showSnackbar(view, "Unlocked fuddify google voice!");
 //                        System.out.println("on Leader Board");
                         }
                     }
@@ -108,7 +102,7 @@ public class StartFragment extends Fragment {
                 userViewModel.localName = "guest-" + enterName.getText().toString();
                 //building user for first time if in freeplay
                 userViewModel.getUser().getValue().userName = userViewModel.localName;
-                System.out.println(userViewModel.getUser().getValue().userName);
+                AppLog.d(AppLog.AUTH, "Free-play host name set");
             }
 
             //creating a new roomID to make a room and storing info locally
@@ -132,6 +126,7 @@ public class StartFragment extends Fragment {
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();
+            AppLog.i(AppLog.GAME_FLOW, "StartFragment -> CreateGameFrag room=" + roomID);
         });
 
         //giving the join game button functionality
@@ -140,7 +135,7 @@ public class StartFragment extends Fragment {
             if (!userViewModel.getUser().getValue().accountPlay) {
                 userViewModel.localName = "guest-" + enterName.getText().toString();
                 userViewModel.getUser().getValue().userName = userViewModel.localName;
-                System.out.println(userViewModel.getUser().getValue().userName);
+                AppLog.d(AppLog.AUTH, "Free-play guest name set");
             }
             //moving to the join game fragment
             getActivity().getSupportFragmentManager().beginTransaction()
@@ -148,6 +143,7 @@ public class StartFragment extends Fragment {
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();
+            AppLog.i(AppLog.GAME_FLOW, "StartFragment -> JoinGameFrag");
         });
 
         //giving the signout button functionality
@@ -160,6 +156,7 @@ public class StartFragment extends Fragment {
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();
+            AppLog.i(AppLog.GAME_FLOW, "StartFragment -> FirstFrag after sign out");
         });
 
         //giving the back button functionality
@@ -171,6 +168,7 @@ public class StartFragment extends Fragment {
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();
+            AppLog.i(AppLog.GAME_FLOW, "StartFragment -> FirstFrag via back");
         });
 
         //giving the leaderBoards button functionality
@@ -181,6 +179,7 @@ public class StartFragment extends Fragment {
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();
+            AppLog.i(AppLog.GAME_FLOW, "StartFragment -> LeaderBoardFrag");
         });
 
         //giving the profile button functionality
@@ -192,6 +191,7 @@ public class StartFragment extends Fragment {
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();
+            AppLog.i(AppLog.GAME_FLOW, "StartFragment -> ProfileFrag");
         });
 
     }

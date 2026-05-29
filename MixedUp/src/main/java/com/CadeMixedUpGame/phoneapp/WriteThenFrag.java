@@ -7,7 +7,9 @@ import androidx.lifecycle.ViewModelProvider;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
+import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.GameLogic;
+import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
@@ -24,17 +26,11 @@ public class WriteThenFrag extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
-        // this puts a pause on the collecting questions fragment so the last player to submit
-        // doesn't whizz past the screen
-        try {
-            Thread.sleep(1500);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
         super.onViewCreated(view, savedInstanceState);
 
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
+        userViewModel.gamePhase.setValue(GamePhase.WRITING_THEN);
 
 //        for (User user: userViewModel.getUsers()) {
 //            System.out.println("ORDER IN WRITE THEN FRAG ------------- " + user.userName);
@@ -45,7 +41,7 @@ public class WriteThenFrag extends Fragment {
         int idx = 0;
         for (User user: userViewModel.getUsers()) {
             if(user.ifSentence.equals(userViewModel.getUser().getValue().ifSentence)) {
-                System.out.println(user.userName + ": got my own index: " + idx);
+                AppLog.d(AppLog.GAME_FLOW, "Current If sentence found at index=" + idx + ", player=" + user.userName);
                 break;
             }
             idx += 1;
@@ -58,15 +54,10 @@ public class WriteThenFrag extends Fragment {
         // they will get the first persons if in the array
         // this works because the arrays are in the same order across devices. and array order differs based upon when the users submit there answer
 
-        if (idx + 1 == userViewModel.getUsers().size()) {
-            myRandomIf = userViewModel.getUsers().get(0).ifSentence;
+        int nextIndex = GameLogic.nextPlayerIndex(idx, userViewModel.getUsers().size());
+        if (nextIndex >= 0) {
+            myRandomIf = userViewModel.getUsers().get(nextIndex).ifSentence;
             userViewModel.localRandIf = myRandomIf;
-//            System.out.println("WRITE THEN FRAG: hit if");
-        }
-        else {
-            myRandomIf = userViewModel.getUsers().get(idx + 1).ifSentence;
-            userViewModel.localRandIf = myRandomIf;
-//            System.out.println("WRITE THEN FRAG: hit else");
         }
 
         ifQuestion.setText(myRandomIf + "?");
@@ -76,21 +67,16 @@ public class WriteThenFrag extends Fragment {
         view.findViewById(R.id.writeThen_submit).setOnClickListener(v -> {
 
             if (thenSentence.getText().toString().equals("")) {
-                Toast.makeText(
-                        getActivity(),
-                        "Response needed",
-                        Toast.LENGTH_SHORT
-                ).show();
+                AppLog.w(AppLog.UI, "Then submit blocked: empty response");
+                UiMessenger.showError(thenSentence, "Response required");
             }
             else {
-                String thenSent = thenSentence.getText().toString();
-                thenSent = thenSent.replaceAll("\\p{Punct}","");
-                thenSent = thenSent.replaceAll("\\s+$", "");
-                thenSent = thenSent.replaceAll("^\\s+", "");
+                UiMessenger.clearError(thenSentence);
+                String thenSent = GameLogic.cleanThenSentence(thenSentence.getText().toString());
                 userViewModel.getUser().getValue().thenSentence = thenSent;
                 userViewModel.getUser().getValue().thenFinished = true;
-
-//                System.out.println("ButtonPressed to move to collecting answers frag");
+                userViewModel.gamePhase.setValue(GamePhase.COLLECTING_THENS);
+                AppLog.i(AppLog.GAME_FLOW, "WriteThenFrag -> CollectingAnswersFrag");
 
                 getActivity().getSupportFragmentManager().beginTransaction()
                         .replace(R.id.fragment_container, CollectingAnswersFrag.class, null)

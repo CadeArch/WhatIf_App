@@ -9,6 +9,7 @@ import android.widget.TextView;
 import androidx.databinding.ObservableArrayList;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.models.User;
 
 public class MyRecyclerViewAdapter extends RecyclerView.Adapter<MyRecyclerViewAdapter.ViewHolder> {
@@ -34,7 +35,7 @@ public class MyRecyclerViewAdapter extends RecyclerView.Adapter<MyRecyclerViewAd
     public void onBindViewHolder(ViewHolder holder, int position) {
         User user = mData.get(position);
         holder.myTextView.setText(user.userName);
-        System.out.println("text set~~~~~~~~~~~~~~~~~~~~");
+        AppLog.d(AppLog.UI, "Bound player row position=" + position + ", name=" + user.userName);
 
     }
 

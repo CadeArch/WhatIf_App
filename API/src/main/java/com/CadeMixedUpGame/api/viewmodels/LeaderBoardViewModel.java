@@ -1,7 +1,5 @@
 package com.CadeMixedUpGame.api.viewmodels;
 
-import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.databinding.ObservableArrayList;
@@ -9,6 +7,7 @@ import androidx.databinding.ObservableList;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.models.User;
 import com.google.firebase.database.ChildEventListener;
@@ -17,8 +16,6 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
-import java.sql.Time;
-import java.util.ArrayList;
 import java.util.Collections;
 
 public class LeaderBoardViewModel extends ViewModel {
@@ -32,10 +29,20 @@ public class LeaderBoardViewModel extends ViewModel {
     LeaderBoardItem plbi;
 
     public LeaderBoardViewModel() {
-        db = FirebaseDatabase.getInstance().getReference();
+        this(FirebaseDatabase.getInstance().getReference(), true);
+    }
+
+    public LeaderBoardViewModel(DatabaseReference db) {
+        this(db, false);
+    }
+
+    public LeaderBoardViewModel(DatabaseReference db, boolean loadLeaderBoardOnCreate) {
+        this.db = db;
         if (leaderBoard == null) {
             leaderBoard = new ObservableArrayList<>();
-            loadLeaderBoardItems();
+            if (loadLeaderBoardOnCreate) {
+                loadLeaderBoardItems();
+            }
         }
         if (potentialLeaderBoardItems == null) {
             potentialLeaderBoardItems = new ObservableArrayList<>();
@@ -48,7 +55,7 @@ public class LeaderBoardViewModel extends ViewModel {
         mostVotedID = "";
         mostVotes = 0;
         plbi = null;
-        System.out.println("SIZE of cast votes after reset: " + castvotes.size());
+        AppLog.i(AppLog.VOTE, "Reset vote state");
     }
 
     public void setLeaderBoard(ObservableArrayList<LeaderBoardItem> leaderBoard) {
@@ -62,18 +69,7 @@ public class LeaderBoardViewModel extends ViewModel {
 //                System.out.println(snapshot);
 //                System.out.println(snapshot.getValue());
 
-                LeaderBoardItem lbItem = snapshot.getValue(LeaderBoardItem.class);
-                System.out.println(leaderBoard.toString() + lbItem + " ");
-                // todo make sure this isnt breaking anything, why would leaderboard be null? something is still null
-                try {
-                    if (leaderBoard != null || lbItem != null) {
-                        leaderBoard.add(lbItem);
-                    }
-                }
-                catch (Exception e) {
-                    System.out.println(e.getMessage());
-                    System.out.println("--------- ERROR -----------");
-                }
+                addLeaderBoardItem(snapshot);
 
             }
 
@@ -94,23 +90,32 @@ public class LeaderBoardViewModel extends ViewModel {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
+                AppLog.e(AppLog.FIREBASE, "Leaderboard listener cancelled: " + error.getMessage());
             }
         });
+    }
+
+    private void addLeaderBoardItem(@NonNull DataSnapshot snapshot) {
+        LeaderBoardItem lbItem = snapshot.getValue(LeaderBoardItem.class);
+        if (leaderBoard == null || lbItem == null) {
+            AppLog.w(AppLog.VOTE, "Skipping null leaderboard item key=" + snapshot.getKey());
+            return;
+        }
+        leaderBoard.add(lbItem);
+        AppLog.d(AppLog.VOTE, "Loaded leaderboard item id=" + lbItem.getId() + ", total=" + leaderBoard.size());
     }
 
     public void loadVotingItems(MutableLiveData<User> user) {
+        if (user == null || user.getValue() == null || user.getValue().gameRoom == null) {
+            AppLog.w(AppLog.VOTE, "loadVotingItems skipped: missing user or room");
+            return;
+        }
+        String room = user.getValue().gameRoom;
+        AppLog.i(AppLog.FIREBASE, "Attaching voting items listener room=" + room);
         db.child("rooms").child(user.getValue().gameRoom).child("votingItems").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-//                System.out.println(snapshot);
-                LeaderBoardItem lbItem = snapshot.getValue(LeaderBoardItem.class);
-                potentialLeaderBoardItems.add(lbItem);
-
-                for(DataSnapshot ds : snapshot.getChildren()) {
-//                    System.out.println("DB-NEW L-B-Item ADDED---------- " + lbItem.ifPart + lbItem.thenPart);
-                }
+                addVotingItem(snapshot);
             }
 
             @Override
@@ -130,35 +135,57 @@ public class LeaderBoardViewModel extends ViewModel {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
+                AppLog.e(AppLog.FIREBASE, "Voting items listener cancelled: " + error.getMessage());
             }
         });
     }
 
+    private void addVotingItem(@NonNull DataSnapshot snapshot) {
+        LeaderBoardItem lbItem = snapshot.getValue(LeaderBoardItem.class);
+        if (lbItem == null) {
+            AppLog.w(AppLog.VOTE, "Skipping null voting item key=" + snapshot.getKey());
+            return;
+        }
+        potentialLeaderBoardItems.add(lbItem);
+        AppLog.d(AppLog.VOTE, "Loaded voting item id=" + lbItem.getId() + ", total=" + potentialLeaderBoardItems.size());
+    }
+
     public void pushVoteItem(MutableLiveData<User> user, LeaderBoardItem lbi) {
-        db.child("rooms").child(user.getValue().gameRoom).child("votingItems").child(lbi.getId()).setValue(lbi);
-        System.out.println("Pushed Potential LBI to temp voting in database");
+        String room = user.getValue().gameRoom;
+        AppLog.i(AppLog.FIREBASE, "Pushing voting item room=" + room + ", id=" + lbi.getId());
+        db.child("rooms").child(room).child("votingItems").child(lbi.getId()).setValue(lbi)
+                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Voting item pushed room=" + room + ", id=" + lbi.getId()))
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed pushing voting item room=" + room, e));
     }
 
     //changed to userName and userID instead of just username in case users have same name todo MAKE SURE IT DIDNT BREAK ANYTHING
     public void castVote(MutableLiveData<User> user, String vote) {
-        db.child("rooms").child(user.getValue().gameRoom).child("votes").child(user.getValue().userName + "-" + user.getValue().userID).setValue(vote);
-        System.out.println("VOTE SENT TO DB");
+        String room = user.getValue().gameRoom;
+        String playerKey = user.getValue().userName + "-" + user.getValue().userID;
+        AppLog.i(AppLog.VOTE, "Casting vote room=" + room + ", player=" + playerKey + ", vote=" + vote);
+        db.child("rooms").child(room).child("votes").child(playerKey).setValue(vote)
+                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Vote write succeeded room=" + room))
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Vote write failed room=" + room, e));
     }
 
     public void removeCastVotesListener(String gameroom) {
-        db.child("rooms").child(gameroom).child("votes").removeEventListener(votesListener);
+        if (votesListener != null && gameroom != null) {
+            AppLog.i(AppLog.FIREBASE, "Removing votes listener room=" + gameroom);
+            db.child("rooms").child(gameroom).child("votes").removeEventListener(votesListener);
+            votesListener = null;
+        }
     }
 
     public void createAndListenToCastVotes(String gameroom) {
+        AppLog.i(AppLog.FIREBASE, "Attaching votes listener room=" + gameroom);
         votesListener = new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-//                System.out.println(snapshot);
                 String vote = snapshot.getValue(String.class);
-                System.out.println("Adding a cast vote: " + vote);
-                castvotes.add(vote);
-                System.out.println("ADDING VOTE TO CAST VOTES: castvotes size after adding: " + castvotes.size());
+                if (vote != null) {
+                    castvotes.add(vote);
+                    AppLog.d(AppLog.VOTE, "Vote received room=" + gameroom + ", total=" + castvotes.size());
+                }
             }
 
             @Override
@@ -178,7 +205,7 @@ public class LeaderBoardViewModel extends ViewModel {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
+                AppLog.e(AppLog.FIREBASE, "Votes listener cancelled: " + error.getMessage());
             }
         };
 
@@ -211,7 +238,7 @@ public class LeaderBoardViewModel extends ViewModel {
 
             @Override
             public void onItemRangeInserted(ObservableList<String> sender, int positionStart, int itemCount) {
-                System.out.println("users: " + numOfUsers + " castVotes: " + getCastvotes().size());
+                AppLog.d(AppLog.VOTE, "Votes changed: users=" + numOfUsers + ", castVotes=" + getCastvotes().size());
                 if (numOfUsers == castvotes.size()) {
                     findBestSentence();
                 }
@@ -231,11 +258,11 @@ public class LeaderBoardViewModel extends ViewModel {
 
     public boolean isLeaderBoardFull () {
         if(getLeaderBoard().size() < 20) {
-            System.out.println("LEADERBOARD NOT FULL");
+            AppLog.d(AppLog.VOTE, "Leaderboard not full: size=" + getLeaderBoard().size());
             return false;
         }
         else {
-            System.out.println("LEADERBOARD FULL");
+            AppLog.d(AppLog.VOTE, "Leaderboard full");
             return true;
         }
     }
@@ -243,28 +270,28 @@ public class LeaderBoardViewModel extends ViewModel {
     // todo: finish finding best sentence and if it beats what is on the leaderboard push it to the leaderboard
     // TEST THIS FUNCTION
     public void findBestSentence() {
-
-        for (LeaderBoardItem lbi:potentialLeaderBoardItems) {
-            int numVotes = Collections.frequency(castvotes, lbi.getId());
-
-            if (mostVotes < numVotes) {
-                mostVotes = numVotes;
-                mostVotedID = lbi.getId();
-                plbi = lbi;
-            }
+        if (castvotes.size() == 0 || potentialLeaderBoardItems.size() == 0) {
+            AppLog.w(AppLog.VOTE, "No votes or voting items available; skipping leaderboard update");
+            return;
         }
-        System.out.println("num votes " + mostVotes + " voteItem: " + mostVotedID + " percentLoved: " + mostVotes/(double)castvotes.size() * 100);
-        plbi.setPercentLoved(mostVotes/(double)castvotes.size() * 100);
-        System.out.println("Items on leaderboard: " + leaderBoard.size());
+
+        selectWinningVotingItem();
+        if (plbi == null) {
+            AppLog.w(AppLog.VOTE, "No winning voting item found; skipping leaderboard update");
+            return;
+        }
+        double percentLoved = calculatePercentLoved();
+        plbi.setPercentLoved(percentLoved);
+        AppLog.i(AppLog.VOTE, "Winning vote item id=" + mostVotedID + ", votes=" + mostVotes + ", percentLoved=" + percentLoved);
         if (isLeaderBoardFull()) {
             LeaderBoardItem toRemove = removeWhichItem(plbi);
             if (!toRemove.getId().equals(mostVotedID)) {
-                System.out.println("NEW LBI beat one currently on the leaderboards");
+                AppLog.i(AppLog.VOTE, "New item beat leaderboard item id=" + toRemove.getId());
                 removeLBI(toRemove);
                 pushToLeaderBoards(plbi);
             }
             else {
-                System.out.println("NEW LBI did not beat what is currently on leaderboard");
+                AppLog.i(AppLog.VOTE, "Winning item did not beat current leaderboard");
             }
         }
         // leaderboard not full
@@ -274,30 +301,53 @@ public class LeaderBoardViewModel extends ViewModel {
 
     }
 
+    private void selectWinningVotingItem() {
+        mostVotes = 0;
+        mostVotedID = "";
+        plbi = null;
+        for (LeaderBoardItem lbi:potentialLeaderBoardItems) {
+            if (lbi == null || lbi.getId() == null) {
+                continue;
+            }
+            int numVotes = Collections.frequency(castvotes, lbi.getId());
+            if (mostVotes < numVotes) {
+                mostVotes = numVotes;
+                mostVotedID = lbi.getId();
+                plbi = lbi;
+            }
+        }
+    }
+
+    private double calculatePercentLoved() {
+        if (castvotes.size() == 0) {
+            return 0;
+        }
+        return mostVotes / (double) castvotes.size() * 100;
+    }
+
     public void removeLBI(LeaderBoardItem lbi) {
-        System.out.println("removing: " + lbi.getId() + lbi.getPercentLoved());
-        db.child("leaderBoard").child(Long.toString(lbi.getLoadedToLeaderBoard())).removeValue();
+        AppLog.i(AppLog.VOTE, "Removing leaderboard item id=" + lbi.getId() + ", percentLoved=" + lbi.getPercentLoved());
+        db.child("leaderBoard").child(Long.toString(lbi.getLoadedToLeaderBoard())).removeValue()
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed removing leaderboard item id=" + lbi.getId(), e));
     }
 
     public void pushToLeaderBoards(LeaderBoardItem lbi) {
         // Todo fill in all values of lbi
-        System.out.println(mostVotes/(double)castvotes.size() * 100);
-        lbi.setPercentLoved(mostVotes/(double)castvotes.size() * 100);
+        lbi.setPercentLoved(calculatePercentLoved());
         lbi.setLoadedToLeaderBoard(System.currentTimeMillis());
-        db.child("leaderBoard").child(Long.toString(lbi.getLoadedToLeaderBoard())).setValue(lbi);
+        AppLog.i(AppLog.VOTE, "Pushing leaderboard item id=" + lbi.getId() + ", percentLoved=" + lbi.getPercentLoved());
+        db.child("leaderBoard").child(Long.toString(lbi.getLoadedToLeaderBoard())).setValue(lbi)
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed pushing leaderboard item id=" + lbi.getId(), e));
     }
 
     public LeaderBoardItem removeWhichItem(LeaderBoardItem newlbi) {
 
         LeaderBoardItem removeThis = newlbi;
         for (LeaderBoardItem lbi: getLeaderBoard()) {
-            System.out.println(lbi.getLoadedToLeaderBoard());
-        }
-        for (LeaderBoardItem lbi: getLeaderBoard()) {
 //            System.out.println(lbi.getPercentLoved());
             if (lbi.getPercentLoved() <= newlbi.getPercentLoved()) {
                 removeThis = lbi;
-                System.out.println("to remove: " + removeThis.getId() + removeThis.getPercentLoved());
+                AppLog.d(AppLog.VOTE, "Leaderboard replacement candidate id=" + removeThis.getId() + ", percentLoved=" + removeThis.getPercentLoved());
                 break;
             }
         }

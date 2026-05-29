@@ -6,8 +6,9 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.Toast;
-import com.CadeMixedUpGame.api.models.User;
+import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.GameLogic;
+import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
@@ -26,33 +27,23 @@ public class WriteIfFrag extends Fragment {
 
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
+        userViewModel.gamePhase.setValue(GamePhase.WRITING_IF);
 
         EditText ifSentence = getActivity().findViewById(R.id.ifQuestion);
 
         //giving submit button functionality
         view.findViewById(R.id.writeIf_submit).setOnClickListener(v -> {
-
-            for (User user: userViewModel.getUsers()
-                 ) {
-                System.out.println("ORDER IN WRITE IF FRAG ------------- " + user.userName);
-            }
-
-
             if (ifSentence.getText().toString().equals("")) {
-                Toast.makeText(
-                        getActivity(),
-                        "Question needed",
-                        Toast.LENGTH_SHORT
-                ).show();
+                AppLog.w(AppLog.UI, "If submit blocked: empty question");
+                UiMessenger.showError(ifSentence, "Question required");
             }
             else {
-                String ifsent = ifSentence.getText().toString();
-                ifsent = ifsent.replaceAll("\\p{Punct}","");
-                ifsent = ifsent.substring(0, 1).toUpperCase() + ifsent.substring(1);
-                ifsent = ifsent.replaceAll("\\s+$", "");
-                ifsent = ifsent.replaceAll("^\\s+", "");
+                UiMessenger.clearError(ifSentence);
+                String ifsent = GameLogic.cleanIfSentence(ifSentence.getText().toString());
                 userViewModel.getUser().getValue().ifSentence = ifsent;
                 userViewModel.getUser().getValue().ifFinished = true;
+                userViewModel.gamePhase.setValue(GamePhase.COLLECTING_IFS);
+                AppLog.i(AppLog.GAME_FLOW, "WriteIfFrag -> CollectingQuestionsFrag");
 
                 getActivity().getSupportFragmentManager().beginTransaction()
                         .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)

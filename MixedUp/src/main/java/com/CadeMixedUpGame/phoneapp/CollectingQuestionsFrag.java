@@ -1,6 +1,8 @@
 package com.CadeMixedUpGame.phoneapp;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableArrayList;
@@ -10,16 +12,22 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import android.view.View;
+import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 
 public class CollectingQuestionsFrag extends Fragment {
+    private static final long MIN_WAITING_SCREEN_MS = 2000L;
+
     UserViewModel userViewModel;
     Boolean allIfsFinished = false;
     ObservableArrayList<User> whoSubmitted = new ObservableArrayList<>();
     Boolean onCollectingQuestionsFrag;
     MyRecyclerViewAdapter adapter;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private boolean navigationScheduled = false;
 
 
     public CollectingQuestionsFrag() {
@@ -29,8 +37,9 @@ public class CollectingQuestionsFrag extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        System.out.println("----------------collecting If frag--------------------------");
+        AppLog.i(AppLog.GAME_FLOW, "Collecting If sentences screen opened");
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
+        userViewModel.gamePhase.setValue(GamePhase.COLLECTING_IFS);
 
         onCollectingQuestionsFrag = true;
         // set up the RecyclerView
@@ -39,9 +48,7 @@ public class CollectingQuestionsFrag extends Fragment {
 
         // seeing who has submitted
         for (User user:userViewModel.getUsers()) {
-            if (user.ifFinished) {
-                whoSubmitted.add(user);
-            }
+            addIfSubmittedUser(user);
         }
 
         // populating view with those who have submitted there if
@@ -52,7 +59,7 @@ public class CollectingQuestionsFrag extends Fragment {
         userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
             @Override
             public void onChanged(ObservableList<User> sender) {
-                System.out.println("user array changed not inserted");
+                AppLog.d(AppLog.GAME_FLOW, "Collecting If user list changed");
             }
 
             @Override
@@ -63,42 +70,7 @@ public class CollectingQuestionsFrag extends Fragment {
             public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
 
                 if (onCollectingQuestionsFrag) {
-                    // if they have finished their if sentance add it to the who submitted array and reset adapter to inflate text
-                    if (userViewModel.getUsers().get(positionStart).ifFinished) {
-//                        System.out.println(recyclerView.getAdapter().getItemCount() + " REC VIEW COUNT ------------++++++++++++");
-                        whoSubmitted.add(userViewModel.getUsers().get(positionStart));
-//                        System.out.println(whoSubmitted.size() + " SIZE of WHO SUBMITTED ARRAY ");
-                        //todo which way is better i do it differently on collecting answers frag
-//                        recyclerView.setAdapter(adapter);
-                        adapter.notifyDataSetChanged();
-//                        System.out.println(recyclerView.getAdapter().getItemCount() + " REC VIEW COUNT ---------------+++++++++++++++");
-
-                    }
-                    System.out.println("SAW CHANGE CQF --------------------");
-                    int count = 0;
-                    for (User user : userViewModel.getUsers()) {
-                        System.out.println(user.ifFinished);
-                        if (user.ifFinished) {
-                            count += 1;
-                        }
-                    }
-//                System.out.println(count + " ------------------ " + userViewModel.getUsers().size());
-                    if (count == userViewModel.getUsers().size()) {
-                        allIfsFinished = true;
-                    }
-                    // if then isnt finished fixes for when moving to collecting answers frag
-//                System.out.println("on write then: " + userViewModel.onWriteThen);
-                    if (allIfsFinished && !userViewModel.getUser().getValue().thenFinished && !userViewModel.onWriteThen) {
-                        System.out.println("Switched to write then frag");
-                        onCollectingQuestionsFrag = false;
-//                        System.out.println(recyclerView.getAdapter().getItemCount() + " REC VIEW COUNT +++++++++++++++");
-                        getActivity().getSupportFragmentManager().beginTransaction()
-                                .replace(R.id.fragment_container, WriteThenFrag.class, null)
-                                .setReorderingAllowed(true)
-                                .addToBackStack(null)
-                                .commit();
-                        userViewModel.onWriteThen = true;
-                    }
+                    handleIfUserInserted(positionStart);
                 }
             }
 
@@ -115,6 +87,66 @@ public class CollectingQuestionsFrag extends Fragment {
 
         userViewModel.pushIf(userViewModel.getUser());
 
+    }
+
+    private void addIfSubmittedUser(User user) {
+        if (user != null && user.ifFinished && !whoSubmitted.contains(user)) {
+            whoSubmitted.add(user);
+        }
+    }
+
+    private void handleIfUserInserted(int positionStart) {
+        addIfSubmittedUser(userViewModel.getUsers().get(positionStart));
+        adapter.notifyDataSetChanged();
+        int finishedCount = countFinishedIfs();
+        AppLog.d(AppLog.GAME_FLOW, "Collecting If progress: finished=" + finishedCount + ", total=" + userViewModel.getUsers().size());
+        allIfsFinished = finishedCount == userViewModel.getUsers().size();
+        if (shouldNavigateToWriteThen()) {
+            navigateToWriteThen();
+        }
+    }
+
+    private int countFinishedIfs() {
+        int count = 0;
+        for (User user : userViewModel.getUsers()) {
+            if (user.ifFinished) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    private boolean shouldNavigateToWriteThen() {
+        User currentUser = userViewModel.getUser().getValue();
+        return allIfsFinished
+                && currentUser != null
+                && !currentUser.thenFinished
+                && !userViewModel.onWriteThen
+                && !navigationScheduled;
+    }
+
+    private void navigateToWriteThen() {
+        AppLog.i(AppLog.GAME_FLOW, "CollectingQuestionsFrag -> WriteThenFrag after waiting screen delay");
+        navigationScheduled = true;
+        onCollectingQuestionsFrag = false;
+        handler.postDelayed(() -> {
+            if (!isAdded()) {
+                return;
+            }
+            userViewModel.gamePhase.setValue(GamePhase.WRITING_THEN);
+            requireActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, WriteThenFrag.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+            userViewModel.onWriteThen = true;
+        }, MIN_WAITING_SCREEN_MS);
+    }
+
+    @Override
+    public void onDestroyView() {
+        handler.removeCallbacksAndMessages(null);
+        super.onDestroyView();
     }
 }
 

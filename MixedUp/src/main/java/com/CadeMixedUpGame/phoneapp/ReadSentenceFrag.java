@@ -2,31 +2,36 @@ package com.CadeMixedUpGame.phoneapp;
 
 import android.content.res.Resources;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
-import androidx.databinding.ObservableList;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProvider;
 import android.speech.tts.TextToSpeech;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Spinner;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.databinding.ObservableList;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+
+import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.GameLogic;
+import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
+
 import java.util.ArrayList;
 import java.util.Locale;
-
 
 public class ReadSentenceFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
     LeaderBoardViewModel leaderBoardViewModel;
     String myRandomIf;
-    String myRandomThen;
+    String myRandomThen = "";
     TextToSpeech tts;
     String code = "0";
     DiffGoogleVoice selectedItemOnSpinner;
@@ -37,346 +42,232 @@ public class ReadSentenceFrag extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
-        // this puts a pause on the collecting answers fragment so the last player to submit
-        // doesn't whizz past the screen
-        try {
-            Thread.sleep(1500);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
         super.onViewCreated(view, savedInstanceState);
+        bindViewModels();
+        userViewModel.gamePhase.setValue(GamePhase.READING);
+        resetHostPlayAgainIfNeeded();
+        hideVoiceControlsForFreePlay();
+        bindSentenceText();
+        setupNextButton(view);
+        setupVoiceSpinner(view);
+        setupTextToSpeech(view);
+    }
 
-        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
-        roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
-        leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
+    private void bindViewModels() {
+        userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
+        roomViewModel = new ViewModelProvider(requireActivity()).get(RoomViewModel.class);
+        leaderBoardViewModel = new ViewModelProvider(requireActivity()).get(LeaderBoardViewModel.class);
+    }
 
-//        System.out.println(userViewModel.getUser().getValue());
-        if (userViewModel.getUser().getValue().host) {
-            System.out.println("ReadSentenceFrag: set host play again value to ''");
-            userViewModel.hostPlayedAgain(userViewModel.getUser().getValue());
+    private void resetHostPlayAgainIfNeeded() {
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser != null && currentUser.host) {
+            AppLog.i(AppLog.GAME_FLOW, "Resetting host play-again state on read screen");
+            userViewModel.hostPlayedAgain(currentUser);
         }
+    }
 
-        TextView ifQuestion = getActivity().findViewById(R.id.myIfQuestion_ending);
-
-        // if user isnt account play they cannot read text aloud
-        if (!userViewModel.getUser().getValue().accountPlay) {
-            getActivity().findViewById(R.id.readSentence).setVisibility(View.GONE);
-            getActivity().findViewById(R.id.spinnerObject).setVisibility(View.GONE);
+    private void hideVoiceControlsForFreePlay() {
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser != null && !currentUser.accountPlay) {
+            requireActivity().findViewById(R.id.readSentence).setVisibility(View.GONE);
+            requireActivity().findViewById(R.id.spinnerObject).setVisibility(View.GONE);
         }
+    }
 
+    private void bindSentenceText() {
         myRandomIf = userViewModel.localRandIf;
+        myRandomThen = findAssignedThenSentence();
+        TextView ifQuestion = requireActivity().findViewById(R.id.myIfQuestion_ending);
+        TextView thenAnswer = requireActivity().findViewById(R.id.myThenAnswer_ending);
         ifQuestion.setText(myRandomIf + "?");
-
-        // making sure all then sentances are used.
-        // players finding their index in the array.
-        int idx = 0;
-        for (User user: userViewModel.getUsers()) {
-            System.out.println("My then sentence, my then sentence from DB: " + userViewModel.getUser().getValue().thenSentence + " " + user.thenSentence);
-            if(user.thenSentence.equals(userViewModel.getUser().getValue().thenSentence)) {
-                System.out.println(user.userName + ": got my own index: " + idx);
-                break;
-            }
-//            if (user.thenSentence.length() > 0) {
-                idx += 1;
-//            }
-        }
-
-        // players will get the next persons if in the array, if they are the last person in the array
-        // they will get the first persons if in the array. this works because the arrays are in the same order across devices.
-        // and array order differs based upon when the users submit there answer
-        System.out.println(idx + " " + userViewModel.getUsers().size());
-        if (userViewModel.getUsers().size() > 0) {
-            if (idx + 1 == userViewModel.getUsers().size()) {
-                myRandomThen = userViewModel.getUsers().get(0).thenSentence;
-            } else {
-                myRandomThen = userViewModel.getUsers().get(idx + 1).thenSentence;
-            }
-        }
-
-        TextView thenAnswer = getActivity().findViewById(R.id.myThenAnswer_ending);
         thenAnswer.setText(myRandomThen + ".");
+        AppLog.i(AppLog.GAME_FLOW, "Read sentence bound: ifLength=" + myRandomIf.length() + ", thenLength=" + myRandomThen.length());
+    }
 
-        // checking to see if all users are account players
+    private String findAssignedThenSentence() {
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null || currentUser.thenSentence == null || userViewModel.getUsers().size() == 0) {
+            AppLog.w(AppLog.GAME_FLOW, "Cannot assign Then sentence: missing user, Then sentence, or players");
+            return "";
+        }
+
+        int currentIndex = findCurrentThenIndex(currentUser.thenSentence);
+        int nextIndex = GameLogic.nextPlayerIndex(currentIndex, userViewModel.getUsers().size());
+        if (nextIndex < 0) {
+            AppLog.w(AppLog.GAME_FLOW, "Cannot assign Then sentence: invalid next index");
+            return "";
+        }
+        User assignedUser = userViewModel.getUsers().get(nextIndex);
+        AppLog.d(AppLog.GAME_FLOW, "Assigned Then sentence from index=" + nextIndex + ", player=" + assignedUser.userName);
+        return assignedUser.thenSentence == null ? "" : assignedUser.thenSentence;
+    }
+
+    private int findCurrentThenIndex(String currentThenSentence) {
+        int index = 0;
+        for (User user: userViewModel.getUsers()) {
+            if (currentThenSentence.equals(user.thenSentence)) {
+                AppLog.d(AppLog.GAME_FLOW, "Current Then sentence found at index=" + index + ", player=" + user.userName);
+                return index;
+            }
+            index += 1;
+        }
+        AppLog.w(AppLog.GAME_FLOW, "Current Then sentence was not found; defaulting to index 0");
+        return 0;
+    }
+
+    private void setupNextButton(View view) {
+        if (allPlayersHaveAccounts()) {
+            pushVotingItem();
+            view.findViewById(R.id.next_frag).setOnClickListener(v -> navigateToVoting());
+        }
+        else {
+            view.findViewById(R.id.next_frag).setOnClickListener(v -> navigateToEnd());
+        }
+    }
+
+    private boolean allPlayersHaveAccounts() {
         int numAccountPlayers = 0;
         for (User user: userViewModel.getUsers()) {
             if (user.accountPlay) {
                 numAccountPlayers += 1;
             }
         }
+        boolean allAccountPlayers = numAccountPlayers == userViewModel.getUsers().size();
+        AppLog.d(AppLog.GAME_FLOW, "Account player check: accountPlayers=" + numAccountPlayers + ", total=" + userViewModel.getUsers().size());
+        return allAccountPlayers;
+    }
 
-        //giving next button functionality
-        if (numAccountPlayers == userViewModel.getUsers().size()) {
-
-            String ifContributor = "";
-            String thenContributor = "";
-            String ifContributorID = "";
-            String thenContributorID = "";
-            // finding the contributors to the if and then
-            for (User user: userViewModel.getUsers()) {
-                if (user.ifSentence.equals(myRandomIf)) {
-                    ifContributor = user.userName;
-                    ifContributorID = user.uid;
-                }
-                if (user.thenSentence.equals(myRandomThen)) {
-                    thenContributor = user.userName;
-                    thenContributorID = user.uid;
-                }
+    private void pushVotingItem() {
+        String ifContributor = "";
+        String thenContributor = "";
+        String ifContributorID = "";
+        String thenContributorID = "";
+        for (User user: userViewModel.getUsers()) {
+            if (myRandomIf.equals(user.ifSentence)) {
+                ifContributor = user.userName;
+                ifContributorID = user.uid;
             }
-
-            String uniqueID = roomViewModel.makeRoomID();
-            // could add if and then contributor user id to the item to be able to know who made the sentences later on
-            LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf + "?", myRandomThen + ".", ifContributor, thenContributor, ifContributorID, thenContributorID, uniqueID);
-            leaderBoardViewModel.pushVoteItem(userViewModel.getUser(), lbi);
-
-            view.findViewById(R.id.next_frag).setOnClickListener(v -> {
-
-                getActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fragment_container, VoteFrag.class, null)
-                        .setReorderingAllowed(true)
-                        .addToBackStack(null)
-                        .commit();
-            });
-        }
-        else {
-            view.findViewById(R.id.next_frag).setOnClickListener(v -> {
-                getActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fragment_container, EndFrag.class, null)
-                        .setReorderingAllowed(true)
-                        .addToBackStack(null)
-                        .commit();
-            });
+            if (myRandomThen.equals(user.thenSentence)) {
+                thenContributor = user.userName;
+                thenContributorID = user.uid;
+            }
         }
 
-        // array of unlocked google voices
-        ArrayList<DiffGoogleVoice> voicesUnlocked = new ArrayList<DiffGoogleVoice>();
-        voicesUnlocked.add(new DiffGoogleVoice("regular", "0"));
+        String uniqueID = roomViewModel.makeRoomID();
+        LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf + "?", myRandomThen + ".", ifContributor, thenContributor, ifContributorID, thenContributorID, uniqueID);
+        AppLog.i(AppLog.VOTE, "Creating voting item id=" + uniqueID + ", ifContributor=" + ifContributor + ", thenContributor=" + thenContributor);
+        leaderBoardViewModel.pushVoteItem(userViewModel.getUser(), lbi);
+    }
 
-        // fill in voices unlocked here pull from database which are unlocked
-        userViewModel.userUnlocked.addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<Unlockable>>() {
-            @Override
-            public void onChanged(ObservableList<Unlockable> sender) {
+    private void navigateToVoting() {
+        AppLog.i(AppLog.GAME_FLOW, "ReadSentenceFrag -> VoteFrag");
+        userViewModel.gamePhase.setValue(GamePhase.VOTING);
+        requireActivity().getSupportFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, VoteFrag.class, null)
+                .setReorderingAllowed(true)
+                .addToBackStack(null)
+                .commit();
+    }
 
-            }
+    private void navigateToEnd() {
+        AppLog.i(AppLog.GAME_FLOW, "ReadSentenceFrag -> EndFrag");
+        userViewModel.gamePhase.setValue(GamePhase.ENDED);
+        requireActivity().getSupportFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, EndFrag.class, null)
+                .setReorderingAllowed(true)
+                .addToBackStack(null)
+                .commit();
+    }
 
-            @Override
-            public void onItemRangeChanged(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
-
-            }
-
-            @Override
-            public void onItemRangeInserted(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
-                // grabbing users unlocked voices and adding to voicesUnlocked array which will fill the spinner
-                if (sender.get(positionStart).isUnlocked()) {
-                    voicesUnlocked.add(new DiffGoogleVoice(sender.get(positionStart).getVoiceType(), sender.get(positionStart).getVoiceCode()));
-                }
-            }
-
-            @Override
-            public void onItemRangeMoved(ObservableList<Unlockable> sender, int fromPosition, int toPosition, int itemCount) {
-
-            }
-
-            @Override
-            public void onItemRangeRemoved(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
-
-            }
-        });
-        // so it doesnt break for non account players
-        if (userViewModel.getUser().getValue().accountPlay) {
-            userViewModel.getUnlocked(userViewModel.getUser());
-        }
-
-
-        //finding and filling dropdown menu
+    private void setupVoiceSpinner(View view) {
+        ArrayList<DiffGoogleVoice> voicesUnlocked = buildVoiceList();
+        loadUnlockedVoicesForAccountPlayers();
         Spinner spinner = view.findViewById(R.id.spinnerObject);
         Resources res = getResources();
         SpinnerAdapter adapter = new SpinnerAdapter(getContext(), R.layout.read_method_item, voicesUnlocked, res);
         spinner.setAdapter(adapter);
-
-        // change code value based upon which item is selected
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                DiffGoogleVoice selectedItem = (DiffGoogleVoice) parent.getItemAtPosition(position);
-                System.out.println(selectedItem.getVoice() + selectedItem.getVoiceCode());
-                selectedItemOnSpinner = selectedItem;
-                //Todo depending on whats selected change code value here
-                if (selectedItem.getVoice().equals("fuddify")) {
-                    code = selectedItem.getVoiceCode();
-                    System.out.println(code);
-                }
-                if (selectedItem.getVoice().equals("pig latin")) {
-                    code = selectedItem.getVoiceCode();
-                    System.out.println(code);
-                }
-                if (selectedItem.getVoice().equals("jokester")) {
-                    code = selectedItem.getVoiceCode();
-                    System.out.println(code);
-                }
-                if (selectedItem.getVoice().equals("disobedient")) {
-                    code = selectedItem.getVoiceCode();
-                    System.out.println(code);
-                }
-                if (selectedItem.getVoice().equals("forgetful")) {
-                    code = selectedItem.getVoiceCode();
-                    System.out.println(code);
-                }
-                if (selectedItem.getVoice().equals("shaggy")) {
-                    code = selectedItem.getVoiceCode();
-                    System.out.println(code);
-                }
-                if (selectedItem.getVoice().equals("regular")) {
-                    code = selectedItem.getVoiceCode();
-                    System.out.println(code);
-                }
-                if (selectedItem.getVoice().equals("backwords")) {
-                    code = selectedItem.getVoiceCode();
-                    System.out.println(code);
-                }
-
+                selectedItemOnSpinner = (DiffGoogleVoice) parent.getItemAtPosition(position);
+                code = selectedItemOnSpinner.getVoiceCode();
+                AppLog.d(AppLog.TTS, "Voice selected: " + selectedItemOnSpinner.getVoice() + ", code=" + code);
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
                 code = "0";
-                System.out.println(code);
-            }
-
-        });
-
-        //creating my text to speech object
-        tts = new TextToSpeech(getContext(), new TextToSpeech.OnInitListener() {
-            @Override
-            public void onInit(int status) {
-                tts.setLanguage(Locale.getDefault());
+                AppLog.d(AppLog.TTS, "No voice selected; using regular voice");
             }
         });
-        // giving mic button functionality to speak sentence
-        view.findViewById(R.id.readSentence).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                System.out.println("mic button hit");
-                if (code.equals("0")) {
-                    tts.speak(myRandomIf + ", " + myRandomThen, TextToSpeech.QUEUE_FLUSH, null, "readIfThen");
-                }
-                else {
-                    String mutatedString = mutateString(myRandomIf + ", " + myRandomThen);
-                    tts.speak(mutatedString, TextToSpeech.QUEUE_FLUSH, null, "readIfThen");
-                }
-            }
-        });
-
     }
 
+    private ArrayList<DiffGoogleVoice> buildVoiceList() {
+        ArrayList<DiffGoogleVoice> voicesUnlocked = new ArrayList<DiffGoogleVoice>();
+        voicesUnlocked.add(new DiffGoogleVoice("regular", "0"));
+        userViewModel.userUnlocked.addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<Unlockable>>() {
+            @Override
+            public void onChanged(ObservableList<Unlockable> sender) {
+            }
 
-    // Todo: write codes 4 - 7 and figure out ways to unlock them
+            @Override
+            public void onItemRangeChanged(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
+            }
+
+            @Override
+            public void onItemRangeInserted(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
+                Unlockable unlockable = sender.get(positionStart);
+                if (unlockable.isUnlocked()) {
+                    voicesUnlocked.add(new DiffGoogleVoice(unlockable.getVoiceType(), unlockable.getVoiceCode()));
+                    AppLog.d(AppLog.TTS, "Unlocked voice added: " + unlockable.getVoiceType());
+                }
+            }
+
+            @Override
+            public void onItemRangeMoved(ObservableList<Unlockable> sender, int fromPosition, int toPosition, int itemCount) {
+            }
+
+            @Override
+            public void onItemRangeRemoved(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
+            }
+        });
+        return voicesUnlocked;
+    }
+
+    private void loadUnlockedVoicesForAccountPlayers() {
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser != null && currentUser.accountPlay) {
+            userViewModel.getUnlocked(userViewModel.getUser());
+        }
+    }
+
+    private void setupTextToSpeech(View view) {
+        tts = new TextToSpeech(getContext(), status -> {
+            tts.setLanguage(Locale.getDefault());
+            AppLog.i(AppLog.TTS, "TextToSpeech initialized status=" + status);
+        });
+        view.findViewById(R.id.readSentence).setOnClickListener(v -> speakCurrentSentence());
+    }
+
+    private void speakCurrentSentence() {
+        String sentence = myRandomIf + ", " + myRandomThen;
+        String spokenSentence = "0".equals(code) ? sentence : mutateString(sentence);
+        AppLog.i(AppLog.TTS, "Speaking read sentence with voiceCode=" + code);
+        tts.speak(spokenSentence, TextToSpeech.QUEUE_FLUSH, null, "readIfThen");
+    }
+
     public String mutateString(String ifThen) {
+        return GameLogic.mutateVoiceText(ifThen, code);
+    }
 
-        //fuddify
-        if (code.equals("1")) {
-            String mutatedIfThen = ifThen.replace("r", "w");
-            return mutatedIfThen;
+    @Override
+    public void onDestroyView() {
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+            tts = null;
         }
-        //pig latin
-        if (code.equals("2")) {
-            String[] toMutate = ifThen.split(",");
-
-            ArrayList<String> totalLatinfied = new ArrayList<>();
-            for (String part: toMutate) {
-                String[] listWords = part.split(" ");
-                ArrayList<String> partLatinfied = new ArrayList<>();
-                for (String word: listWords) {
-                    if (word.length() == 0) {
-                        continue;
-                    }
-                    else if (word.substring(0, 1).equalsIgnoreCase("a") || word.substring(0, 1).equalsIgnoreCase("e") || word.substring(0, 1).equalsIgnoreCase("i") || word.substring(0, 1).equalsIgnoreCase("o") || word.substring(0, 1).equalsIgnoreCase("u")) {
-                        partLatinfied.add(word + "way");
-                    }
-                    else if (word.length() == 1) {
-                        partLatinfied.add(word + "ay");
-                    }
-                    else if (word.length() >= 2 && word.substring(1, 2).equalsIgnoreCase("a") ||
-                            word.substring(1, 2).equalsIgnoreCase("e") ||
-                            word.substring(1, 2).equalsIgnoreCase("i") ||
-                            word.substring(1, 2).equalsIgnoreCase("o") ||
-                            word.substring(1, 2).equalsIgnoreCase("u")) {
-                        char firstLetter = word.charAt(0);
-                        String firstLetterRemoved = word.substring(1);
-                        String pigLatinFied = firstLetterRemoved + firstLetter + "ay";
-                        partLatinfied.add(pigLatinFied);
-                    }
-                    else if (word.length() >= 2 && !word.substring(1, 2).equalsIgnoreCase("a") ||
-                            !word.substring(1, 2).equalsIgnoreCase("e") ||
-                            !word.substring(1, 2).equalsIgnoreCase("i") ||
-                            !word.substring(1, 2).equalsIgnoreCase("o") ||
-                            !word.substring(1, 2).equalsIgnoreCase("u")) {
-                        String firstTwoLets = word.substring(0, 2);
-                        String firstTwoLettersRemoved = word.substring(2);
-                        String pigLatinFied = firstTwoLettersRemoved + firstTwoLets + "ay";
-                        partLatinfied.add(pigLatinFied);
-                    }
-                    else {
-                        partLatinfied.add(word);
-                    }
-                }
-                totalLatinfied.addAll(partLatinfied);
-                totalLatinfied.add(", ");
-            }
-            String toReturn = "";
-            totalLatinfied.remove(totalLatinfied.size() - 1);
-            for (String element:totalLatinfied) {
-                toReturn += element + " ";
-            }
-            return toReturn;
-        }
-        //read it backwords
-        if (code.equals("3")) {
-            String toReturn = "";
-            ArrayList<String> totalBackword = new ArrayList<>();
-            String[] toMutate = ifThen.split(",");
-            for (String part: toMutate) {
-                String[] listWords = part.split(" ");
-                ArrayList<String> partBackword = new ArrayList<>();
-                for (String word: listWords) {
-                    if (word.contains(",")) {
-                        word = word.replace(",", " ");
-                        String reversed = new StringBuilder(word).reverse().toString();
-                        partBackword.add(reversed);
-                        continue;
-                    }
-                    String reversed = new StringBuilder(word).reverse().toString();
-                    partBackword.add(reversed);
-                }
-                totalBackword.addAll(partBackword);
-                totalBackword.add(", ");
-            }
-            totalBackword.remove(totalBackword.size() - 1);
-            for (String element:totalBackword) {
-                toReturn += element + " ";
-            }
-            System.out.println(toReturn);
-            return toReturn;
-        }
-        // jokester
-        if (code.equals("4")) {
-            String mutatedIfThen = ifThen;
-            return mutatedIfThen;
-        }
-        // forgetful
-        if (code.equals("5")) {
-            String mutatedIfThen = ifThen;
-            return mutatedIfThen;
-        }
-        // shaggy
-        if (code.equals("6")) {
-            String mutatedIfThen = ifThen;
-            return mutatedIfThen;
-        }
-        // disobedient
-        if (code.equals("7")) {
-            String mutatedIfThen = ifThen;
-            return mutatedIfThen;
-        }
-        return ifThen;
+        super.onDestroyView();
     }
 }

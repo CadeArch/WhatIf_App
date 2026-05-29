@@ -5,16 +5,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.util.Log;
+import com.CadeMixedUpGame.api.AppLog;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.messaging.FirebaseMessaging;
 
 
 public class MainActivity extends AppCompatActivity {
-
-    String TAG = "MSG TOKEN";
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -29,7 +26,7 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onComplete(@NonNull Task<String> task) {
                         if (!task.isSuccessful()) {
-                            Log.w(TAG, "Fetching FCM registration token failed", task.getException());
+                            AppLog.e(AppLog.PUSH, "Fetching FCM registration token failed", task.getException());
                             return;
                         }
 
@@ -50,11 +47,10 @@ public class MainActivity extends AppCompatActivity {
                         String msg = "subscribed";
                         if (!task.isSuccessful()) {
                             msg = "subscription failed";
-                            System.out.println("SUBSCRIPTION FAILED");
-                            System.out.println(task.getException().getMessage());
+                            AppLog.e(AppLog.PUSH, "FCM topic subscription failed", task.getException());
                         }
 //                        System.out.println(msg);
-                        Log.d(TAG, msg);
+                        AppLog.i(AppLog.PUSH, "FCM topic status=" + msg);
 //                        Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
                     }
                 });
