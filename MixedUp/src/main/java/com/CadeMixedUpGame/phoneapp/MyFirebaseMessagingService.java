@@ -9,20 +9,19 @@ import android.content.SharedPreferences;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
-import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
+import com.CadeMixedUpGame.api.AppLog;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
-    private static final String TAG = "MESSAGING SERVICE";
     boolean longerThanTwoWeeks = false;
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
-        System.out.println("------------------ MESSSAGE RECIEVED ---------------");
+        AppLog.i(AppLog.PUSH, "FCM message received");
         // TODO: get shared preference of when user last logged on, if it has been longer than two weeks set LONGERTHANTWO WEEKS to true else false check mode
         SharedPreferences sh = getSharedPreferences("MixedUpSharedPrefs", 0);
         long lastLoggedOn = sh.getLong("logged-on",0);
@@ -31,23 +30,23 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             longerThanTwoWeeks = true;
         }
         // Not getting messages here? See why this may be: https://goo.gl/39bRNJ
-        Log.d(TAG, "From: " + remoteMessage.getFrom());
+        AppLog.d(AppLog.PUSH, "FCM from=" + remoteMessage.getFrom());
 
         // Check if message contains a data payload.
         if (remoteMessage.getData().size() > 0) {
-            Log.d(TAG, "Message data payload: " + remoteMessage.getData());
+            AppLog.d(AppLog.PUSH, "FCM data payload keys=" + remoteMessage.getData().keySet());
 
         }
         else {
             if (longerThanTwoWeeks) {
-                System.out.println("longer than 2 weeks");
+                AppLog.i(AppLog.PUSH, "User inactive longer than two weeks; sending notification");
                 sendNotification();
             }
         }
 
         // Check if message contains a notification payload.
         if (remoteMessage.getNotification() != null) {
-            Log.d(TAG, "Message Notification Body: " + remoteMessage.getNotification().getBody());
+            AppLog.d(AppLog.PUSH, "FCM notification body received");
         }
 
         // Also if you intend on generating your own notifications as a result of a received FCM
@@ -56,7 +55,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
     // for making my own notification with the message recieved from Firebase Console Messages
     private void sendNotification() {
-        System.out.println("building and sending notification");
+        AppLog.i(AppLog.PUSH, "Building inactivity notification");
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0 /* Request code */, intent,

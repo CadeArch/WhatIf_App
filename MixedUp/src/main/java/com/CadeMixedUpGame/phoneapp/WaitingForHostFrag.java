@@ -10,7 +10,8 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import android.view.View;
 import android.widget.TextView;
-import android.widget.Toast;
+import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
@@ -32,16 +33,13 @@ public class WaitingForHostFrag extends Fragment {
 
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
+        userViewModel.gamePhase.setValue(GamePhase.LOBBY);
         onWaitingForHost = true;
         // this will unlock voices based on number of games played unlocking here in case players hit the play again button
         if (userViewModel.getUser().getValue().accountPlay) {
             userViewModel.unlockVoice(userViewModel.getUser(), "numGames");
             if (userViewModel.getUser().getValue().gamesPlayed == 5) {
-                Toast.makeText(
-                        getActivity(),
-                        "unlocked backwords google voice!",
-                        Toast.LENGTH_LONG
-                ).show();
+                UiMessenger.showSnackbar(view, "Unlocked backwords google voice!");
             }
         }
 
@@ -56,7 +54,7 @@ public class WaitingForHostFrag extends Fragment {
         MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getContext(), userViewModel.getUsers());
         recyclerView.setAdapter(adapter);
 
-        System.out.println("User array size upon entry to WFHF: " + userViewModel.getUsers().size());
+        AppLog.i(AppLog.ROOM, "Waiting screen opened: players=" + userViewModel.getUsers().size());
 
         // when the users array changes reset the adapter to include all people
         userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
@@ -101,18 +99,7 @@ public class WaitingForHostFrag extends Fragment {
 
         // giving button functionality
         view.findViewById(R.id.waitingForHost_start).setOnClickListener(v -> {
-            // host started game and setting the value in firebase to be true
-//            System.out.println("HOST CLICKED BUTTON ------------------");
-            roomViewModel.gameInProgressTrue();
-            userViewModel.getUser().getValue().hostStarted = true;
-            userViewModel.playing = true;
-            userViewModel.hostStarted(userViewModel.host.getValue());
-            onWaitingForHost = false;
-            getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, WriteIfFrag.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
+            startGame(view);
         });
 
         if(!userViewModel.getUser().getValue().host) {
@@ -127,7 +114,7 @@ public class WaitingForHostFrag extends Fragment {
                 @Override
                 public void onChanged(User user) {
                     userViewModel.listenToHost(userViewModel.host);
-                    System.out.println("This user isnt host: HOST IS: " + userViewModel.host.getValue().userName);
+                    AppLog.i(AppLog.ROOM, "Guest listening to host=" + userViewModel.host.getValue().userName);
 
                 }
             });
@@ -142,19 +129,40 @@ public class WaitingForHostFrag extends Fragment {
 
                     if (user.hostStarted && !user.ifFinished && !userViewModel.onWriteIf) {
 //                        System.out.println("WFH frag-----host started-----ifFinished---" + user.hostStarted + " " + user.ifFinished);
-                        System.out.println("WFH frag-------------- SWITCHED TO WRITE IF FRAG");
-                        onWaitingForHost = false;
-                        getActivity().getSupportFragmentManager().beginTransaction()
-                                .replace(R.id.fragment_container, WriteIfFrag.class, null)
-                                .setReorderingAllowed(true)
-                                .addToBackStack(null)
-                                .commit();
-//                        System.out.println("WFH frag MY VALUE GOT CHANGED FROM HOST LISTENER: " + userViewModel.getUser().getValue().hostStarted);
-                        userViewModel.onWriteIf = true;
-                        userViewModel.playing = true;
+                        navigateToWriteIf();
                     }
                 }
             });
         }
+    }
+
+    private void startGame(View view) {
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0) {
+            UiMessenger.showBanner(view, "Game room is missing. Go home and create the room again.", UiMessenger.MessageType.ERROR);
+            AppLog.w(AppLog.ROOM, "Start game blocked: current user or game room missing");
+            return;
+        }
+
+        AppLog.i(AppLog.GAME_FLOW, "Host starting game room=" + currentUser.gameRoom);
+        roomViewModel.gameInProgressTrue(currentUser.gameRoom);
+        currentUser.hostStarted = true;
+        userViewModel.playing = true;
+        userViewModel.gamePhase.setValue(GamePhase.WRITING_IF);
+        userViewModel.hostStarted(currentUser);
+        navigateToWriteIf();
+    }
+
+    private void navigateToWriteIf() {
+        AppLog.i(AppLog.GAME_FLOW, "WaitingForHostFrag -> WriteIfFrag");
+        onWaitingForHost = false;
+        userViewModel.gamePhase.setValue(GamePhase.WRITING_IF);
+        requireActivity().getSupportFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, WriteIfFrag.class, null)
+                .setReorderingAllowed(true)
+                .addToBackStack(null)
+                .commit();
+        userViewModel.onWriteIf = true;
+        userViewModel.playing = true;
     }
 }

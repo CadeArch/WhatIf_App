@@ -6,11 +6,12 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
@@ -22,6 +23,7 @@ public class VoteFrag extends Fragment {
     RoomViewModel roomViewModel;
     LeaderBoardViewModel leaderBoardViewModel;
     int sentencesSelected = 0;
+    static final int SELECTED_COLOR = 2012063468;
 
     public VoteFrag() {
         super(R.layout.fragment_vote);
@@ -31,73 +33,15 @@ public class VoteFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
-        roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
-        leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
+        bindViewModels();
+        userViewModel.gamePhase.setValue(GamePhase.VOTING);
 
         leaderBoardViewModel.loadVotingItems(userViewModel.getUser());
         leaderBoardViewModel.createAndListenToCastVotes(userViewModel.myRoom);
 
         LinearLayout potentialLBIlist = view.findViewById(R.id.potential_lbiList);
 
-        //TODO why isnt the potentialleaderboarditems list reset when reset game. NURF THEM WHEN HIT AGAIN
-        leaderBoardViewModel.getPotentialLeaderBoardItems().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<LeaderBoardItem>>() {
-            @Override
-            public void onChanged(ObservableList<LeaderBoardItem> sender) {
-
-            }
-
-            @Override
-            public void onItemRangeChanged(ObservableList<LeaderBoardItem> sender, int positionStart, int itemCount) {
-
-            }
-
-            @Override
-            public void onItemRangeInserted(ObservableList<LeaderBoardItem> sender, int positionStart, int itemCount) {
-
-                LeaderBoardItem leaderBoardItem = leaderBoardViewModel.getPotentialLeaderBoardItems().get(positionStart);
-                View voteItem = LayoutInflater.from(getContext()).inflate(R.layout.lb_vote_item, null);
-                TextView ifPart = voteItem.findViewById(R.id.if_part);
-                TextView thenPart = voteItem.findViewById(R.id.then_part);
-                TextView sentID = voteItem.findViewById(R.id.sentence_id);
-
-                ifPart.setText(leaderBoardItem.getIfPart());
-                thenPart.setText(leaderBoardItem.getThenPart());
-                sentID.setText(leaderBoardItem.getId());
-
-                voteItem.setBackgroundColor(Color.parseColor("#0000FF00"));
-
-                voteItem.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        int color = ((ColorDrawable) v.getBackground()).getColor();
-                        System.out.println(color);
-                        if (color == 2012063468) {
-                            v.setBackgroundColor(Color.parseColor("#0000FF00")); // 65280
-
-                        }
-                        else {
-                            v.setBackgroundColor(Color.parseColor("#77EDA6EC")); // 2012063468
-                            System.out.println(v.getBackground());
-                        }
-
-                    }
-                });
-                System.out.println("New Potential leaderboard sentence -- adding it to view");
-                potentialLBIlist.addView(voteItem);
-
-            }
-
-            @Override
-            public void onItemRangeMoved(ObservableList<LeaderBoardItem> sender, int fromPosition, int toPosition, int itemCount) {
-
-            }
-
-            @Override
-            public void onItemRangeRemoved(ObservableList<LeaderBoardItem> sender, int positionStart, int itemCount) {
-
-            }
-        });
+        setupVotingItemList(potentialLBIlist);
 
         if (userViewModel.getUser().getValue().host) {
             leaderBoardViewModel.castVoteListener(userViewModel.getUsers().size());
@@ -105,57 +49,114 @@ public class VoteFrag extends Fragment {
 
 
         //giving vote button functionality
-        view.findViewById(R.id.vote_submit).setOnClickListener(v -> {
-            // checking to see how many sentences are selected
-            sentencesSelected = 0;
-            for (int i = 0; i < potentialLBIlist.getChildCount(); i++) {
-                View pot = potentialLBIlist.getChildAt(i);
-                int color = ((ColorDrawable) pot.getBackground()).getColor();
-                if (color == 2012063468) {
-                    sentencesSelected += 1;
-                }
-            }
-            System.out.println("Sentences selected: " + sentencesSelected);
-            // if more than one guide user
-            if (sentencesSelected > 1 || sentencesSelected == 0) {
-                // creating toast to notify user how to vote
-                Toast.makeText(
-                        getActivity(),
-                        "Please select 1 sentence",
-                        Toast.LENGTH_SHORT
-                ).show();
-            }
-            // if only one, make the vote add it to list of cast votes
-            else {
+        view.findViewById(R.id.vote_submit).setOnClickListener(v -> submitVote(view, potentialLBIlist));
 
-                // saved vote in castVotes array
-                for (int i = 0; i < potentialLBIlist.getChildCount(); i++) {
-                    View pot = potentialLBIlist.getChildAt(i);
-                    int color = ((ColorDrawable) pot.getBackground()).getColor();
-                    if (color == 2012063468) {
-                        TextView selectedVoteID = pot.findViewById(R.id.sentence_id);
-                        String id = selectedVoteID.getText().toString();
-                        leaderBoardViewModel.castVote(userViewModel.getUser(), id);
-                        System.out.println("submitted vote");
-                        break;
-                    }
-                }
-                // telling user vote was sent
-                Toast.makeText(
-                        getActivity(),
-                        "vote sent",
-                        Toast.LENGTH_SHORT
-                ).show();
+    }
 
-                getActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fragment_container, EndFrag.class, null)
-                        .setReorderingAllowed(true)
-                        .addToBackStack(null)
-                        .commit();
+    private void bindViewModels() {
+        userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
+        roomViewModel = new ViewModelProvider(requireActivity()).get(RoomViewModel.class);
+        leaderBoardViewModel = new ViewModelProvider(requireActivity()).get(LeaderBoardViewModel.class);
+    }
 
+    private void setupVotingItemList(LinearLayout potentialLBIlist) {
+        leaderBoardViewModel.getPotentialLeaderBoardItems().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<LeaderBoardItem>>() {
+            @Override
+            public void onChanged(ObservableList<LeaderBoardItem> sender) {
             }
 
+            @Override
+            public void onItemRangeChanged(ObservableList<LeaderBoardItem> sender, int positionStart, int itemCount) {
+            }
+
+            @Override
+            public void onItemRangeInserted(ObservableList<LeaderBoardItem> sender, int positionStart, int itemCount) {
+                LeaderBoardItem leaderBoardItem = leaderBoardViewModel.getPotentialLeaderBoardItems().get(positionStart);
+                View voteItem = createVoteItem(leaderBoardItem);
+                potentialLBIlist.addView(voteItem);
+                AppLog.d(AppLog.VOTE, "Voting item added to UI id=" + leaderBoardItem.getId());
+            }
+
+            @Override
+            public void onItemRangeMoved(ObservableList<LeaderBoardItem> sender, int fromPosition, int toPosition, int itemCount) {
+            }
+
+            @Override
+            public void onItemRangeRemoved(ObservableList<LeaderBoardItem> sender, int positionStart, int itemCount) {
+            }
         });
+    }
 
+    private View createVoteItem(LeaderBoardItem leaderBoardItem) {
+        View voteItem = LayoutInflater.from(getContext()).inflate(R.layout.lb_vote_item, null);
+        TextView ifPart = voteItem.findViewById(R.id.if_part);
+        TextView thenPart = voteItem.findViewById(R.id.then_part);
+        TextView sentID = voteItem.findViewById(R.id.sentence_id);
+        ifPart.setText(leaderBoardItem.getIfPart());
+        thenPart.setText(leaderBoardItem.getThenPart());
+        sentID.setText(leaderBoardItem.getId());
+        voteItem.setBackgroundColor(Color.parseColor("#0000FF00"));
+        voteItem.setOnClickListener(this::toggleVoteItem);
+        return voteItem;
+    }
+
+    private void toggleVoteItem(View voteItem) {
+        int color = ((ColorDrawable) voteItem.getBackground()).getColor();
+        if (color == SELECTED_COLOR) {
+            voteItem.setBackgroundColor(Color.parseColor("#0000FF00"));
+        }
+        else {
+            voteItem.setBackgroundColor(Color.parseColor("#77EDA6EC"));
+        }
+    }
+
+    private void submitVote(View root, LinearLayout potentialLBIlist) {
+        sentencesSelected = countSelectedVotes(potentialLBIlist);
+        AppLog.d(AppLog.VOTE, "Vote submit clicked: selected=" + sentencesSelected);
+        if (sentencesSelected != 1) {
+            AppLog.w(AppLog.VOTE, "Vote blocked: selected count=" + sentencesSelected);
+            UiMessenger.showSnackbar(root, "Please select 1 sentence");
+            return;
+        }
+
+        String selectedVoteId = findSelectedVoteId(potentialLBIlist);
+        leaderBoardViewModel.castVote(userViewModel.getUser(), selectedVoteId);
+        UiMessenger.hideBanner(root);
+        UiMessenger.showSnackbar(root, "Vote sent");
+        navigateToEnd();
+    }
+
+    private int countSelectedVotes(LinearLayout potentialLBIlist) {
+        int selected = 0;
+        for (int i = 0; i < potentialLBIlist.getChildCount(); i++) {
+            View pot = potentialLBIlist.getChildAt(i);
+            int color = ((ColorDrawable) pot.getBackground()).getColor();
+            if (color == SELECTED_COLOR) {
+                selected += 1;
+            }
+        }
+        return selected;
+    }
+
+    private String findSelectedVoteId(LinearLayout potentialLBIlist) {
+        for (int i = 0; i < potentialLBIlist.getChildCount(); i++) {
+            View pot = potentialLBIlist.getChildAt(i);
+            int color = ((ColorDrawable) pot.getBackground()).getColor();
+            if (color == SELECTED_COLOR) {
+                TextView selectedVoteID = pot.findViewById(R.id.sentence_id);
+                return selectedVoteID.getText().toString();
+            }
+        }
+        return "";
+    }
+
+    private void navigateToEnd() {
+        AppLog.i(AppLog.GAME_FLOW, "VoteFrag -> EndFrag");
+        userViewModel.gamePhase.setValue(GamePhase.ENDED);
+        requireActivity().getSupportFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, EndFrag.class, null)
+                .setReorderingAllowed(true)
+                .addToBackStack(null)
+                .commit();
     }
 }

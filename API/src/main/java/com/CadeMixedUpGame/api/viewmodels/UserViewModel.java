@@ -1,12 +1,12 @@
 package com.CadeMixedUpGame.api.viewmodels;
 
-import android.util.Log;
-import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.databinding.ObservableArrayList;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
+import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -22,7 +22,8 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 public class UserViewModel extends ViewModel {
-    public MutableLiveData<Toast> signInToast = new MutableLiveData<>();
+    public MutableLiveData<String> signInMessage = new MutableLiveData<String>();
+    public MutableLiveData<GamePhase> gamePhase = new MutableLiveData<GamePhase>();
     ObservableArrayList<User> users;
     public MutableLiveData<User> host = new MutableLiveData<User>();
     public String localRandIf = "";
@@ -39,14 +40,29 @@ public class UserViewModel extends ViewModel {
     MutableLiveData<User> user = new MutableLiveData<User>();
     public ObservableArrayList<Unlockable> userUnlocked = new ObservableArrayList<Unlockable>();
     public ChildEventListener listener;
+    private String listenerRoom;
+    private ChildEventListener hostListener;
+    private String hostListenerPath;
 
     public UserViewModel() {
-        db = FirebaseDatabase.getInstance().getReference();
+        this(FirebaseDatabase.getInstance().getReference(), FirebaseAuth.getInstance(), true);
+    }
+
+    public UserViewModel(DatabaseReference db, FirebaseAuth auth) {
+        this(db, auth, false);
+    }
+
+    public UserViewModel(DatabaseReference db, FirebaseAuth auth, boolean listenForAuthChanges) {
+        this.db = db;
+        gamePhase.setValue(GamePhase.LOBBY);
         if (users == null) {
             users = new ObservableArrayList<User>();
         }
 
-        this.auth = FirebaseAuth.getInstance();
+        this.auth = auth;
+        if (this.auth == null || !listenForAuthChanges) {
+            return;
+        }
         this.auth.addAuthStateListener(new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
@@ -66,25 +82,29 @@ public class UserViewModel extends ViewModel {
     }
 
     public void reset() {
-        signInToast = new MutableLiveData<>();
-        // not sure if this is good reseting db member variable
-        db = null;
-        db = FirebaseDatabase.getInstance().getReference();
+        if (db == null) {
+            db = FirebaseDatabase.getInstance().getReference();
+        }
 
         localRandIf = "";
+        gamePhase.setValue(GamePhase.LOBBY);
         onWriteThen = false;
         onWriteIf = false;
         onWaitingForHost = false;
         playing = false;
         setUsers(new ObservableArrayList<User>());
 
-        System.out.println("HIT RESET");
-        user.getValue().setIfFinished(false);
-        user.getValue().setIfSentence("");
-        user.getValue().setThenFinished(false);
-        user.getValue().setThenSentence("");
-        user.getValue().setHostStarted(false);
-        user.getValue().setHostPlayedAgain("");
+        AppLog.i(AppLog.GAME_FLOW, "Resetting local user game state");
+        User currentUser = user.getValue();
+        if (currentUser == null) {
+            return;
+        }
+        currentUser.setIfFinished(false);
+        currentUser.setIfSentence("");
+        currentUser.setThenFinished(false);
+        currentUser.setThenSentence("");
+        currentUser.setHostStarted(false);
+        currentUser.setHostPlayedAgain("");
 
     }
 
@@ -95,10 +115,14 @@ public class UserViewModel extends ViewModel {
             @Override
             public void onComplete(@NonNull Task<AuthResult> task) {
                 if (task.isSuccessful()) {
-                    signInToast.getValue().setText("account created");
+                    signInMessage.setValue("account created");
 
                     //setting the username of the account to whatever they put in the box when signing up
-                    FirebaseUser fBuser = FirebaseAuth.getInstance().getCurrentUser();
+                    FirebaseUser fBuser = auth.getCurrentUser();
+                    if (fBuser == null) {
+                        signInMessage.setValue("Error");
+                        return;
+                    }
                     buildUser(fBuser, userName, false);
 
 //                    System.out.println(" -----------------------------\n " + "email: " + email + "\npassword: " + password + "\nusername: " + userName);
@@ -123,19 +147,19 @@ public class UserViewModel extends ViewModel {
                 else {
                     // If sign in fails, display a message to the user.
 //                    System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
-                    if (task.getException().getMessage().equals("The email address is badly formatted.")) {
-                        signInToast.getValue().setText("Email Badly Formatted");
-                        System.out.println("bad email");
-                    } else if (task.getException().getMessage().equals("The given password is invalid. [ Password should be at least 6 characters ]")) {
-                        signInToast.getValue().setText("Weak Password");
-                        System.out.println("weak password");
-                    } else if (task.getException().getMessage().equals("The email address is already in use by another account.")) {
-                        signInToast.getValue().setText("Email in Use");
-                        System.out.println("email in use");
+                    String message = task.getException() == null ? "" : task.getException().getMessage();
+                    if (message.equals("The email address is badly formatted.")) {
+                        signInMessage.setValue("Email Badly Formatted");
+                        AppLog.w(AppLog.AUTH, "Sign up failed: badly formatted email");
+                    } else if (message.equals("The given password is invalid. [ Password should be at least 6 characters ]")) {
+                        signInMessage.setValue("Weak Password");
+                        AppLog.w(AppLog.AUTH, "Sign up failed: weak password");
+                    } else if (message.equals("The email address is already in use by another account.")) {
+                        signInMessage.setValue("Email in Use");
+                        AppLog.w(AppLog.AUTH, "Sign up failed: email already in use");
                     } else {
-                        System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
-                        signInToast.getValue().setText("Error");
-                        System.out.println("error");
+                        AppLog.w(AppLog.AUTH, "Sign up failed: " + message);
+                        signInMessage.setValue("Error");
                     }
                 }
 
@@ -150,33 +174,38 @@ public class UserViewModel extends ViewModel {
             public void onComplete(@NonNull Task<AuthResult> task) {
                 if (task.isSuccessful()) {
                     // Sign in success, update UI with the signed-in user's information
-                    Log.d("Success: ", "signInWithEmail:success--------------");
+                    AppLog.i(AppLog.AUTH, "Sign in succeeded");
                     FirebaseUser fbUser = auth.getCurrentUser();
+                    if (fbUser == null) {
+                        signInMessage.setValue("Error");
+                        return;
+                    }
                     localName = fbUser.getDisplayName();
                     buildUser(fbUser, localName, true);
                     getGamesPlayed(user, false);
 //                    System.out.println("UPON SIGN IN - user has played " + user.getValue().gamesPlayed + " matches");
-                    signInToast.getValue().setText("Sign in Complete");
+                    signInMessage.setValue("Sign in Complete");
 
                 } else {
                     // If sign in fails, display a message to the user.
 //                    System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
-                    if (task.getException().getMessage().equals("The password is invalid or the user does not have a password.")) {
-                        signInToast.getValue().setText("Invalid Password");
-                        System.out.println("bad password");
+                    String message = task.getException() == null ? "" : task.getException().getMessage();
+                    if (message.equals("The password is invalid or the user does not have a password.")) {
+                        signInMessage.setValue("Invalid Password");
+                        AppLog.w(AppLog.AUTH, "Sign in failed: invalid password");
                     }
-                    else if (task.getException().getMessage().equals("There is no user record corresponding to this identifier. The user may have been deleted.")) {
-                        signInToast.getValue().setText("Invalid Email");
-                        System.out.println("invalid Email");
+                    else if (message.equals("There is no user record corresponding to this identifier. The user may have been deleted.")) {
+                        signInMessage.setValue("Invalid Email");
+                        AppLog.w(AppLog.AUTH, "Sign in failed: invalid email");
 
                     }
-                    else if (task.getException().getMessage().equals("The email address is badly formatted.")) {
-                        signInToast.getValue().setText("Email Badly Formatted");
-                        System.out.println("bad email");
+                    else if (message.equals("The email address is badly formatted.")) {
+                        signInMessage.setValue("Email Badly Formatted");
+                        AppLog.w(AppLog.AUTH, "Sign in failed: badly formatted email");
                     }
                     else {
-                        signInToast.getValue().setText("User Disabled");
-                        System.out.println("userDisabled");
+                        signInMessage.setValue("User Disabled");
+                        AppLog.w(AppLog.AUTH, "Sign in failed: user disabled or unknown auth error");
                     }
                 }
             }
@@ -213,63 +242,41 @@ public class UserViewModel extends ViewModel {
     }
 
     public void removeListenerOnDB() {
-        db.child("rooms").child(myRoom).child("players").removeEventListener(listener);
+        removePlayersListenerOnDB();
+        removeHostListener();
+    }
+
+    public void removePlayersListenerOnDB() {
+        if (listener != null && listenerRoom != null) {
+            AppLog.i(AppLog.FIREBASE, "Removing players listener for room=" + listenerRoom);
+            db.child("rooms").child(listenerRoom).child("players").removeEventListener(listener);
+            listener = null;
+            listenerRoom = null;
+        }
     }
 
     // used in create and join game to see players that join room from firebase
     public void loadUsers(String gameRoom) {
-        System.out.println("LOAD USERS CALLED: adding a listener to gameroom: " + gameRoom);
+        if (gameRoom == null || gameRoom.length() == 0) {
+            AppLog.w(AppLog.ROOM, "loadUsers skipped: missing room id");
+            return;
+        }
+        if (listener != null && gameRoom.equals(listenerRoom)) {
+            AppLog.d(AppLog.FIREBASE, "Players listener already active for room=" + gameRoom);
+            return;
+        }
+        removeListenerOnDB();
+        listenerRoom = gameRoom;
+        AppLog.i(AppLog.FIREBASE, "Attaching players listener for room=" + gameRoom);
         listener = new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                System.out.println("On Child Added Called");
-                String child = snapshot.getKey();
-//                System.out.println(child);
-
-                for(DataSnapshot ds : snapshot.getChildren()) {
-                    User user = ds.getValue(User.class);
-//                    Log.d("result", "User name: " + user.getUserName() + ", email " + user.getEmail());
-//                    System.out.println("Not Null user FROM-DB? ------------ " + user.userName);
-//                    System.out.println("DB-NEW PLAYER ADDED---------- " + user.userName);
-                    if (user != null) {
-                        users.add(user);
-                    }
-                }
-//                System.out.println("Users in user array after child added");
-                for(User user: users) {
-                    System.out.println(user.userName);
-                }
-//                System.out.println("users array size after added: " + users.size());
+                addUsersFromSnapshot(snapshot, "added");
             }
 
             @Override
             public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-//                System.out.println("DATABASE NOTICED CHANGE IN GAMEROOM---------------------------------");
-//                System.out.println(snapshot);
-                System.out.println("On child changed called");
-                for(DataSnapshot ds : snapshot.getChildren()) {
-                    User user = ds.getValue(User.class);
-                    // this is so it will only update in device once players are playing game
-                    if (user.ifSentence.length() > 0 && user.thenSentence.length() == 0) {
-//                        Log.d("IF CHANGED", "User name: " + user.getUserName() + ", ------------------- " + user.getEmail());
-//                        for (User us : users) {
-//                            System.out.println("before removed --------------- " + us.userName + " " + us.userID + " " + us.ifSentence);
-//                        }
-                        users.remove(user);
-                        users.add(user);
-//                        for (User us : users) {
-//                            System.out.println("after re added ---------------- " + us.userName + " " + us.userID + " " + us.ifSentence);
-//                        }
-                    }
-                    // this is for when a then answer is changed
-                    if (user.thenSentence.length() > 0) {
-//                        Log.d("THEN CHANGED", "User name: " + user.getUserName() + ", ---------------- " + user.getEmail());
-
-                        users.remove(user);
-                        users.add(user);
-                    }
-                }
-
+                updateUsersFromSnapshot(snapshot);
             }
 
             @Override
@@ -284,40 +291,87 @@ public class UserViewModel extends ViewModel {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                System.out.println(error.getCode() + ": " + error.getMessage() + ": " + error.getDetails());
+                AppLog.e(AppLog.FIREBASE, "Players listener cancelled: " + error.getCode() + " " + error.getMessage());
             }
         };
         db.child("rooms").child(gameRoom).child("players").addChildEventListener(listener);
     }
 
+    private void addUsersFromSnapshot(@NonNull DataSnapshot snapshot, String reason) {
+        int added = 0;
+        for(DataSnapshot ds : snapshot.getChildren()) {
+            User user = ds.getValue(User.class);
+            if (user != null) {
+                users.remove(user);
+                users.add(user);
+                added += 1;
+            }
+        }
+        AppLog.d(AppLog.ROOM, "Players snapshot " + reason + ": added=" + added + ", total=" + users.size());
+    }
+
+    private void updateUsersFromSnapshot(@NonNull DataSnapshot snapshot) {
+        int changed = 0;
+        for(DataSnapshot ds : snapshot.getChildren()) {
+            User user = ds.getValue(User.class);
+            if (shouldReplaceUser(user)) {
+                users.remove(user);
+                users.add(user);
+                changed += 1;
+            }
+        }
+        AppLog.d(AppLog.ROOM, "Players snapshot changed: updated=" + changed + ", total=" + users.size());
+    }
+
+    private boolean shouldReplaceUser(User user) {
+        if (user == null || user.ifSentence == null || user.thenSentence == null) {
+            return false;
+        }
+        return user.ifSentence.length() > 0 || user.thenSentence.length() > 0;
+    }
+
     //key to update values in firebase
     public void hostStarted(User user) {
+        if (user == null || user.gameRoom == null || user.gameRoom.length() == 0) {
+            AppLog.w(AppLog.ROOM, "hostStarted skipped: missing user or game room");
+            return;
+        }
         //updating the status that the host has started the game
-        db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostStarted").setValue(true);
+        db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostStarted").setValue(true)
+                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Host started write succeeded room=" + user.gameRoom))
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Host started write failed room=" + user.gameRoom, e));
 
     }
 
     public void hostPlayedAgain(User user) {
-        System.out.println("Host played again: " + user.hostPlayedAgain + " Updating DB");
-        if (user.hostPlayedAgain.equals("yes")) {
-            db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostPlayedAgain").setValue("yes");
-            System.out.println("Host Played again set to yes");
+        if (user == null || user.gameRoom == null || user.gameRoom.length() == 0 || user.hostPlayedAgain == null) {
+            AppLog.w(AppLog.ROOM, "hostPlayedAgain skipped: missing user, game room, or play-again state");
+            return;
         }
-        else if (user.hostPlayedAgain.equals("no")){
-            db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostPlayedAgain").setValue("no");
-            System.out.println("Host Played again set to no");
+        String value = "";
+        if (user.hostPlayedAgain.equals("yes") || user.hostPlayedAgain.equals("no")) {
+            value = user.hostPlayedAgain;
         }
-        else {
-            db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostPlayedAgain").setValue("");
-            System.out.println("Host Played again set to NOTHING");
-
-        }
+        AppLog.i(AppLog.FIREBASE, "Writing hostPlayedAgain=" + value + " room=" + user.gameRoom);
+        db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostPlayedAgain").setValue(value)
+                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "hostPlayedAgain write succeeded room=" + user.gameRoom))
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "hostPlayedAgain write failed room=" + user.gameRoom, e));
     }
 
     public void listenToHost(MutableLiveData<User> host) {
         //todo in one use case this produced a null pointer somewhere and killed for a non host player
-        System.out.println("putting listen to host listener on db: HOST IS " + host.getValue().userName);
-        db.child("rooms").child(host.getValue().gameRoom).child("players").child(host.getValue().userName+ "-" + host.getValue().userID).addChildEventListener(new ChildEventListener() {
+        if (host == null || host.getValue() == null) {
+            return;
+        }
+        User hostUser = host.getValue();
+        String path = "rooms/" + hostUser.gameRoom + "/players/" + hostUser.userName + "-" + hostUser.userID;
+        if (path.equals(hostListenerPath) && hostListener != null) {
+            return;
+        }
+        removeHostListener();
+        hostListenerPath = path;
+        AppLog.i(AppLog.FIREBASE, "Attaching host listener room=" + hostUser.gameRoom + ", host=" + hostUser.userName);
+        hostListener = new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
 
@@ -327,6 +381,9 @@ public class UserViewModel extends ViewModel {
             public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
 
                 User theChanged = snapshot.getValue(User.class);
+                if (theChanged == null || getUser().getValue() == null) {
+                    return;
+                }
 //                System.out.println("Host Changed Values in DB: " + theChanged.userName + theChanged.host + theChanged.hostStarted);
 //                System.out.println("Host played again in DB: " + theChanged.hostPlayedAgain);
                 if (theChanged.hostStarted) {
@@ -334,11 +391,11 @@ public class UserViewModel extends ViewModel {
                     getUser().setValue(getUser().getValue());
                 }
 
-                if (theChanged.hostPlayedAgain.equals("yes")) {
+                if ("yes".equals(theChanged.hostPlayedAgain)) {
                     getUser().getValue().hostPlayedAgain = "yes";
                     getUser().setValue(getUser().getValue());
                 }
-                if (theChanged.hostPlayedAgain.equals("no")) {
+                if ("no".equals(theChanged.hostPlayedAgain)) {
                     getUser().getValue().hostPlayedAgain = "no";
                     getUser().setValue(getUser().getValue());
                 }
@@ -357,9 +414,19 @@ public class UserViewModel extends ViewModel {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                System.out.println("ERROR==========" + error.getMessage());
+                AppLog.e(AppLog.FIREBASE, "Host listener cancelled: " + error.getMessage());
             }
-        });
+        };
+        db.child("rooms").child(hostUser.gameRoom).child("players").child(hostUser.userName+ "-" + hostUser.userID).addChildEventListener(hostListener);
+    }
+
+    private void removeHostListener() {
+        if (hostListener != null && hostListenerPath != null) {
+            AppLog.i(AppLog.FIREBASE, "Removing host listener path=" + hostListenerPath);
+            db.child(hostListenerPath).removeEventListener(hostListener);
+            hostListener = null;
+            hostListenerPath = null;
+        }
     }
 
     public void getMadeLeaderBoard(MutableLiveData<User> user) {
@@ -367,10 +434,17 @@ public class UserViewModel extends ViewModel {
         madeLeader.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DataSnapshot> task) {
+                if (!task.isSuccessful()) {
+                    AppLog.e(AppLog.FIREBASE, "Failed to load madeLeaderBoard", task.getException());
+                    return;
+                }
                 DataSnapshot snapshot = madeLeader.getResult();
-                boolean inDB = snapshot.getValue(Boolean.class);
+                Boolean inDB = snapshot.getValue(Boolean.class);
+                if (inDB == null || user.getValue() == null) {
+                    return;
+                }
                 user.getValue().madeLeaderBoard = inDB;
-                System.out.println("Made LeaderBoard ----- " + user.getValue().madeLeaderBoard);
+                AppLog.d(AppLog.AUTH, "Loaded madeLeaderBoard=" + user.getValue().madeLeaderBoard);
             }
         });
     }
@@ -380,10 +454,17 @@ public class UserViewModel extends ViewModel {
         madePerfectLeader.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DataSnapshot> task) {
+                if (!task.isSuccessful()) {
+                    AppLog.e(AppLog.FIREBASE, "Failed to load perfectLeaderBoard", task.getException());
+                    return;
+                }
                 DataSnapshot snapshot = madePerfectLeader.getResult();
-                boolean inDB = snapshot.getValue(Boolean.class);
+                Boolean inDB = snapshot.getValue(Boolean.class);
+                if (inDB == null || user.getValue() == null) {
+                    return;
+                }
                 user.getValue().perfectLeaderBoard = inDB;
-                System.out.println("Made Perfect LeaderBoard ----- " + user.getValue().perfectLeaderBoard);
+                AppLog.d(AppLog.AUTH, "Loaded perfectLeaderBoard=" + user.getValue().perfectLeaderBoard);
             }
         });
     }
@@ -408,51 +489,62 @@ public class UserViewModel extends ViewModel {
 //            System.out.println("UserID set -------------------");
         }
         else {
-            System.out.println("UserID already set -----------------");
+            AppLog.d(AppLog.ROOM, "User id already set for " + user.getValue().userName);
         }
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName + "-" + user.getValue().userID).setValue(user).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()){
-                    System.out.println("SUCCESS - PUSHED TO DATABASE");
+                    AppLog.i(AppLog.FIREBASE, "Pushed player to room=" + user.getValue().gameRoom);
                 }
                 else {
-                    System.out.println(task.getResult());
+                    AppLog.e(AppLog.FIREBASE, "Failed to push player to room=" + user.getValue().gameRoom, task.getException());
                 }
             }
         });
     }
 
     public void deleteRoom(User userLeft) {
-        System.out.println("Deleted room");
-        db.child("rooms").child(userLeft.gameRoom).removeValue();
+        AppLog.i(AppLog.ROOM, "Deleting room=" + userLeft.gameRoom);
+        db.child("rooms").child(userLeft.gameRoom).removeValue()
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting room=" + userLeft.gameRoom, e));
     }
 
     public void nurfAllUsers() {
-        db.child("rooms").child(myRoom).child("players").removeValue();
-        System.out.println("DELETING ALL IN ROOM");
+        AppLog.i(AppLog.ROOM, "Deleting all players in room=" + myRoom);
+        db.child("rooms").child(myRoom).child("players").removeValue()
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting players room=" + myRoom, e));
     }
     public void deleteVotesAndVotingItems() {
-        db.child("rooms").child(myRoom).child("votes").removeValue();
-        db.child("rooms").child(myRoom).child("votingItems").removeValue();
-        System.out.println("Deleting votes and voting items in gameroom in database");
+        AppLog.i(AppLog.VOTE, "Deleting votes and voting items room=" + myRoom);
+        db.child("rooms").child(myRoom).child("votes").removeValue()
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting votes room=" + myRoom, e));
+        db.child("rooms").child(myRoom).child("votingItems").removeValue()
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting voting items room=" + myRoom, e));
 
     }
 
     public void pushAccountPlayer(MutableLiveData<User> user) {
-        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).setValue(user);
+        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).setValue(user)
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed pushing account player", e));
     }
 
     public void pushIf(MutableLiveData<User> user) {
 
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifSentence").setValue(user.getValue().ifSentence);
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifFinished").setValue(user.getValue().ifFinished);
+        AppLog.i(AppLog.FIREBASE, "Submitting If room=" + user.getValue().gameRoom);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifSentence").setValue(user.getValue().ifSentence)
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed submitting If sentence", e));
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifFinished").setValue(user.getValue().ifFinished)
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed submitting If finished", e));
     }
 
     public void pushThen(MutableLiveData<User> user) {
 
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenSentence").setValue(user.getValue().thenSentence);
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenFinished").setValue(user.getValue().thenFinished);
+        AppLog.i(AppLog.FIREBASE, "Submitting Then room=" + user.getValue().gameRoom);
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenSentence").setValue(user.getValue().thenSentence)
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed submitting Then sentence", e));
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenFinished").setValue(user.getValue().thenFinished)
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed submitting Then finished", e));
     }
 
     public void fillUnlockables(MutableLiveData<User> user) {
@@ -483,10 +575,17 @@ public class UserViewModel extends ViewModel {
         gamesPlayed.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DataSnapshot> task) {
+                if (!task.isSuccessful()) {
+                    AppLog.e(AppLog.FIREBASE, "Failed to load gamesPlayed", task.getException());
+                    return;
+                }
                 DataSnapshot snapshot = gamesPlayed.getResult();
-                int totalPlayed = snapshot.getValue(Integer.class);
+                Integer totalPlayed = snapshot.getValue(Integer.class);
+                if (totalPlayed == null || user.getValue() == null) {
+                    return;
+                }
                 user.getValue().gamesPlayed = totalPlayed;
-                System.out.println("GAMES PLAYED ----- " + user.getValue().gamesPlayed);
+                AppLog.d(AppLog.AUTH, "Loaded gamesPlayed=" + user.getValue().gamesPlayed);
                 if (increment) {
                     incrementGamesPlayed(user);
                 }
@@ -502,17 +601,17 @@ public class UserViewModel extends ViewModel {
     public void unlockVoice(MutableLiveData<User> user, String which) {
         if (user.getValue().gamesPlayed >= 5 && which.equals("numGames")) {
             db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child("backwords").child("unlocked").setValue(true);
-            System.out.println("more than 5 games played ----- backwords unlocked");
+            AppLog.i(AppLog.AUTH, "Unlocked backwords voice");
         }
         if (user.getValue().madeLeaderBoard && which.equals("leaderBoards")) {
             db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child("fuddify").child("unlocked").setValue(true);
             db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("value").child("madeLeaderBoard").setValue(true);
-            System.out.println("made leaderboard ------ fuddify unlocked");
+            AppLog.i(AppLog.AUTH, "Unlocked fuddify voice");
         }
         if (user.getValue().perfectLeaderBoard && which.equals("leaderBoards")) {
             db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child("pig latin").child("unlocked").setValue(true);
             db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("value").child("perfectLeaderBoard").setValue(true);
-            System.out.println("made perfect leaderboard ------ pig latin unlocked");
+            AppLog.i(AppLog.AUTH, "Unlocked pig latin voice");
 
         }
 
@@ -523,16 +622,29 @@ public class UserViewModel extends ViewModel {
         unlocked.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DataSnapshot> task) {
+                if (!task.isSuccessful()) {
+                    AppLog.e(AppLog.FIREBASE, "Failed to load unlockables", task.getException());
+                    return;
+                }
                 DataSnapshot snapshot = unlocked.getResult();
 //                System.out.println(snapshot);
+                userUnlocked.clear();
                 for (DataSnapshot ds:snapshot.getChildren()) {
 //                    System.out.println(ds);
-                    userUnlocked.add(ds.getValue(Unlockable.class));
+                    Unlockable unlockable = ds.getValue(Unlockable.class);
+                    if (unlockable != null) {
+                        userUnlocked.add(unlockable);
+                    }
                 }
             }
         });
     }
 
+    @Override
+    protected void onCleared() {
+        removeListenerOnDB();
+        super.onCleared();
+    }
 
 }
 

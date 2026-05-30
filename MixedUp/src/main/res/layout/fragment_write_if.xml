@@ -29,15 +29,17 @@
         android:layout_width="400dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="36dp"
-        android:hint="Enter Question"
         android:gravity="center"
+        android:hint="Enter Question"
 
-        android:textSize="20dp"
         android:textColorHint="@color/black"
+        android:textSize="20dp"
+        app:layout_constraintBottom_toTopOf="@+id/writeIf_submit"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView13" />
+        app:layout_constraintTop_toBottomOf="@+id/textView13"
+        app:layout_constraintVertical_bias="0.121" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/writeIf_submit"
