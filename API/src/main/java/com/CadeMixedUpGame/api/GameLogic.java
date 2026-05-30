@@ -1,6 +1,11 @@
 package com.CadeMixedUpGame.api;
 
+import com.CadeMixedUpGame.api.models.User;
+
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
 public class GameLogic {
     public static String cleanIfSentence(String sentence) {
@@ -20,6 +25,44 @@ public class GameLogic {
             return -1;
         }
         return (currentIndex + 1) % playerCount;
+    }
+
+    public static int previousPlayerIndex(int currentIndex, int playerCount) {
+        if (playerCount <= 0) {
+            return -1;
+        }
+        return (currentIndex - 1 + playerCount) % playerCount;
+    }
+
+    public static String playerKey(User user) {
+        if (user == null) {
+            return "";
+        }
+        return user.userName + "-" + user.userID;
+    }
+
+    public static List<String> randomizedAssignment(List<String> playerKeys, long seed) {
+        ArrayList<String> assignedKeys = new ArrayList<String>();
+        if (playerKeys == null || playerKeys.size() == 0) {
+            return assignedKeys;
+        }
+        assignedKeys.addAll(playerKeys);
+        if (assignedKeys.size() == 1) {
+            return assignedKeys;
+        }
+
+        Collections.shuffle(assignedKeys, new Random(seed));
+        repairSelfAssignments(playerKeys, assignedKeys);
+        return assignedKeys;
+    }
+
+    private static void repairSelfAssignments(List<String> playerKeys, ArrayList<String> assignedKeys) {
+        for (int index = 0; index < assignedKeys.size(); index++) {
+            if (assignedKeys.get(index).equals(playerKeys.get(index))) {
+                int swapIndex = (index + 1) % assignedKeys.size();
+                Collections.swap(assignedKeys, index, swapIndex);
+            }
+        }
     }
 
     public static String mostCommonVote(List<String> votes) {

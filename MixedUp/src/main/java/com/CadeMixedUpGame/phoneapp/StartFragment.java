@@ -33,6 +33,18 @@ public class StartFragment extends Fragment {
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
+        roomViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showSnackbar(view, message);
+                roomViewModel.databaseMessage.setValue("");
+            }
+        });
+        userViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showSnackbar(view, message);
+                userViewModel.databaseMessage.setValue("");
+            }
+        });
 
         // checking to see if user can unlock any voices based on whether or not they are on the leaderboards
         // assuring leaderboards isnt empty so it wont break, if they are on the leaderboards they can unlock it

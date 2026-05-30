@@ -28,6 +28,12 @@ public class WriteIfFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel.gamePhase.setValue(GamePhase.WRITING_IF);
+        userViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showSnackbar(view, message);
+                userViewModel.databaseMessage.setValue("");
+            }
+        });
 
         EditText ifSentence = getActivity().findViewById(R.id.ifQuestion);
 

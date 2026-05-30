@@ -73,6 +73,22 @@
         app:srcCompat="@drawable/ic_baseline_mic_24" />
 
     <com.google.android.material.button.MaterialButton
+        android:id="@+id/pass_reading_turn"
+        android:layout_width="130dp"
+        android:layout_height="75dp"
+        android:text="done"
+        android:textSize="16dp"
+        android:textStyle="bold"
+        app:cornerRadius="15dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/next_frag"
+        app:layout_constraintStart_toEndOf="@+id/readSentence"
+        app:layout_constraintTop_toBottomOf="@+id/scrollView3"
+        app:layout_constraintVertical_bias="0.504"
+        app:strokeColor="@color/orange"
+        app:strokeWidth="6dp" />
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/next_frag"
         android:layout_width="100dp"
         android:layout_height="75dp"
@@ -80,8 +96,8 @@
         android:text="next"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.394"
-        app:layout_constraintStart_toEndOf="@+id/readSentence"
+        app:layout_constraintHorizontal_bias="0.8"
+        app:layout_constraintStart_toEndOf="@+id/pass_reading_turn"
         app:layout_constraintTop_toBottomOf="@+id/scrollView3"
         app:layout_constraintVertical_bias="0.504"
         app:cornerRadius="15dp"

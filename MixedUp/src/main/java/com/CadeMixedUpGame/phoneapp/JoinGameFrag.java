@@ -12,7 +12,6 @@ import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
-import java.util.ArrayList;
 
 public class JoinGameFrag extends Fragment {
     UserViewModel userViewModel;
@@ -20,6 +19,7 @@ public class JoinGameFrag extends Fragment {
     boolean loadedUsers = false;
     boolean joinInProgress = false;
     String pendingRoom = "";
+    private ObservableList.OnListChangedCallback<ObservableList<User>> usersCallback;
 
     public JoinGameFrag() {
         super(R.layout.fragment_join_game);
@@ -39,46 +39,55 @@ public class JoinGameFrag extends Fragment {
 
         EditText roomToJoin = view.findViewById(R.id.enterGameCode);
 
-        roomViewModel.inProgress.observe(this.getViewLifecycleOwner(), new Observer<Boolean>() {
+        roomViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showBanner(view, message, UiMessenger.MessageType.ERROR);
+                roomViewModel.databaseMessage.setValue("");
+            }
+        });
+
+        roomViewModel.roomJoinState.observe(this.getViewLifecycleOwner(), new Observer<RoomViewModel.RoomJoinState>() {
             @Override
-            public void onChanged(Boolean aBoolean) {
-                if (!joinInProgress || pendingRoom.length() == 0 || aBoolean == null) {
+            public void onChanged(RoomViewModel.RoomJoinState state) {
+                if (!joinInProgress || pendingRoom.length() == 0 || state == null || state == RoomViewModel.RoomJoinState.IDLE) {
                     return;
                 }
-                if (!aBoolean) {
+                if (state == RoomViewModel.RoomJoinState.AVAILABLE) {
                     joinRoom(pendingRoom);
                 }
-                else {
+                else if (state == RoomViewModel.RoomJoinState.IN_PROGRESS) {
                     joinInProgress = false;
                     AppLog.w(AppLog.ROOM, "Join blocked: game in progress room=" + pendingRoom);
                     UiMessenger.showSnackbar(view, "Game in progress!");
+                }
+                else if (state == RoomViewModel.RoomJoinState.DOES_NOT_EXIST) {
+                    joinInProgress = false;
+                    AppLog.w(AppLog.ROOM, "Join blocked: room does not exist room=" + pendingRoom);
+                    UiMessenger.showSnackbar(view, "That game room doesn't exist!");
+                }
+                else if (state == RoomViewModel.RoomJoinState.ERROR) {
+                    joinInProgress = false;
+                    UiMessenger.showBanner(view, "Could not check room. Check your connection and try again.", UiMessenger.MessageType.ERROR);
                 }
             }
         });
 
         // giving joinGame start button functionality
         view.findViewById(R.id.joinGame_start).setOnClickListener(v -> {
-            ArrayList<String> allrooms = roomViewModel.roomNames;
-            String myRoom = roomToJoin.getText().toString();
+            String myRoom = roomToJoin.getText().toString().trim();
 
             // if the room they want to join exists out there it will add them to the room and push their
             // data to firebase, else it will let the user know it doesn't exist
-            // TODO: functionalize a bit more for readability
             if (myRoom.length() == 0) {
                 AppLog.w(AppLog.ROOM, "Join blocked: empty room code");
                 UiMessenger.showError(roomToJoin, "Game code required");
             }
-            else if (allrooms.contains(myRoom)) {
+            else {
                 UiMessenger.clearError(roomToJoin);
                 UiMessenger.hideBanner(view);
                 pendingRoom = myRoom;
                 joinInProgress = true;
-                AppLog.i(AppLog.ROOM, "Checking room progress before join room=" + myRoom);
-                roomViewModel.checkIfInProgress(myRoom);
-            }
-            else {
-                AppLog.w(AppLog.ROOM, "Join blocked: room does not exist room=" + myRoom);
-                UiMessenger.showSnackbar(view, "That game room doesn't exist!");
+                roomViewModel.checkRoomCanJoin(myRoom);
             }
         });
     }
@@ -96,7 +105,7 @@ public class JoinGameFrag extends Fragment {
         userViewModel.getUser().getValue().hostStarted = false;
         userViewModel.pushPerson(userViewModel.getUser());
 
-        userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
+        usersCallback = new ObservableList.OnListChangedCallback<ObservableList<User>>() {
             @Override
             public void onChanged(ObservableList<User> sender) {
 
@@ -131,6 +140,16 @@ public class JoinGameFrag extends Fragment {
             public void onItemRangeRemoved(ObservableList<User> sender, int positionStart, int itemCount) {
 
             }
-        });
+        };
+        userViewModel.getUsers().addOnListChangedCallback(usersCallback);
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (usersCallback != null) {
+            userViewModel.getUsers().removeOnListChangedCallback(usersCallback);
+            usersCallback = null;
+        }
+        super.onDestroyView();
     }
 }

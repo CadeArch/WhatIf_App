@@ -23,6 +23,7 @@ import com.google.firebase.database.FirebaseDatabase;
 
 public class UserViewModel extends ViewModel {
     public MutableLiveData<String> signInMessage = new MutableLiveData<String>();
+    public MutableLiveData<String> databaseMessage = new MutableLiveData<String>();
     public MutableLiveData<GamePhase> gamePhase = new MutableLiveData<GamePhase>();
     ObservableArrayList<User> users;
     public MutableLiveData<User> host = new MutableLiveData<User>();
@@ -339,7 +340,10 @@ public class UserViewModel extends ViewModel {
         //updating the status that the host has started the game
         db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostStarted").setValue(true)
                 .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Host started write succeeded room=" + user.gameRoom))
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Host started write failed room=" + user.gameRoom, e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not start the game. Check your connection and try again.");
+                    AppLog.e(AppLog.FIREBASE, "Host started write failed room=" + user.gameRoom, e);
+                });
 
     }
 
@@ -355,7 +359,10 @@ public class UserViewModel extends ViewModel {
         AppLog.i(AppLog.FIREBASE, "Writing hostPlayedAgain=" + value + " room=" + user.gameRoom);
         db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostPlayedAgain").setValue(value)
                 .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "hostPlayedAgain write succeeded room=" + user.gameRoom))
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "hostPlayedAgain write failed room=" + user.gameRoom, e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not update play-again state. Check your connection and try again.");
+                    AppLog.e(AppLog.FIREBASE, "hostPlayedAgain write failed room=" + user.gameRoom, e);
+                });
     }
 
     public void listenToHost(MutableLiveData<User> host) {
@@ -498,6 +505,7 @@ public class UserViewModel extends ViewModel {
                     AppLog.i(AppLog.FIREBASE, "Pushed player to room=" + user.getValue().gameRoom);
                 }
                 else {
+                    databaseMessage.setValue("Could not join the room. Check your connection and try again.");
                     AppLog.e(AppLog.FIREBASE, "Failed to push player to room=" + user.getValue().gameRoom, task.getException());
                 }
             }
@@ -507,20 +515,34 @@ public class UserViewModel extends ViewModel {
     public void deleteRoom(User userLeft) {
         AppLog.i(AppLog.ROOM, "Deleting room=" + userLeft.gameRoom);
         db.child("rooms").child(userLeft.gameRoom).removeValue()
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting room=" + userLeft.gameRoom, e));
+                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Room deleted room=" + userLeft.gameRoom))
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not delete the room. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed deleting room=" + userLeft.gameRoom, e);
+                });
     }
 
     public void nurfAllUsers() {
         AppLog.i(AppLog.ROOM, "Deleting all players in room=" + myRoom);
         db.child("rooms").child(myRoom).child("players").removeValue()
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting players room=" + myRoom, e));
+                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Players cleared room=" + myRoom))
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not reset the room players. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed deleting players room=" + myRoom, e);
+                });
     }
     public void deleteVotesAndVotingItems() {
         AppLog.i(AppLog.VOTE, "Deleting votes and voting items room=" + myRoom);
         db.child("rooms").child(myRoom).child("votes").removeValue()
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting votes room=" + myRoom, e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not clear votes. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed deleting votes room=" + myRoom, e);
+                });
         db.child("rooms").child(myRoom).child("votingItems").removeValue()
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting voting items room=" + myRoom, e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not clear voting items. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed deleting voting items room=" + myRoom, e);
+                });
 
     }
 
@@ -533,18 +555,30 @@ public class UserViewModel extends ViewModel {
 
         AppLog.i(AppLog.FIREBASE, "Submitting If room=" + user.getValue().gameRoom);
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifSentence").setValue(user.getValue().ifSentence)
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed submitting If sentence", e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not submit your question. Check your connection and try again.");
+                    AppLog.e(AppLog.FIREBASE, "Failed submitting If sentence", e);
+                });
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifFinished").setValue(user.getValue().ifFinished)
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed submitting If finished", e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not mark your question complete. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed submitting If finished", e);
+                });
     }
 
     public void pushThen(MutableLiveData<User> user) {
 
         AppLog.i(AppLog.FIREBASE, "Submitting Then room=" + user.getValue().gameRoom);
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenSentence").setValue(user.getValue().thenSentence)
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed submitting Then sentence", e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not submit your response. Check your connection and try again.");
+                    AppLog.e(AppLog.FIREBASE, "Failed submitting Then sentence", e);
+                });
         db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenFinished").setValue(user.getValue().thenFinished)
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed submitting Then finished", e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not mark your response complete. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed submitting Then finished", e);
+                });
     }
 
     public void fillUnlockables(MutableLiveData<User> user) {

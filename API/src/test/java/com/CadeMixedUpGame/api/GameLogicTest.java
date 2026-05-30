@@ -5,8 +5,10 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 public class GameLogicTest {
     @Test
@@ -47,6 +49,44 @@ public class GameLogicTest {
     public void nextPlayerIndex_returnsMinusOneWhenThereAreNoPlayers() {
         assertEquals(-1, GameLogic.nextPlayerIndex(0, 0));
         assertEquals(-1, GameLogic.nextPlayerIndex(0, -3));
+    }
+
+    @Test
+    public void previousPlayerIndex_wrapsAtBeginning() {
+        assertEquals(2, GameLogic.previousPlayerIndex(0, 3));
+        assertEquals(0, GameLogic.previousPlayerIndex(1, 3));
+    }
+
+    @Test
+    public void previousPlayerIndex_returnsMinusOneWhenThereAreNoPlayers() {
+        assertEquals(-1, GameLogic.previousPlayerIndex(0, 0));
+        assertEquals(-1, GameLogic.previousPlayerIndex(0, -3));
+    }
+
+    @Test
+    public void randomizedAssignment_isDeterministicForSameSeed() {
+        List<String> players = Arrays.asList("a-1", "b-2", "c-3", "d-4");
+
+        assertEquals(
+                GameLogic.randomizedAssignment(players, 12345L),
+                GameLogic.randomizedAssignment(players, 12345L));
+    }
+
+    @Test
+    public void randomizedAssignment_doesNotAssignPlayersToThemselves() {
+        List<String> players = Arrays.asList("a-1", "b-2", "c-3", "d-4", "e-5");
+        List<String> assignments = GameLogic.randomizedAssignment(players, 9988L);
+
+        for (int index = 0; index < players.size(); index++) {
+            assertFalse(players.get(index).equals(assignments.get(index)));
+        }
+    }
+
+    @Test
+    public void randomizedAssignment_allowsSinglePlayerFallback() {
+        assertEquals(
+                Collections.singletonList("solo-1"),
+                GameLogic.randomizedAssignment(Collections.singletonList("solo-1"), 42L));
     }
 
     @Test

@@ -40,6 +40,18 @@ public class EndFrag extends Fragment {
         leaderBoardViewModel = new ViewModelProvider(getActivity()).get(LeaderBoardViewModel.class);
         userViewModel.gamePhase.setValue(GamePhase.ENDED);
         AppLog.i(AppLog.GAME_FLOW, "End screen opened: users=" + userViewModel.getUsers().size() + ", castVotes=" + leaderBoardViewModel.getCastvotes().size());
+        userViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showBanner(view, message, UiMessenger.MessageType.ERROR);
+                userViewModel.databaseMessage.setValue("");
+            }
+        });
+        leaderBoardViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showBanner(view, message, UiMessenger.MessageType.ERROR);
+                leaderBoardViewModel.databaseMessage.setValue("");
+            }
+        });
 
         // incrementing num of total games played for account player
         if (Objects.requireNonNull(userViewModel.getUser().getValue()).accountPlay) {
@@ -105,7 +117,7 @@ public class EndFrag extends Fragment {
         //giving home button functionality
         view.findViewById(R.id.home_ending).setOnClickListener(v -> {
 
-            if (userViewModel.getUsers().size() != leaderBoardViewModel.getCastvotes().size() && allAccountPlayers) {
+            if (hasPendingRequiredVotes()) {
                 AppLog.w(AppLog.VOTE, "Home blocked: not all votes are in");
                 UiMessenger.showBanner(view, "Not all votes are in yet.", UiMessenger.MessageType.WARNING);
             } else {
@@ -118,6 +130,7 @@ public class EndFrag extends Fragment {
                 if (userViewModel.getUser().getValue().host) {
                     userViewModel.getUser().getValue().hostPlayedAgain = "no";
                     userViewModel.hostPlayedAgain(userViewModel.getUser().getValue());
+                    leaderBoardViewModel.removeCastVotesListener(userViewModel.myRoom);
                     scheduleRoomDelete(userViewModel.getUser().getValue());
                 }
 
@@ -134,7 +147,7 @@ public class EndFrag extends Fragment {
         view.findViewById(R.id.again_ending).setOnClickListener(v -> {
             AppLog.i(AppLog.GAME_FLOW, "Play again clicked");
 
-            if (userViewModel.getUsers().size() != leaderBoardViewModel.getCastvotes().size() && allAccountPlayers) {
+            if (hasPendingRequiredVotes()) {
                 AppLog.w(AppLog.VOTE, "Play again blocked: not all votes are in");
                 UiMessenger.showBanner(view, "Not all votes are in yet.", UiMessenger.MessageType.WARNING);
             }
@@ -147,6 +160,8 @@ public class EndFrag extends Fragment {
 
                 // resetting db gameroom to no one in it, as they play again I will push the person back to it
                 if (userViewModel.getUser().getValue().host) {
+                    roomViewModel.deleteRoundAssignments(userViewModel.myRoom);
+                    roomViewModel.setActiveReaderIndex(userViewModel.myRoom, 0);
                     userViewModel.nurfAllUsers();
                     if (allAccountPlayers) {
                         userViewModel.deleteVotesAndVotingItems();
@@ -183,4 +198,9 @@ public class EndFrag extends Fragment {
             }
         }, HOST_HOME_ROOM_DELETE_DELAY_MS);
     }
+
+    private boolean hasPendingRequiredVotes() {
+        return allAccountPlayers && userViewModel.getUsers().size() != leaderBoardViewModel.getCastvotes().size();
+    }
+
 }

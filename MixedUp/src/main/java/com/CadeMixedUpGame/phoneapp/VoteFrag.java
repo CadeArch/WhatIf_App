@@ -35,6 +35,12 @@ public class VoteFrag extends Fragment {
 
         bindViewModels();
         userViewModel.gamePhase.setValue(GamePhase.VOTING);
+        leaderBoardViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showBanner(view, message, UiMessenger.MessageType.ERROR);
+                leaderBoardViewModel.databaseMessage.setValue("");
+            }
+        });
 
         leaderBoardViewModel.loadVotingItems(userViewModel.getUser());
         leaderBoardViewModel.createAndListenToCastVotes(userViewModel.myRoom);
@@ -158,5 +164,13 @@ public class VoteFrag extends Fragment {
                 .setReorderingAllowed(true)
                 .addToBackStack(null)
                 .commit();
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (leaderBoardViewModel != null) {
+            leaderBoardViewModel.removeVotingItemsListener();
+        }
+        super.onDestroyView();
     }
 }

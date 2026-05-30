@@ -17,6 +17,7 @@ import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.GameLogic;
 import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
+import com.CadeMixedUpGame.api.models.RoundAssignment;
 import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
@@ -35,6 +36,13 @@ public class ReadSentenceFrag extends Fragment {
     TextToSpeech tts;
     String code = "0";
     DiffGoogleVoice selectedItemOnSpinner;
+    View readButton;
+    View passReadingTurnButton;
+    View nextButton;
+    int currentUserReadIndex = 0;
+    RoundAssignment currentRoundAssignment;
+    boolean sentenceReady = false;
+    boolean votingItemPushed = false;
 
     public ReadSentenceFrag() {
         super(R.layout.fragment_read_sentence);
@@ -45,10 +53,12 @@ public class ReadSentenceFrag extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         bindViewModels();
         userViewModel.gamePhase.setValue(GamePhase.READING);
+        setupRoomMessages(view);
+        setupActiveReaderState();
         resetHostPlayAgainIfNeeded();
         hideVoiceControlsForFreePlay();
-        bindSentenceText();
         setupNextButton(view);
+        bindSentenceText();
         setupVoiceSpinner(view);
         setupTextToSpeech(view);
     }
@@ -57,6 +67,29 @@ public class ReadSentenceFrag extends Fragment {
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(requireActivity()).get(RoomViewModel.class);
         leaderBoardViewModel = new ViewModelProvider(requireActivity()).get(LeaderBoardViewModel.class);
+    }
+
+    private void setupRoomMessages(View view) {
+        roomViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showSnackbar(view, message);
+                roomViewModel.databaseMessage.setValue("");
+            }
+        });
+    }
+
+    private void setupActiveReaderState() {
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0) {
+            AppLog.w(AppLog.ROOM, "Active reader setup skipped: missing user or room");
+            return;
+        }
+        currentUserReadIndex = findCurrentUserIndex(currentUser);
+        roomViewModel.listenToActiveReader(currentUser.gameRoom);
+        if (currentUser.host) {
+            roomViewModel.setActiveReaderIndex(currentUser.gameRoom, 0);
+        }
+        roomViewModel.activeReaderIndex.observe(getViewLifecycleOwner(), this::updateActiveReaderControls);
     }
 
     private void resetHostPlayAgainIfNeeded() {
@@ -72,58 +105,71 @@ public class ReadSentenceFrag extends Fragment {
         if (currentUser != null && !currentUser.accountPlay) {
             requireActivity().findViewById(R.id.readSentence).setVisibility(View.GONE);
             requireActivity().findViewById(R.id.spinnerObject).setVisibility(View.GONE);
+            requireActivity().findViewById(R.id.pass_reading_turn).setVisibility(View.GONE);
         }
     }
 
     private void bindSentenceText() {
-        myRandomIf = userViewModel.localRandIf;
-        myRandomThen = findAssignedThenSentence();
         TextView ifQuestion = requireActivity().findViewById(R.id.myIfQuestion_ending);
         TextView thenAnswer = requireActivity().findViewById(R.id.myThenAnswer_ending);
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null) {
+            AppLog.w(AppLog.GAME_FLOW, "Read sentence assignment skipped: missing current user");
+            return;
+        }
+
+        ifQuestion.setText("Loading...");
+        thenAnswer.setText("");
+        roomViewModel.listenToAssignment(currentUser.gameRoom, GameLogic.playerKey(currentUser));
+        roomViewModel.currentAssignment.observe(getViewLifecycleOwner(), assignment -> {
+            if (assignment != null) {
+                applyAssignment(assignment, ifQuestion, thenAnswer);
+            }
+        });
+    }
+
+    private void applyAssignment(RoundAssignment assignment, TextView ifQuestion, TextView thenAnswer) {
+        User ifOwner = findUserByKey(assignment.ifOwnerKey);
+        User thenOwner = findUserByKey(assignment.thenOwnerKey);
+        if (ifOwner == null || thenOwner == null) {
+            AppLog.w(AppLog.GAME_FLOW, "Read assignment loaded before players were available");
+            return;
+        }
+
+        myRandomIf = ifOwner.ifSentence == null ? "" : ifOwner.ifSentence;
+        myRandomThen = thenOwner.thenSentence == null ? "" : thenOwner.thenSentence;
+        if (myRandomIf.length() == 0 || myRandomThen.length() == 0) {
+            AppLog.w(AppLog.GAME_FLOW, "Read assignment missing sentence text");
+            return;
+        }
+
+        currentRoundAssignment = assignment;
+        sentenceReady = true;
         ifQuestion.setText(myRandomIf + "?");
         thenAnswer.setText(myRandomThen + ".");
-        AppLog.i(AppLog.GAME_FLOW, "Read sentence bound: ifLength=" + myRandomIf.length() + ", thenLength=" + myRandomThen.length());
-    }
-
-    private String findAssignedThenSentence() {
-        User currentUser = userViewModel.getUser().getValue();
-        if (currentUser == null || currentUser.thenSentence == null || userViewModel.getUsers().size() == 0) {
-            AppLog.w(AppLog.GAME_FLOW, "Cannot assign Then sentence: missing user, Then sentence, or players");
-            return "";
+        if (nextButton != null) {
+            nextButton.setEnabled(true);
         }
-
-        int currentIndex = findCurrentThenIndex(currentUser.thenSentence);
-        int nextIndex = GameLogic.nextPlayerIndex(currentIndex, userViewModel.getUsers().size());
-        if (nextIndex < 0) {
-            AppLog.w(AppLog.GAME_FLOW, "Cannot assign Then sentence: invalid next index");
-            return "";
-        }
-        User assignedUser = userViewModel.getUsers().get(nextIndex);
-        AppLog.d(AppLog.GAME_FLOW, "Assigned Then sentence from index=" + nextIndex + ", player=" + assignedUser.userName);
-        return assignedUser.thenSentence == null ? "" : assignedUser.thenSentence;
-    }
-
-    private int findCurrentThenIndex(String currentThenSentence) {
-        int index = 0;
-        for (User user: userViewModel.getUsers()) {
-            if (currentThenSentence.equals(user.thenSentence)) {
-                AppLog.d(AppLog.GAME_FLOW, "Current Then sentence found at index=" + index + ", player=" + user.userName);
-                return index;
-            }
-            index += 1;
-        }
-        AppLog.w(AppLog.GAME_FLOW, "Current Then sentence was not found; defaulting to index 0");
-        return 0;
+        pushVotingItemIfNeeded();
+        AppLog.i(AppLog.GAME_FLOW, "Read assignment applied: ifOwner=" + assignment.ifOwnerKey + ", thenOwner=" + assignment.thenOwnerKey);
     }
 
     private void setupNextButton(View view) {
-        if (allPlayersHaveAccounts()) {
-            pushVotingItem();
-            view.findViewById(R.id.next_frag).setOnClickListener(v -> navigateToVoting());
-        }
-        else {
-            view.findViewById(R.id.next_frag).setOnClickListener(v -> navigateToEnd());
-        }
+        nextButton = view.findViewById(R.id.next_frag);
+        nextButton.setEnabled(false);
+        nextButton.setOnClickListener(v -> {
+            if (!sentenceReady) {
+                UiMessenger.showSnackbar(view, "Still loading your sentence. Try again in a moment.");
+                AppLog.w(AppLog.GAME_FLOW, "Next blocked: read assignment not ready");
+                return;
+            }
+            if (allPlayersHaveAccounts()) {
+                navigateToVoting();
+            }
+            else {
+                navigateToEnd();
+            }
+        });
     }
 
     private boolean allPlayersHaveAccounts() {
@@ -138,26 +184,34 @@ public class ReadSentenceFrag extends Fragment {
         return allAccountPlayers;
     }
 
-    private void pushVotingItem() {
-        String ifContributor = "";
-        String thenContributor = "";
-        String ifContributorID = "";
-        String thenContributorID = "";
-        for (User user: userViewModel.getUsers()) {
-            if (myRandomIf.equals(user.ifSentence)) {
-                ifContributor = user.userName;
-                ifContributorID = user.uid;
-            }
-            if (myRandomThen.equals(user.thenSentence)) {
-                thenContributor = user.userName;
-                thenContributorID = user.uid;
-            }
+    private void pushVotingItemIfNeeded() {
+        if (!allPlayersHaveAccounts() || votingItemPushed || currentRoundAssignment == null) {
+            return;
         }
 
         String uniqueID = roomViewModel.makeRoomID();
-        LeaderBoardItem lbi = new LeaderBoardItem(myRandomIf + "?", myRandomThen + ".", ifContributor, thenContributor, ifContributorID, thenContributorID, uniqueID);
-        AppLog.i(AppLog.VOTE, "Creating voting item id=" + uniqueID + ", ifContributor=" + ifContributor + ", thenContributor=" + thenContributor);
+        LeaderBoardItem lbi = new LeaderBoardItem(
+                myRandomIf + "?",
+                myRandomThen + ".",
+                currentRoundAssignment.ifContributor,
+                currentRoundAssignment.thenContributor,
+                currentRoundAssignment.ifContributorID,
+                currentRoundAssignment.thenContributorID,
+                uniqueID);
+        votingItemPushed = true;
+        AppLog.i(AppLog.VOTE, "Creating voting item id=" + uniqueID
+                + ", ifContributor=" + currentRoundAssignment.ifContributor
+                + ", thenContributor=" + currentRoundAssignment.thenContributor);
         leaderBoardViewModel.pushVoteItem(userViewModel.getUser(), lbi);
+    }
+
+    private User findUserByKey(String playerKey) {
+        for (User user : userViewModel.getUsers()) {
+            if (GameLogic.playerKey(user).equals(playerKey)) {
+                return user;
+            }
+        }
+        return null;
     }
 
     private void navigateToVoting() {
@@ -247,10 +301,62 @@ public class ReadSentenceFrag extends Fragment {
             tts.setLanguage(Locale.getDefault());
             AppLog.i(AppLog.TTS, "TextToSpeech initialized status=" + status);
         });
-        view.findViewById(R.id.readSentence).setOnClickListener(v -> speakCurrentSentence());
+        readButton = view.findViewById(R.id.readSentence);
+        passReadingTurnButton = view.findViewById(R.id.pass_reading_turn);
+        readButton.setOnClickListener(v -> speakCurrentSentence());
+        passReadingTurnButton.setOnClickListener(v -> passReadingTurn());
+        updateActiveReaderControls(roomViewModel.activeReaderIndex.getValue());
+    }
+
+    private int findCurrentUserIndex(User currentUser) {
+        for (int index = 0; index < userViewModel.getUsers().size(); index++) {
+            User user = userViewModel.getUsers().get(index);
+            if (user.userID == currentUser.userID) {
+                return index;
+            }
+        }
+        AppLog.w(AppLog.TTS, "Current user not found in read order; using immediate read-aloud");
+        return 0;
+    }
+
+    private void updateActiveReaderControls(Integer activeReaderIndex) {
+        if (readButton == null || passReadingTurnButton == null) {
+            return;
+        }
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null || !currentUser.accountPlay || readButton.getVisibility() == View.GONE) {
+            return;
+        }
+        int activeIndex = activeReaderIndex == null ? 0 : activeReaderIndex;
+        boolean isCurrentReader = activeIndex == currentUserReadIndex;
+        readButton.setEnabled(isCurrentReader);
+        readButton.setAlpha(isCurrentReader ? 1.0f : 0.35f);
+        passReadingTurnButton.setEnabled(isCurrentReader);
+        passReadingTurnButton.setAlpha(isCurrentReader ? 1.0f : 0.35f);
+        if (isCurrentReader) {
+            UiMessenger.showSnackbar(requireView(), "Your turn to read");
+        }
+        AppLog.d(AppLog.TTS, "Read controls updated: activeIndex=" + activeIndex + ", myIndex=" + currentUserReadIndex);
+    }
+
+    private void passReadingTurn() {
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0 || userViewModel.getUsers().size() == 0) {
+            UiMessenger.showSnackbar(requireView(), "Cannot pass reading turn yet");
+            AppLog.w(AppLog.TTS, "Pass reading turn blocked: missing user, room, or players");
+            return;
+        }
+        int nextReaderIndex = GameLogic.nextPlayerIndex(currentUserReadIndex, userViewModel.getUsers().size());
+        roomViewModel.setActiveReaderIndex(currentUser.gameRoom, nextReaderIndex);
+        AppLog.i(AppLog.TTS, "Passed reading turn from index=" + currentUserReadIndex + " to index=" + nextReaderIndex);
     }
 
     private void speakCurrentSentence() {
+        if (!sentenceReady) {
+            UiMessenger.showSnackbar(requireView(), "Still loading your sentence");
+            AppLog.w(AppLog.TTS, "Speak blocked: sentence not ready");
+            return;
+        }
         String sentence = myRandomIf + ", " + myRandomThen;
         String spokenSentence = "0".equals(code) ? sentence : mutateString(sentence);
         AppLog.i(AppLog.TTS, "Speaking read sentence with voiceCode=" + code);
@@ -263,6 +369,8 @@ public class ReadSentenceFrag extends Fragment {
 
     @Override
     public void onDestroyView() {
+        roomViewModel.removeAssignmentListener();
+        roomViewModel.removeActiveReaderListener();
         if (tts != null) {
             tts.stop();
             tts.shutdown();

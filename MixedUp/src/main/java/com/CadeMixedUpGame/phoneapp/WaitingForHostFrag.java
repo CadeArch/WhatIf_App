@@ -21,6 +21,7 @@ public class WaitingForHostFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
     boolean onWaitingForHost;
+    private ObservableList.OnListChangedCallback<ObservableList<User>> usersCallback;
 
 
     public WaitingForHostFrag() {
@@ -35,6 +36,18 @@ public class WaitingForHostFrag extends Fragment {
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel.gamePhase.setValue(GamePhase.LOBBY);
         onWaitingForHost = true;
+        roomViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showSnackbar(view, message);
+                roomViewModel.databaseMessage.setValue("");
+            }
+        });
+        userViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showSnackbar(view, message);
+                userViewModel.databaseMessage.setValue("");
+            }
+        });
         // this will unlock voices based on number of games played unlocking here in case players hit the play again button
         if (userViewModel.getUser().getValue().accountPlay) {
             userViewModel.unlockVoice(userViewModel.getUser(), "numGames");
@@ -57,7 +70,7 @@ public class WaitingForHostFrag extends Fragment {
         AppLog.i(AppLog.ROOM, "Waiting screen opened: players=" + userViewModel.getUsers().size());
 
         // when the users array changes reset the adapter to include all people
-        userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
+        usersCallback = new ObservableList.OnListChangedCallback<ObservableList<User>>() {
             @Override
             public void onChanged(ObservableList<User> sender) {
 
@@ -89,7 +102,8 @@ public class WaitingForHostFrag extends Fragment {
 //                MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), userViewModel.getUsers());
 //                recyclerView.setAdapter(adapter);
             }
-        });
+        };
+        userViewModel.getUsers().addOnListChangedCallback(usersCallback);
 
         // if the current persons device is the host set the host value since the host wont have gone through the join game frag
         if (userViewModel.getUser().getValue().host) {
@@ -145,12 +159,14 @@ public class WaitingForHostFrag extends Fragment {
         }
 
         AppLog.i(AppLog.GAME_FLOW, "Host starting game room=" + currentUser.gameRoom);
-        roomViewModel.gameInProgressTrue(currentUser.gameRoom);
-        currentUser.hostStarted = true;
-        userViewModel.playing = true;
-        userViewModel.gamePhase.setValue(GamePhase.WRITING_IF);
-        userViewModel.hostStarted(currentUser);
-        navigateToWriteIf();
+        roomViewModel.gameInProgressTrue(currentUser.gameRoom, () ->
+                roomViewModel.createRoundAssignments(currentUser.gameRoom, userViewModel.getUsers(), () -> {
+                    currentUser.hostStarted = true;
+                    userViewModel.playing = true;
+                    userViewModel.gamePhase.setValue(GamePhase.WRITING_IF);
+                    userViewModel.hostStarted(currentUser);
+                    navigateToWriteIf();
+                }));
     }
 
     private void navigateToWriteIf() {
@@ -164,5 +180,14 @@ public class WaitingForHostFrag extends Fragment {
                 .commit();
         userViewModel.onWriteIf = true;
         userViewModel.playing = true;
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (usersCallback != null) {
+            userViewModel.getUsers().removeOnListChangedCallback(usersCallback);
+            usersCallback = null;
+        }
+        super.onDestroyView();
     }
 }
