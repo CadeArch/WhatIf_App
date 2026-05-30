@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.CadeMixedUpGame.phoneapp">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 <!-- hardware accelerated might fix an onstartup crash issue -->
     <application
         android:allowBackup="true"

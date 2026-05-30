@@ -24,6 +24,12 @@ public class LeaderBoardViewModel extends ViewModel {
     ObservableArrayList<LeaderBoardItem> potentialLeaderBoardItems;
     ObservableArrayList<String> castvotes = new ObservableArrayList<String>();
     ChildEventListener votesListener;
+    ChildEventListener leaderBoardListener;
+    ChildEventListener votingItemsListener;
+    ObservableList.OnListChangedCallback<ObservableList<String>> castVotesCallback;
+    String votesListenerRoom;
+    String votingItemsListenerRoom;
+    public MutableLiveData<String> databaseMessage = new MutableLiveData<String>();
     int mostVotes = 0;
     String mostVotedID = "";
     LeaderBoardItem plbi;
@@ -50,6 +56,7 @@ public class LeaderBoardViewModel extends ViewModel {
     }
 
     public void reset() {
+        removeCastVotesCallback();
         potentialLeaderBoardItems = new ObservableArrayList<LeaderBoardItem>();
         castvotes = new ObservableArrayList<String>();
         mostVotedID = "";
@@ -63,7 +70,10 @@ public class LeaderBoardViewModel extends ViewModel {
     }
 
     public void loadLeaderBoardItems() {
-        db.child("leaderBoard").addChildEventListener(new ChildEventListener() {
+        if (leaderBoardListener != null || db == null) {
+            return;
+        }
+        leaderBoardListener = new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
 //                System.out.println(snapshot);
@@ -92,7 +102,8 @@ public class LeaderBoardViewModel extends ViewModel {
             public void onCancelled(@NonNull DatabaseError error) {
                 AppLog.e(AppLog.FIREBASE, "Leaderboard listener cancelled: " + error.getMessage());
             }
-        });
+        };
+        db.child("leaderBoard").addChildEventListener(leaderBoardListener);
     }
 
     private void addLeaderBoardItem(@NonNull DataSnapshot snapshot) {
@@ -111,8 +122,14 @@ public class LeaderBoardViewModel extends ViewModel {
             return;
         }
         String room = user.getValue().gameRoom;
+        if (room.equals(votingItemsListenerRoom) && votingItemsListener != null) {
+            AppLog.d(AppLog.FIREBASE, "Voting items listener already active room=" + room);
+            return;
+        }
+        removeVotingItemsListener();
         AppLog.i(AppLog.FIREBASE, "Attaching voting items listener room=" + room);
-        db.child("rooms").child(user.getValue().gameRoom).child("votingItems").addChildEventListener(new ChildEventListener() {
+        votingItemsListenerRoom = room;
+        votingItemsListener = new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                 addVotingItem(snapshot);
@@ -137,7 +154,8 @@ public class LeaderBoardViewModel extends ViewModel {
             public void onCancelled(@NonNull DatabaseError error) {
                 AppLog.e(AppLog.FIREBASE, "Voting items listener cancelled: " + error.getMessage());
             }
-        });
+        };
+        db.child("rooms").child(room).child("votingItems").addChildEventListener(votingItemsListener);
     }
 
     private void addVotingItem(@NonNull DataSnapshot snapshot) {
@@ -155,7 +173,10 @@ public class LeaderBoardViewModel extends ViewModel {
         AppLog.i(AppLog.FIREBASE, "Pushing voting item room=" + room + ", id=" + lbi.getId());
         db.child("rooms").child(room).child("votingItems").child(lbi.getId()).setValue(lbi)
                 .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Voting item pushed room=" + room + ", id=" + lbi.getId()))
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed pushing voting item room=" + room, e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not prepare voting. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed pushing voting item room=" + room, e);
+                });
     }
 
     //changed to userName and userID instead of just username in case users have same name todo MAKE SURE IT DIDNT BREAK ANYTHING
@@ -165,7 +186,10 @@ public class LeaderBoardViewModel extends ViewModel {
         AppLog.i(AppLog.VOTE, "Casting vote room=" + room + ", player=" + playerKey + ", vote=" + vote);
         db.child("rooms").child(room).child("votes").child(playerKey).setValue(vote)
                 .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Vote write succeeded room=" + room))
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Vote write failed room=" + room, e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not send your vote. Check your connection and try again.");
+                    AppLog.e(AppLog.FIREBASE, "Vote write failed room=" + room, e);
+                });
     }
 
     public void removeCastVotesListener(String gameroom) {
@@ -173,11 +197,24 @@ public class LeaderBoardViewModel extends ViewModel {
             AppLog.i(AppLog.FIREBASE, "Removing votes listener room=" + gameroom);
             db.child("rooms").child(gameroom).child("votes").removeEventListener(votesListener);
             votesListener = null;
+            votesListenerRoom = null;
         }
     }
 
     public void createAndListenToCastVotes(String gameroom) {
+        if (gameroom == null || gameroom.length() == 0) {
+            AppLog.w(AppLog.VOTE, "createAndListenToCastVotes skipped: missing room");
+            return;
+        }
+        if (gameroom.equals(votesListenerRoom) && votesListener != null) {
+            AppLog.d(AppLog.FIREBASE, "Votes listener already active room=" + gameroom);
+            return;
+        }
+        if (votesListenerRoom != null) {
+            removeCastVotesListener(votesListenerRoom);
+        }
         AppLog.i(AppLog.FIREBASE, "Attaching votes listener room=" + gameroom);
+        votesListenerRoom = gameroom;
         votesListener = new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
@@ -225,7 +262,8 @@ public class LeaderBoardViewModel extends ViewModel {
     }
 
     public void castVoteListener(int numOfUsers) {
-        castvotes.addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<String>>() {
+        removeCastVotesCallback();
+        castVotesCallback = new ObservableList.OnListChangedCallback<ObservableList<String>>() {
             @Override
             public void onChanged(ObservableList<String> sender) {
 
@@ -253,7 +291,8 @@ public class LeaderBoardViewModel extends ViewModel {
             public void onItemRangeRemoved(ObservableList<String> sender, int positionStart, int itemCount) {
 
             }
-        });
+        };
+        castvotes.addOnListChangedCallback(castVotesCallback);
     }
 
     public boolean isLeaderBoardFull () {
@@ -328,7 +367,10 @@ public class LeaderBoardViewModel extends ViewModel {
     public void removeLBI(LeaderBoardItem lbi) {
         AppLog.i(AppLog.VOTE, "Removing leaderboard item id=" + lbi.getId() + ", percentLoved=" + lbi.getPercentLoved());
         db.child("leaderBoard").child(Long.toString(lbi.getLoadedToLeaderBoard())).removeValue()
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed removing leaderboard item id=" + lbi.getId(), e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not update the leaderboard. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed removing leaderboard item id=" + lbi.getId(), e);
+                });
     }
 
     public void pushToLeaderBoards(LeaderBoardItem lbi) {
@@ -337,7 +379,10 @@ public class LeaderBoardViewModel extends ViewModel {
         lbi.setLoadedToLeaderBoard(System.currentTimeMillis());
         AppLog.i(AppLog.VOTE, "Pushing leaderboard item id=" + lbi.getId() + ", percentLoved=" + lbi.getPercentLoved());
         db.child("leaderBoard").child(Long.toString(lbi.getLoadedToLeaderBoard())).setValue(lbi)
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed pushing leaderboard item id=" + lbi.getId(), e));
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not update the leaderboard. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed pushing leaderboard item id=" + lbi.getId(), e);
+                });
     }
 
     public LeaderBoardItem removeWhichItem(LeaderBoardItem newlbi) {
@@ -352,6 +397,36 @@ public class LeaderBoardViewModel extends ViewModel {
             }
         }
         return removeThis;
+    }
+
+    public void removeVotingItemsListener() {
+        if (votingItemsListener != null && votingItemsListenerRoom != null) {
+            AppLog.i(AppLog.FIREBASE, "Removing voting items listener room=" + votingItemsListenerRoom);
+            db.child("rooms").child(votingItemsListenerRoom).child("votingItems").removeEventListener(votingItemsListener);
+            votingItemsListener = null;
+            votingItemsListenerRoom = null;
+        }
+    }
+
+    private void removeCastVotesCallback() {
+        if (castVotesCallback != null) {
+            castvotes.removeOnListChangedCallback(castVotesCallback);
+            castVotesCallback = null;
+        }
+    }
+
+    @Override
+    protected void onCleared() {
+        if (leaderBoardListener != null && db != null) {
+            db.child("leaderBoard").removeEventListener(leaderBoardListener);
+            leaderBoardListener = null;
+        }
+        removeVotingItemsListener();
+        if (votesListenerRoom != null) {
+            removeCastVotesListener(votesListenerRoom);
+        }
+        removeCastVotesCallback();
+        super.onCleared();
     }
 
 

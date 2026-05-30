@@ -10,6 +10,7 @@ import android.widget.TextView;
 import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.GameLogic;
 import com.CadeMixedUpGame.api.models.GamePhase;
+import com.CadeMixedUpGame.api.models.RoundAssignment;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
@@ -19,6 +20,7 @@ public class WriteThenFrag extends Fragment {
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
     String myRandomIf = "";
+    View submitButton;
 
     public WriteThenFrag() {
         super(R.layout.fragment_write_then);
@@ -31,42 +33,28 @@ public class WriteThenFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel.gamePhase.setValue(GamePhase.WRITING_THEN);
-
-//        for (User user: userViewModel.getUsers()) {
-//            System.out.println("ORDER IN WRITE THEN FRAG ------------- " + user.userName);
-//        }
-
-        // making sure all if sentances are used but players dont get their own
-        // players finding their index in the array.
-        int idx = 0;
-        for (User user: userViewModel.getUsers()) {
-            if(user.ifSentence.equals(userViewModel.getUser().getValue().ifSentence)) {
-                AppLog.d(AppLog.GAME_FLOW, "Current If sentence found at index=" + idx + ", player=" + user.userName);
-                break;
+        userViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showSnackbar(view, message);
+                userViewModel.databaseMessage.setValue("");
             }
-            idx += 1;
-        }
+        });
 
         TextView ifQuestion = view.findViewById(R.id.myIfQuestion);
         EditText thenSentence = view.findViewById(R.id.thenAnswer);
-
-        // players will get the next persons if in the array, if they are the last person in the array
-        // they will get the first persons if in the array
-        // this works because the arrays are in the same order across devices. and array order differs based upon when the users submit there answer
-
-        int nextIndex = GameLogic.nextPlayerIndex(idx, userViewModel.getUsers().size());
-        if (nextIndex >= 0) {
-            myRandomIf = userViewModel.getUsers().get(nextIndex).ifSentence;
-            userViewModel.localRandIf = myRandomIf;
-        }
-
-        ifQuestion.setText(myRandomIf + "?");
+        submitButton = view.findViewById(R.id.writeThen_submit);
+        submitButton.setEnabled(false);
+        bindAssignment(ifQuestion);
 
 
         //giving submit button functionality
-        view.findViewById(R.id.writeThen_submit).setOnClickListener(v -> {
+        submitButton.setOnClickListener(v -> {
 
-            if (thenSentence.getText().toString().equals("")) {
+            if (myRandomIf == null || myRandomIf.length() == 0) {
+                AppLog.w(AppLog.GAME_FLOW, "Then submit blocked: assignment not loaded");
+                UiMessenger.showSnackbar(view, "Still loading your prompt. Try again in a moment.");
+            }
+            else if (thenSentence.getText().toString().trim().equals("")) {
                 AppLog.w(AppLog.UI, "Then submit blocked: empty response");
                 UiMessenger.showError(thenSentence, "Response required");
             }
@@ -88,5 +76,49 @@ public class WriteThenFrag extends Fragment {
 
 
 
+    }
+
+    private void bindAssignment(TextView ifQuestion) {
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null) {
+            AppLog.w(AppLog.GAME_FLOW, "WriteThen assignment skipped: missing current user");
+            return;
+        }
+
+        roomViewModel.listenToAssignment(currentUser.gameRoom, GameLogic.playerKey(currentUser));
+        roomViewModel.currentAssignment.observe(getViewLifecycleOwner(), assignment -> {
+            if (assignment != null) {
+                applyAssignment(assignment, ifQuestion);
+            }
+        });
+    }
+
+    private void applyAssignment(RoundAssignment assignment, TextView ifQuestion) {
+        User ifOwner = findUserByKey(assignment.ifOwnerKey);
+        if (ifOwner == null || ifOwner.ifSentence == null || ifOwner.ifSentence.length() == 0) {
+            AppLog.w(AppLog.GAME_FLOW, "WriteThen assignment loaded without If sentence ownerKey=" + assignment.ifOwnerKey);
+            return;
+        }
+
+        myRandomIf = ifOwner.ifSentence;
+        userViewModel.localRandIf = myRandomIf;
+        ifQuestion.setText(myRandomIf + "?");
+        submitButton.setEnabled(true);
+        AppLog.i(AppLog.GAME_FLOW, "WriteThen assignment applied ifOwner=" + assignment.ifOwnerKey);
+    }
+
+    private User findUserByKey(String playerKey) {
+        for (User user : userViewModel.getUsers()) {
+            if (GameLogic.playerKey(user).equals(playerKey)) {
+                return user;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public void onDestroyView() {
+        roomViewModel.removeAssignmentListener();
+        super.onDestroyView();
     }
 }

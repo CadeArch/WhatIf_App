@@ -21,7 +21,7 @@ import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 
 public class CollectingAnswersFrag extends Fragment {
-    private static final long MIN_WAITING_SCREEN_MS = 2000L;
+    private static final long MIN_WAITING_SCREEN_MS = 1000L;
 
     UserViewModel userViewModel;
     Boolean allThensFinished = false;
