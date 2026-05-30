@@ -9,6 +9,9 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelProvider;
+
+import java.util.Objects;
+
 import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.models.User;
@@ -49,26 +52,33 @@ public class StartFragment extends Fragment {
         // checking to see if user can unlock any voices based on whether or not they are on the leaderboards
         // assuring leaderboards isnt empty so it wont break, if they are on the leaderboards they can unlock it
         // but it wont notify or try to unlock it again if the player has already unlocked that value
-        if (userViewModel.getUser().getValue().accountPlay) {
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null) {
+            UiMessenger.showSnackbar(view, "User is not loaded yet. Go back and try again.");
+            AppLog.w(AppLog.AUTH, "Start screen opened without current user");
+            return;
+        }
+
+        if (currentUser.accountPlay) {
             AppLog.d(AppLog.UI, "Start screen account player; leaderboard size=" + leaderBoardViewModel.getLeaderBoard().size());
-            if (userViewModel.getUser().getValue().gamesPlayed > 0) {
+            if (currentUser.gamesPlayed > 0) {
                 userViewModel.getMadeLeaderBoard(userViewModel.getUser());
                 userViewModel.getMadePerfectLeaderBoard(userViewModel.getUser());
             }
             if (leaderBoardViewModel.getLeaderBoard().size() > 0) {
                 for (LeaderBoardItem lbi : leaderBoardViewModel.getLeaderBoard()) {
-                    if (lbi.getIfContributorID().equals(userViewModel.getUser().getValue().getUid()) &&
-                            lbi.getThenContributorID().equals(userViewModel.getUser().getValue().getUid())) {
-                        if (!userViewModel.getUser().getValue().perfectLeaderBoard) {
-                            userViewModel.getUser().getValue().perfectLeaderBoard = true;
+                    if (Objects.equals(lbi.getIfContributorID(), currentUser.getUid()) &&
+                            Objects.equals(lbi.getThenContributorID(), currentUser.getUid())) {
+                        if (!currentUser.perfectLeaderBoard) {
+                            currentUser.perfectLeaderBoard = true;
                             userViewModel.unlockVoice(userViewModel.getUser(), "leaderBoards");
                             UiMessenger.showSnackbar(view, "Unlocked pig latin google voice!");
                             AppLog.i(AppLog.AUTH, "Perfect leaderboard unlock triggered");
                         }
-                    } else if (lbi.getIfContributorID().equals(userViewModel.getUser().getValue().getUid()) ||
-                            lbi.getThenContributorID().equals(userViewModel.getUser().getValue().getUid())) {
-                        if (!userViewModel.getUser().getValue().madeLeaderBoard) {
-                            userViewModel.getUser().getValue().madeLeaderBoard = true;
+                    } else if (Objects.equals(lbi.getIfContributorID(), currentUser.getUid()) ||
+                            Objects.equals(lbi.getThenContributorID(), currentUser.getUid())) {
+                        if (!currentUser.madeLeaderBoard) {
+                            currentUser.madeLeaderBoard = true;
                             userViewModel.unlockVoice(userViewModel.getUser(), "leaderBoards");
                             UiMessenger.showSnackbar(view, "Unlocked fuddify google voice!");
 //                        System.out.println("on Leader Board");
@@ -108,12 +118,23 @@ public class StartFragment extends Fragment {
 
         //giving create game button functionality MAYBE MAKE THIS ONLY AVAILABLE TO ACCOUNT PLAY
         view.findViewById(R.id.create_game).setOnClickListener(v -> {
+            User user = userViewModel.getUser().getValue();
+            if (user == null) {
+                UiMessenger.showSnackbar(view, "User is not loaded yet. Go back and try again.");
+                AppLog.w(AppLog.AUTH, "Create game blocked: missing current user");
+                return;
+            }
 
             // storing the name locally to push up to firebase in the join game fragment for non account play
-            if (!userViewModel.getUser().getValue().accountPlay) {
-                userViewModel.localName = "guest-" + enterName.getText().toString();
+            if (!user.accountPlay) {
+                if (enterName.getText().toString().trim().length() == 0) {
+                    UiMessenger.showError(enterName, "Name required");
+                    AppLog.w(AppLog.UI, "Create game blocked: missing free-play name");
+                    return;
+                }
+                userViewModel.localName = "guest-" + enterName.getText().toString().trim();
                 //building user for first time if in freeplay
-                userViewModel.getUser().getValue().userName = userViewModel.localName;
+                user.userName = userViewModel.localName;
                 AppLog.d(AppLog.AUTH, "Free-play host name set");
             }
 
@@ -125,7 +146,12 @@ public class StartFragment extends Fragment {
             roomViewModel.pushRoom(roomID);
 
             MutableLiveData<User> newUser = userViewModel.getUser();
-            newUser.getValue().userName = userViewModel.localName;
+            if (newUser.getValue().accountPlay && (newUser.getValue().userName == null || newUser.getValue().userName.length() == 0)) {
+                newUser.getValue().userName = userName.getText().toString();
+            }
+            else if (!newUser.getValue().accountPlay) {
+                newUser.getValue().userName = userViewModel.localName;
+            }
             newUser.getValue().host = true;
             newUser.getValue().hostStarted = false;
             newUser.getValue().gameRoom = userViewModel.myRoom;
@@ -143,10 +169,21 @@ public class StartFragment extends Fragment {
 
         //giving the join game button functionality
         view.findViewById(R.id.joinGame).setOnClickListener(v -> {
+            User user = userViewModel.getUser().getValue();
+            if (user == null) {
+                UiMessenger.showSnackbar(view, "User is not loaded yet. Go back and try again.");
+                AppLog.w(AppLog.AUTH, "Join game blocked: missing current user");
+                return;
+            }
             // storing the name locally to push up to firebase in the join game fragment
-            if (!userViewModel.getUser().getValue().accountPlay) {
-                userViewModel.localName = "guest-" + enterName.getText().toString();
-                userViewModel.getUser().getValue().userName = userViewModel.localName;
+            if (!user.accountPlay) {
+                if (enterName.getText().toString().trim().length() == 0) {
+                    UiMessenger.showError(enterName, "Name required");
+                    AppLog.w(AppLog.UI, "Join game blocked: missing free-play name");
+                    return;
+                }
+                userViewModel.localName = "guest-" + enterName.getText().toString().trim();
+                user.userName = userViewModel.localName;
                 AppLog.d(AppLog.AUTH, "Free-play guest name set");
             }
             //moving to the join game fragment

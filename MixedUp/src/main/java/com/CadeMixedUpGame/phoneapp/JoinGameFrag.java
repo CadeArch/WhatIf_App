@@ -2,7 +2,6 @@ package com.CadeMixedUpGame.phoneapp;
 
 import android.os.Bundle;
 import androidx.annotation.NonNull;
-import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
@@ -19,7 +18,6 @@ public class JoinGameFrag extends Fragment {
     boolean loadedUsers = false;
     boolean joinInProgress = false;
     String pendingRoom = "";
-    private ObservableList.OnListChangedCallback<ObservableList<User>> usersCallback;
 
     public JoinGameFrag() {
         super(R.layout.fragment_join_game);
@@ -94,62 +92,24 @@ public class JoinGameFrag extends Fragment {
 
     private void joinRoom(String myRoom) {
         joinInProgress = false;
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null) {
+            AppLog.w(AppLog.AUTH, "Join room blocked: missing current user");
+            UiMessenger.showBanner(requireView(), "User is not loaded yet. Go back and try again.", UiMessenger.MessageType.ERROR);
+            return;
+        }
         AppLog.i(AppLog.ROOM, "Joining room=" + myRoom);
         if (!loadedUsers) {
             userViewModel.loadUsers(myRoom);
             loadedUsers = true;
         }
         userViewModel.myRoom = myRoom;
-        userViewModel.getUser().getValue().gameRoom = myRoom;
-        userViewModel.getUser().getValue().host = false;
-        userViewModel.getUser().getValue().hostStarted = false;
+        currentUser.gameRoom = myRoom;
+        currentUser.host = false;
+        currentUser.hostStarted = false;
         userViewModel.pushPerson(userViewModel.getUser());
-
-        usersCallback = new ObservableList.OnListChangedCallback<ObservableList<User>>() {
-            @Override
-            public void onChanged(ObservableList<User> sender) {
-
-            }
-
-            @Override
-            public void onItemRangeChanged(ObservableList<User> sender, int positionStart, int itemCount) {
-
-            }
-
-            @Override
-            public void onItemRangeInserted(ObservableList<User> sender, int positionStart, int itemCount) {
-                for (User player : userViewModel.getUsers()) {
-                    if (userViewModel.localName.equals(player.userName) && !player.hostStarted && !userViewModel.onWaitingForHost) {
-                        AppLog.i(AppLog.GAME_FLOW, "JoinGameFrag -> WaitingForHostFrag room=" + myRoom);
-                        Utils.navigateToFragment(getActivity(), WaitingForHostFrag.class);
-                        userViewModel.onWaitingForHost = true;
-                    }
-                    if (player.host) {
-                        AppLog.d(AppLog.ROOM, "Host found while joining: " + player.userName);
-                        userViewModel.host.setValue(player);
-                    }
-                }
-            }
-
-            @Override
-            public void onItemRangeMoved(ObservableList<User> sender, int fromPosition, int toPosition, int itemCount) {
-
-            }
-
-            @Override
-            public void onItemRangeRemoved(ObservableList<User> sender, int positionStart, int itemCount) {
-
-            }
-        };
-        userViewModel.getUsers().addOnListChangedCallback(usersCallback);
-    }
-
-    @Override
-    public void onDestroyView() {
-        if (usersCallback != null) {
-            userViewModel.getUsers().removeOnListChangedCallback(usersCallback);
-            usersCallback = null;
-        }
-        super.onDestroyView();
+        AppLog.i(AppLog.GAME_FLOW, "JoinGameFrag -> WaitingForHostFrag room=" + myRoom);
+        Utils.navigateToFragment(getActivity(), WaitingForHostFrag.class);
+        userViewModel.onWaitingForHost = true;
     }
 }

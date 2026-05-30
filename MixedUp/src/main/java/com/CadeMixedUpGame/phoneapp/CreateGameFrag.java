@@ -12,6 +12,7 @@ import android.view.View;
 
 import android.widget.TextView;
 
+import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
@@ -35,6 +36,10 @@ public class CreateGameFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
 
         TextView replace = view.findViewById(R.id.replace);
+        if (userViewModel.myRoom == null || userViewModel.myRoom.length() == 0) {
+            UiMessenger.showSnackbar(view, "Game room was not created. Go back and try again.");
+            AppLog.w(AppLog.ROOM, "Create game screen opened without room id");
+        }
         replace.setText(userViewModel.myRoom);
 
 
@@ -51,6 +56,11 @@ public class CreateGameFrag extends Fragment {
 
         //giving start button functionality
         view.findViewById(R.id.createGame_start).setOnClickListener(v -> {
+            if (userViewModel.myRoom == null || userViewModel.myRoom.length() == 0) {
+                UiMessenger.showSnackbar(view, "Game room was not created. Go back and try again.");
+                AppLog.w(AppLog.ROOM, "Create game start blocked: missing room id");
+                return;
+            }
 
 
             userViewModel.loadUsers(userViewModel.myRoom);

@@ -16,6 +16,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DatabaseException;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -299,29 +300,39 @@ public class UserViewModel extends ViewModel {
     }
 
     private void addUsersFromSnapshot(@NonNull DataSnapshot snapshot, String reason) {
+        User user = readPlayerSnapshot(snapshot);
         int added = 0;
-        for(DataSnapshot ds : snapshot.getChildren()) {
-            User user = ds.getValue(User.class);
-            if (user != null) {
-                users.remove(user);
-                users.add(user);
-                added += 1;
-            }
+        if (user != null) {
+            users.remove(user);
+            users.add(user);
+            added = 1;
         }
         AppLog.d(AppLog.ROOM, "Players snapshot " + reason + ": added=" + added + ", total=" + users.size());
     }
 
     private void updateUsersFromSnapshot(@NonNull DataSnapshot snapshot) {
+        User user = readPlayerSnapshot(snapshot);
         int changed = 0;
-        for(DataSnapshot ds : snapshot.getChildren()) {
-            User user = ds.getValue(User.class);
-            if (shouldReplaceUser(user)) {
-                users.remove(user);
-                users.add(user);
-                changed += 1;
-            }
+        if (shouldReplaceUser(user)) {
+            users.remove(user);
+            users.add(user);
+            changed = 1;
         }
         AppLog.d(AppLog.ROOM, "Players snapshot changed: updated=" + changed + ", total=" + users.size());
+    }
+
+    private User readPlayerSnapshot(@NonNull DataSnapshot snapshot) {
+        try {
+            DataSnapshot valueSnapshot = snapshot.child("value");
+            if (valueSnapshot.exists()) {
+                return valueSnapshot.getValue(User.class);
+            }
+            return snapshot.getValue(User.class);
+        }
+        catch (DatabaseException e) {
+            AppLog.e(AppLog.FIREBASE, "Could not parse player snapshot key=" + snapshot.getKey(), e);
+            return null;
+        }
     }
 
     private boolean shouldReplaceUser(User user) {

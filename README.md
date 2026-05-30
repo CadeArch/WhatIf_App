@@ -58,7 +58,8 @@ Useful Logcat filters:
 - [x] Add stronger success/failure handling for important Firebase operations.
 - [x] Keep tracking and removing Firebase/list callbacks explicitly when leaving rooms or ending matches.
 - [x] Confirm the host cannot go home or play again until all required votes are cast.
-
+- [ ] Store plain Firebase model objects instead of `MutableLiveData` wrappers so room/player/account data has a clean database shape.
+- [ ] next logic for single person reading is not functional, the next button is there for everyone but it is auto enabled for everyone not adhereing to the only one person can read at a time rule - rather than a next button WHILE seeing their sentance it should probably hide their if then until they become active so they arent focused on their sentance while the active person is trying to read theirs to the group. then once their phone becomes active it should enable the button to unhide their sentance. while it is disabled it should explain it isnt their turn yet
 ### Game Flow
 
 - [x] Revisit sentence pairing so the "If" and "Then" assignment feels more random.

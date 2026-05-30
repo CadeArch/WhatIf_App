@@ -49,18 +49,27 @@ public class WaitingForHostFrag extends Fragment {
             }
         });
         // this will unlock voices based on number of games played unlocking here in case players hit the play again button
-        if (userViewModel.getUser().getValue().accountPlay) {
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null) {
+            UiMessenger.showBanner(view, "User is not loaded yet. Go home and try again.", UiMessenger.MessageType.ERROR);
+            AppLog.w(AppLog.AUTH, "Waiting screen opened without current user");
+            return;
+        }
+
+        if (currentUser.accountPlay) {
             userViewModel.unlockVoice(userViewModel.getUser(), "numGames");
-            if (userViewModel.getUser().getValue().gamesPlayed == 5) {
+            if (currentUser.gamesPlayed == 5) {
                 UiMessenger.showSnackbar(view, "Unlocked backwords google voice!");
             }
         }
 
         TextView gameCode = view.findViewById(R.id.gameCode);
-        gameCode.setText(userViewModel.getUser().getValue().gameRoom);
+        gameCode.setText(currentUser.gameRoom);
 
 
-        roomViewModel.gameInProgressFalse(userViewModel.getUser().getValue().gameRoom);
+        if (currentUser.host) {
+            roomViewModel.gameInProgressFalse(currentUser.gameRoom);
+        }
         // set up the RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
@@ -88,6 +97,7 @@ public class WaitingForHostFrag extends Fragment {
 //                    System.out.println("users array size: WFHF: " + userViewModel.getUsers().size());
 //                MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getContext(), userViewModel.getUsers());
                     recyclerView.setAdapter(adapter);
+                    findAndSetHostFromUsers();
                 }
 
             }
@@ -104,9 +114,10 @@ public class WaitingForHostFrag extends Fragment {
             }
         };
         userViewModel.getUsers().addOnListChangedCallback(usersCallback);
+        findAndSetHostFromUsers();
 
         // if the current persons device is the host set the host value since the host wont have gone through the join game frag
-        if (userViewModel.getUser().getValue().host) {
+        if (currentUser.host) {
             userViewModel.host = userViewModel.getUser();
 //            System.out.println("I am the host and have set the host value: " + userViewModel.host.getValue().userName);
         }
@@ -116,7 +127,7 @@ public class WaitingForHostFrag extends Fragment {
             startGame(view);
         });
 
-        if(!userViewModel.getUser().getValue().host) {
+        if(!currentUser.host) {
             // making button invisible since they arent the host
             View button = view.findViewById(R.id.waitingForHost_start);
             button.setVisibility(View.GONE);
@@ -127,8 +138,11 @@ public class WaitingForHostFrag extends Fragment {
             userViewModel.host.observe(this.getViewLifecycleOwner(), new Observer<User>() {
                 @Override
                 public void onChanged(User user) {
+                    if (user == null) {
+                        return;
+                    }
                     userViewModel.listenToHost(userViewModel.host);
-                    AppLog.i(AppLog.ROOM, "Guest listening to host=" + userViewModel.host.getValue().userName);
+                    AppLog.i(AppLog.ROOM, "Guest listening to host=" + user.userName);
 
                 }
             });
@@ -136,17 +150,28 @@ public class WaitingForHostFrag extends Fragment {
             userViewModel.getUser().observe(this.getViewLifecycleOwner(), new Observer<User>() {
                 @Override
                 public void onChanged(User user) {
+                    if (user == null) {
+                        return;
+                    }
 //                    System.out.println("MY USERNAME: " + user.userName);
 //                    System.out.println("Host started: " + user.hostStarted);
                     //if host has clicked the button move to next screen
-                    userViewModel.hostStarted(userViewModel.getUser().getValue());
-
                     if (user.hostStarted && !user.ifFinished && !userViewModel.onWriteIf) {
 //                        System.out.println("WFH frag-----host started-----ifFinished---" + user.hostStarted + " " + user.ifFinished);
                         navigateToWriteIf();
                     }
                 }
             });
+        }
+    }
+
+    private void findAndSetHostFromUsers() {
+        for (User player : userViewModel.getUsers()) {
+            if (player != null && player.host) {
+                userViewModel.host.setValue(player);
+                AppLog.d(AppLog.ROOM, "Host found on waiting screen: " + player.userName);
+                return;
+            }
         }
     }
 
