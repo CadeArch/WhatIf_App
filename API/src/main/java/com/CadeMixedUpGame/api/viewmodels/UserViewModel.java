@@ -21,6 +21,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 public class UserViewModel extends ViewModel {
     public MutableLiveData<String> signInMessage = new MutableLiveData<String>();
@@ -43,7 +44,7 @@ public class UserViewModel extends ViewModel {
     public ObservableArrayList<Unlockable> userUnlocked = new ObservableArrayList<Unlockable>();
     public ChildEventListener listener;
     private String listenerRoom;
-    private ChildEventListener hostListener;
+    private ValueEventListener hostListener;
     private String hostListenerPath;
 
     public UserViewModel() {
@@ -283,7 +284,11 @@ public class UserViewModel extends ViewModel {
 
             @Override
             public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-
+                User removedUser = readPlayerSnapshot(snapshot);
+                if (removedUser != null) {
+                    users.remove(removedUser);
+                    AppLog.d(AppLog.ROOM, "Player removed: total=" + users.size());
+                }
             }
 
             @Override
@@ -324,8 +329,12 @@ public class UserViewModel extends ViewModel {
     private User readPlayerSnapshot(@NonNull DataSnapshot snapshot) {
         try {
             DataSnapshot valueSnapshot = snapshot.child("value");
-            if (valueSnapshot.exists()) {
+            if (isUserSnapshot(valueSnapshot)) {
                 return valueSnapshot.getValue(User.class);
+            }
+            if (!isUserSnapshot(snapshot)) {
+                AppLog.w(AppLog.FIREBASE, "Skipping non-user player child key=" + snapshot.getKey());
+                return null;
             }
             return snapshot.getValue(User.class);
         }
@@ -335,11 +344,55 @@ public class UserViewModel extends ViewModel {
         }
     }
 
+    private boolean isUserSnapshot(DataSnapshot snapshot) {
+        return snapshot != null
+                && snapshot.exists()
+                && snapshot.hasChildren()
+                && (snapshot.hasChild("userName") || snapshot.hasChild("userID") || snapshot.hasChild("uid"));
+    }
+
     private boolean shouldReplaceUser(User user) {
-        if (user == null || user.ifSentence == null || user.thenSentence == null) {
-            return false;
+        return user != null;
+    }
+
+    private DatabaseReference playerRef(User user) {
+        return db.child("rooms").child(user.gameRoom).child("players").child(user.userName + "-" + user.userID);
+    }
+
+    private DatabaseReference accountPlayerRef(User user) {
+        return db.child("AccountPlayers").child(user.uid).child(user.userName);
+    }
+
+    public void removeCurrentPlayerFromRoom() {
+        removeCurrentPlayerFromRoom(null);
+    }
+
+    public void removeCurrentPlayerFromRoom(Runnable onComplete) {
+        User currentUser = user.getValue();
+        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0 || currentUser.userName == null) {
+            AppLog.w(AppLog.ROOM, "removeCurrentPlayerFromRoom skipped: missing current user or room");
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return;
         }
-        return user.ifSentence.length() > 0 || user.thenSentence.length() > 0;
+        String room = currentUser.gameRoom;
+        String playerKey = currentUser.userName + "-" + currentUser.userID;
+        AppLog.i(AppLog.ROOM, "Removing current player from room=" + room + ", playerKey=" + playerKey);
+        playerRef(currentUser).removeValue()
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.FIREBASE, "Current player removed room=" + room + ", playerKey=" + playerKey);
+                    if (onComplete != null) {
+                        onComplete.run();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not leave the room cleanly. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed removing current player room=" + room + ", playerKey=" + playerKey, e);
+                    if (onComplete != null) {
+                        onComplete.run();
+                    }
+                });
     }
 
     //key to update values in firebase
@@ -349,7 +402,7 @@ public class UserViewModel extends ViewModel {
             return;
         }
         //updating the status that the host has started the game
-        db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostStarted").setValue(true)
+        playerRef(user).child("hostStarted").setValue(true)
                 .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Host started write succeeded room=" + user.gameRoom))
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not start the game. Check your connection and try again.");
@@ -368,7 +421,7 @@ public class UserViewModel extends ViewModel {
             value = user.hostPlayedAgain;
         }
         AppLog.i(AppLog.FIREBASE, "Writing hostPlayedAgain=" + value + " room=" + user.gameRoom);
-        db.child("rooms").child(user.gameRoom).child("players").child(user.userName+ "-" + user.userID).child("value").child("hostPlayedAgain").setValue(value)
+        playerRef(user).child("hostPlayedAgain").setValue(value)
                 .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "hostPlayedAgain write succeeded room=" + user.gameRoom))
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not update play-again state. Check your connection and try again.");
@@ -389,16 +442,10 @@ public class UserViewModel extends ViewModel {
         removeHostListener();
         hostListenerPath = path;
         AppLog.i(AppLog.FIREBASE, "Attaching host listener room=" + hostUser.gameRoom + ", host=" + hostUser.userName);
-        hostListener = new ChildEventListener() {
+        hostListener = new ValueEventListener() {
             @Override
-            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-            }
-
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-                User theChanged = snapshot.getValue(User.class);
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                User theChanged = readPlayerSnapshot(snapshot);
                 if (theChanged == null || getUser().getValue() == null) {
                     return;
                 }
@@ -421,21 +468,11 @@ public class UserViewModel extends ViewModel {
             }
 
             @Override
-            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-            }
-
-            @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 AppLog.e(AppLog.FIREBASE, "Host listener cancelled: " + error.getMessage());
             }
         };
-        db.child("rooms").child(hostUser.gameRoom).child("players").child(hostUser.userName+ "-" + hostUser.userID).addChildEventListener(hostListener);
+        db.child(hostListenerPath).addValueEventListener(hostListener);
     }
 
     private void removeHostListener() {
@@ -448,7 +485,7 @@ public class UserViewModel extends ViewModel {
     }
 
     public void getMadeLeaderBoard(MutableLiveData<User> user) {
-        Task<DataSnapshot> madeLeader = db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("value").child("madeLeaderBoard").get();
+        Task<DataSnapshot> madeLeader = accountPlayerRef(user.getValue()).get();
         madeLeader.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DataSnapshot> task) {
@@ -457,7 +494,7 @@ public class UserViewModel extends ViewModel {
                     return;
                 }
                 DataSnapshot snapshot = madeLeader.getResult();
-                Boolean inDB = snapshot.getValue(Boolean.class);
+                Boolean inDB = readAccountBoolean(snapshot, "madeLeaderBoard");
                 if (inDB == null || user.getValue() == null) {
                     return;
                 }
@@ -468,7 +505,7 @@ public class UserViewModel extends ViewModel {
     }
 
     public void getMadePerfectLeaderBoard(MutableLiveData<User> user) {
-        Task<DataSnapshot> madePerfectLeader = db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("value").child("perfectLeaderBoard").get();
+        Task<DataSnapshot> madePerfectLeader = accountPlayerRef(user.getValue()).get();
         madePerfectLeader.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DataSnapshot> task) {
@@ -477,7 +514,7 @@ public class UserViewModel extends ViewModel {
                     return;
                 }
                 DataSnapshot snapshot = madePerfectLeader.getResult();
-                Boolean inDB = snapshot.getValue(Boolean.class);
+                Boolean inDB = readAccountBoolean(snapshot, "perfectLeaderBoard");
                 if (inDB == null || user.getValue() == null) {
                     return;
                 }
@@ -485,6 +522,14 @@ public class UserViewModel extends ViewModel {
                 AppLog.d(AppLog.AUTH, "Loaded perfectLeaderBoard=" + user.getValue().perfectLeaderBoard);
             }
         });
+    }
+
+    private Boolean readAccountBoolean(DataSnapshot snapshot, String key) {
+        Boolean direct = snapshot.child(key).getValue(Boolean.class);
+        if (direct != null) {
+            return direct;
+        }
+        return snapshot.child("value").child(key).getValue(Boolean.class);
     }
 
     //in freeplay to build the user
@@ -501,6 +546,10 @@ public class UserViewModel extends ViewModel {
 //        }
 
     public void pushPerson(MutableLiveData<User> user) {
+        pushPerson(user, null);
+    }
+
+    public void pushPerson(MutableLiveData<User> user, Runnable onSuccess) {
         int userID = (int)(Math.random() * 100000);
         if (user.getValue().userID == 0) {
             user.getValue().userID = userID;
@@ -509,11 +558,14 @@ public class UserViewModel extends ViewModel {
         else {
             AppLog.d(AppLog.ROOM, "User id already set for " + user.getValue().userName);
         }
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName + "-" + user.getValue().userID).setValue(user).addOnCompleteListener(new OnCompleteListener<Void>() {
+        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName + "-" + user.getValue().userID).setValue(user.getValue()).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()){
                     AppLog.i(AppLog.FIREBASE, "Pushed player to room=" + user.getValue().gameRoom);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
                 }
                 else {
                     databaseMessage.setValue("Could not join the room. Check your connection and try again.");
@@ -534,9 +586,18 @@ public class UserViewModel extends ViewModel {
     }
 
     public void nurfAllUsers() {
+        nurfAllUsers(null);
+    }
+
+    public void nurfAllUsers(Runnable onSuccess) {
         AppLog.i(AppLog.ROOM, "Deleting all players in room=" + myRoom);
         db.child("rooms").child(myRoom).child("players").removeValue()
-                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Players cleared room=" + myRoom))
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.FIREBASE, "Players cleared room=" + myRoom);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not reset the room players. Check your connection.");
                     AppLog.e(AppLog.FIREBASE, "Failed deleting players room=" + myRoom, e);
@@ -558,19 +619,19 @@ public class UserViewModel extends ViewModel {
     }
 
     public void pushAccountPlayer(MutableLiveData<User> user) {
-        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).setValue(user)
+        accountPlayerRef(user.getValue()).setValue(user.getValue())
                 .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed pushing account player", e));
     }
 
     public void pushIf(MutableLiveData<User> user) {
 
         AppLog.i(AppLog.FIREBASE, "Submitting If room=" + user.getValue().gameRoom);
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifSentence").setValue(user.getValue().ifSentence)
+        playerRef(user.getValue()).child("ifSentence").setValue(user.getValue().ifSentence)
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not submit your question. Check your connection and try again.");
                     AppLog.e(AppLog.FIREBASE, "Failed submitting If sentence", e);
                 });
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("ifFinished").setValue(user.getValue().ifFinished)
+        playerRef(user.getValue()).child("ifFinished").setValue(user.getValue().ifFinished)
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not mark your question complete. Check your connection.");
                     AppLog.e(AppLog.FIREBASE, "Failed submitting If finished", e);
@@ -580,12 +641,12 @@ public class UserViewModel extends ViewModel {
     public void pushThen(MutableLiveData<User> user) {
 
         AppLog.i(AppLog.FIREBASE, "Submitting Then room=" + user.getValue().gameRoom);
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenSentence").setValue(user.getValue().thenSentence)
+        playerRef(user.getValue()).child("thenSentence").setValue(user.getValue().thenSentence)
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not submit your response. Check your connection and try again.");
                     AppLog.e(AppLog.FIREBASE, "Failed submitting Then sentence", e);
                 });
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName+ "-" + user.getValue().userID).child("value").child("thenFinished").setValue(user.getValue().thenFinished)
+        playerRef(user.getValue()).child("thenFinished").setValue(user.getValue().thenFinished)
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not mark your response complete. Check your connection.");
                     AppLog.e(AppLog.FIREBASE, "Failed submitting Then finished", e);
@@ -650,12 +711,12 @@ public class UserViewModel extends ViewModel {
         }
         if (user.getValue().madeLeaderBoard && which.equals("leaderBoards")) {
             db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child("fuddify").child("unlocked").setValue(true);
-            db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("value").child("madeLeaderBoard").setValue(true);
+            accountPlayerRef(user.getValue()).child("madeLeaderBoard").setValue(true);
             AppLog.i(AppLog.AUTH, "Unlocked fuddify voice");
         }
         if (user.getValue().perfectLeaderBoard && which.equals("leaderBoards")) {
             db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child("pig latin").child("unlocked").setValue(true);
-            db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("value").child("perfectLeaderBoard").setValue(true);
+            accountPlayerRef(user.getValue()).child("perfectLeaderBoard").setValue(true);
             AppLog.i(AppLog.AUTH, "Unlocked pig latin voice");
 
         }

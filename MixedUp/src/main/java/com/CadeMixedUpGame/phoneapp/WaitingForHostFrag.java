@@ -182,8 +182,14 @@ public class WaitingForHostFrag extends Fragment {
             AppLog.w(AppLog.ROOM, "Start game blocked: current user or game room missing");
             return;
         }
+        if (userViewModel.getUsers().size() < 2) {
+            UiMessenger.showSnackbar(view, "Wait for at least one more player.");
+            AppLog.w(AppLog.ROOM, "Start game blocked: fewer than two players room=" + currentUser.gameRoom);
+            return;
+        }
 
         AppLog.i(AppLog.GAME_FLOW, "Host starting game room=" + currentUser.gameRoom);
+        roomViewModel.setReplayState(currentUser.gameRoom, "");
         roomViewModel.gameInProgressTrue(currentUser.gameRoom, () ->
                 roomViewModel.createRoundAssignments(currentUser.gameRoom, userViewModel.getUsers(), () -> {
                     currentUser.hostStarted = true;

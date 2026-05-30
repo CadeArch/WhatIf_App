@@ -15,7 +15,7 @@
         android:layout_width="600dp"
         android:layout_height="50dp"
         android:layout_marginTop="16dp"
-        android:text='Write your response beginning with "then."'
+        android:text="Finish the response"
         android:textSize="25dp"
         android:gravity="center_horizontal"
         app:layout_constraintEnd_toEndOf="parent"
@@ -46,18 +46,30 @@
             app:layout_constraintVertical_bias="0.0" />
     </ScrollView>
 
+    <TextView
+        android:id="@+id/thenPrefix"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="then"
+        android:textColor="@color/black"
+        android:textSize="24dp"
+        app:layout_constraintBaseline_toBaselineOf="@+id/thenAnswer"
+        app:layout_constraintEnd_toStartOf="@+id/thenAnswer"
+        app:layout_constraintHorizontal_chainStyle="packed"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <EditText
         android:id="@+id/thenAnswer"
-        android:layout_width="400dp"
+        android:layout_width="330dp"
         android:layout_height="wrap_content"
+        android:layout_marginLeft="12dp"
         android:gravity="center"
-        android:hint="Enter Response"
+        android:hint="your response"
         android:textColorHint="@color/black"
         android:textSize="20dp"
         app:layout_constraintBottom_toTopOf="@+id/writeThen_submit"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/thenPrefix"
         app:layout_constraintTop_toBottomOf="@+id/scroller"
         app:layout_constraintVertical_bias="0.0" />
 

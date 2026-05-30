@@ -43,8 +43,9 @@ Useful Logcat filters:
 - Guests can join while the room is still in the lobby.
 - The room is locked once the match starts.
 - When the host starts the match, Firebase locks the room and stores a hidden randomized assignment map for that round.
-- Players write an "If" sentence, then receive their assigned player's "If" and write a "Then" response.
-- Guest/free-play games skip voting.
+- Players finish a "What if" prompt, then receive their assigned player's prompt and finish a "then" response.
+- Free players get the full core game loop: create, join, write, read, pass reading turns, replay, and leave.
+- Account-only features are voting, microphone/Text-To-Speech, unlockables, profile progress, and leaderboard submission.
 - Account-only games go to voting and can submit winning sentences to the leaderboard.
 - The host controls whether the room goes home or plays again.
 
@@ -58,23 +59,46 @@ Useful Logcat filters:
 - [x] Add stronger success/failure handling for important Firebase operations.
 - [x] Keep tracking and removing Firebase/list callbacks explicitly when leaving rooms or ending matches.
 - [x] Confirm the host cannot go home or play again until all required votes are cast.
-- [ ] Store plain Firebase model objects instead of `MutableLiveData` wrappers so room/player/account data has a clean database shape.
-- [ ] next logic for single person reading is not functional, the next button is there for everyone but it is auto enabled for everyone not adhereing to the only one person can read at a time rule - rather than a next button WHILE seeing their sentance it should probably hide their if then until they become active so they arent focused on their sentance while the active person is trying to read theirs to the group. then once their phone becomes active it should enable the button to unhide their sentance. while it is disabled it should explain it isnt their turn yet
+- [x] Store plain Firebase model objects instead of `MutableLiveData` wrappers so room/player/account data has a clean database shape.
+- [x] Store play-again decisions on the room instead of the host player node so replay survives player-list cleanup.
+- [x] Remove a non-host player's room node when they leave from the end screen.
+- [ ] Add Firebase `onDisconnect()` cleanup for players who force-close the app, lose connection, or leave without tapping Home.
+- [ ] Add an explicit round/session id to round data so old listener events can be ignored if they arrive late.
+- [ ] Add a host-migration or graceful host-left flow for lobby, writing, reading, voting, and replay screens.
+- [ ] Add a visible reconnect/retry state when Firebase writes fail during submit, pass, vote, play again, or room cleanup.
+- [ ] Add Firebase emulator or fake-repository tests for replay loops, late joins, player leaves, and stale room data.
+- [ ] Add a beta smoke-test checklist for 2, 3, and 5 players across fresh game, replay, home, leave, and app force-close flows.
+
 ### Game Flow
 
 - [x] Revisit sentence pairing so the "If" and "Then" assignment feels more random.
 - [x] Store a randomized Firebase assignment map when the host starts each round so every device uses the same hidden If/Then pairing.
 - [x] Let the active reader pass the read-aloud turn to the next player when they are done.
+- [x] Hide each read result until that phone becomes the active reader, then let the player reveal it when the group is ready.
+- [x] Keep the reading phase open until every player has read, then let only the host finish the phase for all devices.
 - [x] Add a short delay or timer for the last submitter so screen transitions are less abrupt.
+- [ ] Add clearer player-facing messages for waiting on host, waiting on readers, replay disabled, and missing players.
+- [ ] Decide whether players can join between replay rounds only, and make the lobby copy/state enforce that clearly.
+
+### Architecture And Maintainability
+
+- [ ] Look for duplicate code that can be abstracted into shared helpers or `Utils` methods for reuse across fragments.
+- [ ] Reorganize `src/main/java` into human-readable packages/folders by feature, such as account, lobby, writing, reading, voting, leaderboard, messaging, and devtools.
+- [ ] Group each fragment with its helper classes/adapters where practical so it is clear which files support each game screen.
+- [ ] Find long, complex functions and break them into smaller named methods for clarity and easier unit testing.
+- [ ] Move pure game decisions out of fragments and into testable helpers or ViewModel/repository methods.
+- [ ] Add focused unit tests for extracted logic, especially replay cleanup, reader turn advancement, assignment selection, and validation.
+- [ ] Standardize fragment setup patterns for binding views, observing ViewModels, handling submit clicks, and cleanup in `onDestroyView`.
+- [ ] Review listener ownership so every Firebase listener has one obvious attach/detach location.
 
 ### Sentence Formatting
 
-- Standardize sentence cleanup:
+- [x] Standardize sentence cleanup:
   - trim whitespace,
   - strip unwanted punctuation,
   - capitalize the first letter of "If" prompts,
   - add periods where needed for display/read-aloud text.
-- Consider pre-filling "If" and "Then" labels in the prompt screens so users only type the custom part.
+- [x] Pre-fill "What if" and "then" labels in the prompt screens so users only type the custom part.
 
 ### Voting And Leaderboard
 

@@ -2,9 +2,14 @@ package com.CadeMixedUpGame.phoneapp;
 
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.TextView;
+
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import com.google.android.material.snackbar.Snackbar;
 
@@ -21,6 +26,28 @@ public class UiMessenger {
             return;
         }
         Snackbar.make(root, message, Snackbar.LENGTH_SHORT).show();
+    }
+
+    public static void showTopSnackbar(View root, String message) {
+        if (root == null || message == null || message.length() == 0) {
+            return;
+        }
+        Snackbar snackbar = Snackbar.make(root, message, Snackbar.LENGTH_SHORT);
+        View snackbarView = snackbar.getView();
+        ViewGroup.LayoutParams params = snackbarView.getLayoutParams();
+        if (params instanceof CoordinatorLayout.LayoutParams) {
+            CoordinatorLayout.LayoutParams layoutParams = (CoordinatorLayout.LayoutParams) params;
+            layoutParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+            layoutParams.topMargin = 8;
+            snackbarView.setLayoutParams(layoutParams);
+        }
+        else if (params instanceof FrameLayout.LayoutParams) {
+            FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) params;
+            layoutParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+            layoutParams.topMargin = 8;
+            snackbarView.setLayoutParams(layoutParams);
+        }
+        snackbar.show();
     }
 
     public static void showError(EditText field, String message) {

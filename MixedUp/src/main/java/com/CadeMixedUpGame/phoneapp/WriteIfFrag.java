@@ -14,8 +14,12 @@ import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 
 public class WriteIfFrag extends Fragment {
+    private static final long DEV_TAP_WINDOW_MS = 2000L;
+
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
+    private int debugSubmitTapCount = 0;
+    private long lastDebugSubmitTapMs = 0L;
 
     public WriteIfFrag() {
         super(R.layout.fragment_write_if);
@@ -39,25 +43,52 @@ public class WriteIfFrag extends Fragment {
 
         //giving submit button functionality
         view.findViewById(R.id.writeIf_submit).setOnClickListener(v -> {
-            if (ifSentence.getText().toString().equals("")) {
-                AppLog.w(AppLog.UI, "If submit blocked: empty question");
-                UiMessenger.showError(ifSentence, "Question required");
+            if (ifSentence.getText().toString().trim().length() == 0 && shouldAutoFillIf(ifSentence)) {
+                ifSentence.setText(DevBackdoor.randomIfPrompt());
+                ifSentence.setSelection(ifSentence.getText().length());
+                AppLog.i(AppLog.UI, "Debug auto-filled If prompt");
             }
-            else {
-                UiMessenger.clearError(ifSentence);
-                String ifsent = GameLogic.cleanIfSentence(ifSentence.getText().toString());
-                userViewModel.getUser().getValue().ifSentence = ifsent;
-                userViewModel.getUser().getValue().ifFinished = true;
-                userViewModel.gamePhase.setValue(GamePhase.COLLECTING_IFS);
-                AppLog.i(AppLog.GAME_FLOW, "WriteIfFrag -> CollectingQuestionsFrag");
-
-                getActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
-                        .setReorderingAllowed(true)
-                        .addToBackStack(null)
-                        .commit();
-            }
+            submitIf(ifSentence);
         });
 
+    }
+
+    private boolean shouldAutoFillIf(EditText ifSentence) {
+        if (!DevBackdoor.isEnabled(getContext()) || ifSentence == null || ifSentence.getText().toString().trim().length() > 0) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastDebugSubmitTapMs > DEV_TAP_WINDOW_MS) {
+            debugSubmitTapCount = 0;
+        }
+        lastDebugSubmitTapMs = now;
+        debugSubmitTapCount += 1;
+        return debugSubmitTapCount >= 3;
+    }
+
+    private void submitIf(EditText ifSentence) {
+        if (ifSentence.getText().toString().trim().equals("")) {
+            AppLog.w(AppLog.UI, "If submit blocked: empty question");
+            UiMessenger.showError(ifSentence, "Question required");
+        }
+        else {
+            UiMessenger.clearError(ifSentence);
+            String ifsent = GameLogic.cleanIfSentence(ifSentence.getText().toString());
+            if (ifsent.length() == 0) {
+                AppLog.w(AppLog.UI, "If submit blocked: prompt only");
+                UiMessenger.showError(ifSentence, "Add your question");
+                return;
+            }
+            userViewModel.getUser().getValue().ifSentence = ifsent;
+            userViewModel.getUser().getValue().ifFinished = true;
+            userViewModel.gamePhase.setValue(GamePhase.COLLECTING_IFS);
+            AppLog.i(AppLog.GAME_FLOW, "WriteIfFrag -> CollectingQuestionsFrag");
+
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+        }
     }
 }

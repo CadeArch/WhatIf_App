@@ -21,9 +21,13 @@ import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 
 public class StartFragment extends Fragment {
+    private static final long DEV_TAP_WINDOW_MS = 2000L;
+
     RoomViewModel roomViewModel;
     UserViewModel userViewModel;
     LeaderBoardViewModel leaderBoardViewModel;
+    private int debugNameTapCount = 0;
+    private long lastDebugNameTapMs = 0L;
 
     public StartFragment() {
         super(R.layout.fragment_start);
@@ -127,7 +131,13 @@ public class StartFragment extends Fragment {
 
             // storing the name locally to push up to firebase in the join game fragment for non account play
             if (!user.accountPlay) {
-                if (enterName.getText().toString().trim().length() == 0) {
+                if (enterName.getText().toString().trim().length() == 0 && shouldAutoFillName(enterName)) {
+                    enterName.setText(DevBackdoor.randomGuestName());
+                    enterName.setSelection(enterName.getText().length());
+                    UiMessenger.clearError(enterName);
+                    AppLog.i(AppLog.UI, "Debug auto-filled free-play host name");
+                }
+                else if (enterName.getText().toString().trim().length() == 0) {
                     UiMessenger.showError(enterName, "Name required");
                     AppLog.w(AppLog.UI, "Create game blocked: missing free-play name");
                     return;
@@ -177,7 +187,13 @@ public class StartFragment extends Fragment {
             }
             // storing the name locally to push up to firebase in the join game fragment
             if (!user.accountPlay) {
-                if (enterName.getText().toString().trim().length() == 0) {
+                if (enterName.getText().toString().trim().length() == 0 && shouldAutoFillName(enterName)) {
+                    enterName.setText(DevBackdoor.randomGuestName());
+                    enterName.setSelection(enterName.getText().length());
+                    UiMessenger.clearError(enterName);
+                    AppLog.i(AppLog.UI, "Debug auto-filled free-play guest name");
+                }
+                else if (enterName.getText().toString().trim().length() == 0) {
                     UiMessenger.showError(enterName, "Name required");
                     AppLog.w(AppLog.UI, "Join game blocked: missing free-play name");
                     return;
@@ -243,5 +259,18 @@ public class StartFragment extends Fragment {
             AppLog.i(AppLog.GAME_FLOW, "StartFragment -> ProfileFrag");
         });
 
+    }
+
+    private boolean shouldAutoFillName(EditText enterName) {
+        if (!DevBackdoor.isEnabled(getContext()) || enterName == null || enterName.getText().toString().trim().length() > 0) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastDebugNameTapMs > DEV_TAP_WINDOW_MS) {
+            debugNameTapCount = 0;
+        }
+        lastDebugNameTapMs = now;
+        debugNameTapCount += 1;
+        return debugNameTapCount >= 3;
     }
 }
