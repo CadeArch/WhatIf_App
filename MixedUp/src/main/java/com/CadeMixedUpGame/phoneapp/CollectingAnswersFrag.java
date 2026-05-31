@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.view.View;
 
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.GameFlowPolicy;
 import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
@@ -42,6 +43,7 @@ public class CollectingAnswersFrag extends Fragment {
         AppLog.i(AppLog.GAME_FLOW, "Collecting Then sentences screen opened");
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         userViewModel.gamePhase.setValue(GamePhase.COLLECTING_THENS);
+        observeUserMessages(view);
 
         userViewModel.onCollectingAnswers = true;
         onCollectingAnswers = true;
@@ -92,11 +94,19 @@ public class CollectingAnswersFrag extends Fragment {
         };
         userViewModel.getUsers().addOnListChangedCallback(usersCallback);
 
-        userViewModel.pushThen(userViewModel.getUser());
         refreshThenProgress(adapter);
 
 
 
+    }
+
+    private void observeUserMessages(View view) {
+        userViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showSnackbar(view, message);
+                userViewModel.databaseMessage.setValue("");
+            }
+        });
     }
 
     private void addThenSubmittedUser(User user) {
@@ -119,22 +129,12 @@ public class CollectingAnswersFrag extends Fragment {
             addThenSubmittedUser(user);
         }
         adapter.notifyDataSetChanged();
-        int finishedCount = countFinishedThens();
+        int finishedCount = GameFlowPolicy.countFinishedThens(userViewModel.getUsers());
         AppLog.d(AppLog.GAME_FLOW, "Collecting Then progress: finished=" + finishedCount + ", total=" + userViewModel.getUsers().size());
-        allThensFinished = finishedCount == userViewModel.getUsers().size();
+        allThensFinished = GameFlowPolicy.allPlayersFinishedThens(userViewModel.getUsers());
         if (allThensFinished && userViewModel.onCollectingAnswers && !navigationScheduled) {
             navigateToReadSentence();
         }
-    }
-
-    private int countFinishedThens() {
-        int count = 0;
-        for (User user : userViewModel.getUsers()) {
-            if (user != null && Boolean.TRUE.equals(user.thenFinished)) {
-                count += 1;
-            }
-        }
-        return count;
     }
 
     private void navigateToReadSentence() {

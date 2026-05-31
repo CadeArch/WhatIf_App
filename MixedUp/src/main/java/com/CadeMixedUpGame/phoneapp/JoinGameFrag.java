@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider;
 import android.view.View;
 import android.widget.EditText;
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.GameFlowPolicy;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
@@ -36,6 +37,8 @@ public class JoinGameFrag extends Fragment {
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
 
         EditText roomToJoin = view.findViewById(R.id.enterGameCode);
+        View joinButton = view.findViewById(R.id.joinGame_start);
+        Utils.clickButtonOnKeyboardSubmit(roomToJoin, joinButton, "Keyboard submitted room join");
 
         roomViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
             if (message != null && message.length() > 0) {
@@ -71,8 +74,8 @@ public class JoinGameFrag extends Fragment {
         });
 
         // giving joinGame start button functionality
-        view.findViewById(R.id.joinGame_start).setOnClickListener(v -> {
-            String myRoom = roomToJoin.getText().toString().trim();
+        joinButton.setOnClickListener(v -> {
+            String myRoom = GameFlowPolicy.normalizeRoomCodeInput(roomToJoin.getText().toString());
 
             // if the room they want to join exists out there it will add them to the room and push their
             // data to firebase, else it will let the user know it doesn't exist
@@ -106,10 +109,13 @@ public class JoinGameFrag extends Fragment {
         userViewModel.myRoom = myRoom;
         currentUser.gameRoom = myRoom;
         currentUser.host = false;
-        currentUser.hostStarted = false;
-        userViewModel.pushPerson(userViewModel.getUser());
-        AppLog.i(AppLog.GAME_FLOW, "JoinGameFrag -> WaitingForHostFrag room=" + myRoom);
-        Utils.navigateToFragment(getActivity(), WaitingForHostFrag.class);
-        userViewModel.onWaitingForHost = true;
+        userViewModel.pushPerson(userViewModel.getUser(), () -> {
+            if (!isAdded()) {
+                return;
+            }
+            AppLog.i(AppLog.GAME_FLOW, "JoinGameFrag -> WaitingForHostFrag room=" + myRoom);
+            Utils.navigateToFragment(getActivity(), WaitingForHostFrag.class);
+            userViewModel.onWaitingForHost = true;
+        });
     }
 }

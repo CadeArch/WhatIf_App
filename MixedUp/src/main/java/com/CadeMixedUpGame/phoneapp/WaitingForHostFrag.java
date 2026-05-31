@@ -4,7 +4,6 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -22,6 +21,9 @@ public class WaitingForHostFrag extends Fragment {
     RoomViewModel roomViewModel;
     boolean onWaitingForHost;
     private ObservableList.OnListChangedCallback<ObservableList<User>> usersCallback;
+    private boolean currentRoundBaselineCaptured;
+    private boolean lobbySawEmptyRoundId;
+    private String lobbyBaselineRoundId = "";
 
 
     public WaitingForHostFrag() {
@@ -65,6 +67,8 @@ public class WaitingForHostFrag extends Fragment {
 
         TextView gameCode = view.findViewById(R.id.gameCode);
         gameCode.setText(currentUser.gameRoom);
+        updateLobbyCopy(view, currentUser);
+        observeRoomClose(currentUser);
 
 
         if (currentUser.host) {
@@ -131,38 +135,74 @@ public class WaitingForHostFrag extends Fragment {
             // making button invisible since they arent the host
             View button = view.findViewById(R.id.waitingForHost_start);
             button.setVisibility(View.GONE);
-
-            // setting listener on host location in database if hostStarted changes to true
-            // hostStarted will be changed to true on this user
-            // todo may not need to observe the host
-            userViewModel.host.observe(this.getViewLifecycleOwner(), new Observer<User>() {
-                @Override
-                public void onChanged(User user) {
-                    if (user == null) {
-                        return;
-                    }
-                    userViewModel.listenToHost(userViewModel.host);
-                    AppLog.i(AppLog.ROOM, "Guest listening to host=" + user.userName);
-
-                }
-            });
-            // when observer notices change on user data move to next frag
-            userViewModel.getUser().observe(this.getViewLifecycleOwner(), new Observer<User>() {
-                @Override
-                public void onChanged(User user) {
-                    if (user == null) {
-                        return;
-                    }
-//                    System.out.println("MY USERNAME: " + user.userName);
-//                    System.out.println("Host started: " + user.hostStarted);
-                    //if host has clicked the button move to next screen
-                    if (user.hostStarted && !user.ifFinished && !userViewModel.onWriteIf) {
-//                        System.out.println("WFH frag-----host started-----ifFinished---" + user.hostStarted + " " + user.ifFinished);
-                        navigateToWriteIf();
-                    }
-                }
-            });
         }
+    }
+
+    private void updateLobbyCopy(View view, User currentUser) {
+        TextView waitingText = view.findViewById(R.id.textView2);
+        if (waitingText == null || currentUser == null) {
+            return;
+        }
+        if (currentUser.host) {
+            waitingText.setText("Players can join until you press Start.");
+        }
+        else {
+            waitingText.setText("Waiting for host. Players can still join.");
+        }
+    }
+
+    private void observeRoomClose(User currentUser) {
+        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0) {
+            return;
+        }
+        roomViewModel.listenToCurrentRoundId(currentUser.gameRoom);
+        roomViewModel.listenToReplayState(currentUser.gameRoom);
+        roomViewModel.replayState.observe(getViewLifecycleOwner(), state -> {
+            if ("no".equals(state) && onWaitingForHost && !currentUser.host) {
+                AppLog.i(AppLog.GAME_FLOW, "WaitingForHostFrag received host home signal; currentFragment="
+                        + Utils.currentFragmentName(getActivity()));
+                finishHomeNavigation("host replayState=no");
+            }
+        });
+        roomViewModel.currentRoundId.observe(getViewLifecycleOwner(), roundId -> {
+            handleLobbyRoundId(currentUser, roundId);
+        });
+    }
+
+    private void handleLobbyRoundId(User currentUser, String roundId) {
+        if (currentUser.host || !onWaitingForHost) {
+            return;
+        }
+        if (!Boolean.TRUE.equals(roomViewModel.currentRoundLoaded.getValue())) {
+            return;
+        }
+
+        String safeRoundId = roundId == null ? "" : roundId;
+        if (!currentRoundBaselineCaptured) {
+            currentRoundBaselineCaptured = true;
+            lobbyBaselineRoundId = safeRoundId;
+            lobbySawEmptyRoundId = safeRoundId.length() == 0;
+            AppLog.d(AppLog.GAME_FLOW, "Lobby round baseline captured room=" + currentUser.gameRoom
+                    + ", roundId=" + lobbyBaselineRoundId
+                    + ", sawEmpty=" + lobbySawEmptyRoundId);
+            return;
+        }
+
+        if (safeRoundId.length() == 0) {
+            lobbySawEmptyRoundId = true;
+            return;
+        }
+        if (!lobbySawEmptyRoundId || safeRoundId.equals(lobbyBaselineRoundId) || "no".equals(roomViewModel.replayState.getValue())) {
+            AppLog.d(AppLog.GAME_FLOW, "Ignoring non-fresh lobby round signal room=" + currentUser.gameRoom
+                    + ", roundId=" + safeRoundId
+                    + ", baseline=" + lobbyBaselineRoundId
+                    + ", sawEmpty=" + lobbySawEmptyRoundId
+                    + ", replayState=" + roomViewModel.replayState.getValue());
+            return;
+        }
+
+        AppLog.i(AppLog.GAME_FLOW, "Starting guest from fresh currentRoundId room=" + currentUser.gameRoom + ", roundId=" + safeRoundId);
+        navigateToWriteIf();
     }
 
     private void findAndSetHostFromUsers() {
@@ -192,10 +232,8 @@ public class WaitingForHostFrag extends Fragment {
         roomViewModel.setReplayState(currentUser.gameRoom, "");
         roomViewModel.gameInProgressTrue(currentUser.gameRoom, () ->
                 roomViewModel.createRoundAssignments(currentUser.gameRoom, userViewModel.getUsers(), () -> {
-                    currentUser.hostStarted = true;
                     userViewModel.playing = true;
                     userViewModel.gamePhase.setValue(GamePhase.WRITING_IF);
-                    userViewModel.hostStarted(currentUser);
                     navigateToWriteIf();
                 }));
     }
@@ -213,12 +251,30 @@ public class WaitingForHostFrag extends Fragment {
         userViewModel.playing = true;
     }
 
+    private void finishHomeNavigation(String reason) {
+        if (!isAdded()) {
+            return;
+        }
+        AppLog.i(AppLog.GAME_FLOW, "WaitingForHostFrag finishing home navigation reason=" + reason
+                + ", currentFragment=" + Utils.currentFragmentName(getActivity())
+                + ", backStack=" + requireActivity().getSupportFragmentManager().getBackStackEntryCount());
+        onWaitingForHost = false;
+        userViewModel.removeListenerOnDB();
+        roomViewModel.removeReplayStateListener();
+        roomViewModel.removeCurrentRoundListener();
+        roomViewModel.clearLocalRoundState();
+        Utils.navigateHomeReplacingCurrent(getActivity());
+        AppLog.i(AppLog.GAME_FLOW, "WaitingForHostFrag -> StartFragment via home reason=" + reason);
+    }
+
     @Override
     public void onDestroyView() {
         if (usersCallback != null) {
             userViewModel.getUsers().removeOnListChangedCallback(usersCallback);
             usersCallback = null;
         }
+        roomViewModel.removeReplayStateListener();
+        roomViewModel.removeCurrentRoundListener();
         super.onDestroyView();
     }
 }

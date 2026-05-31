@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import android.view.View;
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.GameFlowPolicy;
 import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
@@ -41,6 +42,7 @@ public class CollectingQuestionsFrag extends Fragment {
         AppLog.i(AppLog.GAME_FLOW, "Collecting If sentences screen opened");
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         userViewModel.gamePhase.setValue(GamePhase.COLLECTING_IFS);
+        observeUserMessages(view);
 
         onCollectingQuestionsFrag = true;
         // set up the RecyclerView
@@ -91,9 +93,17 @@ public class CollectingQuestionsFrag extends Fragment {
         };
         userViewModel.getUsers().addOnListChangedCallback(usersCallback);
 
-        userViewModel.pushIf(userViewModel.getUser());
         refreshIfProgress();
 
+    }
+
+    private void observeUserMessages(View view) {
+        userViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showSnackbar(view, message);
+                userViewModel.databaseMessage.setValue("");
+            }
+        });
     }
 
     private void addIfSubmittedUser(User user) {
@@ -116,22 +126,12 @@ public class CollectingQuestionsFrag extends Fragment {
             addIfSubmittedUser(user);
         }
         adapter.notifyDataSetChanged();
-        int finishedCount = countFinishedIfs();
+        int finishedCount = GameFlowPolicy.countFinishedIfs(userViewModel.getUsers());
         AppLog.d(AppLog.GAME_FLOW, "Collecting If progress: finished=" + finishedCount + ", total=" + userViewModel.getUsers().size());
-        allIfsFinished = finishedCount == userViewModel.getUsers().size();
+        allIfsFinished = GameFlowPolicy.allPlayersFinishedIfs(userViewModel.getUsers());
         if (shouldNavigateToWriteThen()) {
             navigateToWriteThen();
         }
-    }
-
-    private int countFinishedIfs() {
-        int count = 0;
-        for (User user : userViewModel.getUsers()) {
-            if (user != null && Boolean.TRUE.equals(user.ifFinished)) {
-                count += 1;
-            }
-        }
-        return count;
     }
 
     private boolean shouldNavigateToWriteThen() {

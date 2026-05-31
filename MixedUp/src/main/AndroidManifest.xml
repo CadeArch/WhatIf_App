@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 <!-- hardware accelerated might fix an onstartup crash issue -->
     <application
         android:allowBackup="true"
@@ -24,8 +25,9 @@
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/orange" />
 
-        <activity android:name="com.CadeMixedUpGame.phoneapp.MainActivity"
-            android:screenOrientation="landscape">
+        <activity
+            android:name="com.CadeMixedUpGame.phoneapp.MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

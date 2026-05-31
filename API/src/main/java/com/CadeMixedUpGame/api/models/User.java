@@ -16,7 +16,6 @@ public class User implements Comparable<User>{
     public String ifSentence;
     public String thenSentence;
     public boolean host;
-    public boolean hostStarted;
     public boolean playAgain;
     public String hostPlayedAgain;
     public int gamesPlayed;
@@ -35,7 +34,6 @@ public class User implements Comparable<User>{
         this.ifSentence = "";
         this.thenSentence = "";
         this.host = false;
-        this.hostStarted = false;
         this.playAgain = false;
         this.hostPlayedAgain = "";
         this.madeLeaderBoard = true;
@@ -54,7 +52,6 @@ public class User implements Comparable<User>{
         this.ifSentence = "";
         this.thenSentence = "";
         this.host = false;
-        this.hostStarted = false;
         this.playAgain = false;
         this.hostPlayedAgain = "";
         this.madeLeaderBoard = false;
@@ -111,9 +108,6 @@ public class User implements Comparable<User>{
     public boolean getHost() {
         return host;
     }
-    public boolean getHostStarted() {
-        return hostStarted;
-    }
 
     public boolean isPlayAgain() {
         return playAgain;
@@ -137,10 +131,6 @@ public class User implements Comparable<User>{
 
     public void setHostPlayedAgain(String hostPlayedAgain) {
         this.hostPlayedAgain = hostPlayedAgain;
-    }
-
-    public void setHostStarted(boolean hostStarted) {
-        this.hostStarted = hostStarted;
     }
 
     public void setIfFinished(Boolean ifFinished) {

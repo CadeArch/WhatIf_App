@@ -17,7 +17,7 @@ MixedUp is an Android party game built with Java, Fragments, and Firebase Realti
 - Build: Android Gradle Plugin 9.2.1, Gradle 9.4.1, JDK 17+
 - Compile SDK: 36
 - Minimum SDK: 25
-- Target SDK: 30
+- Target SDK: 33
 
 ## Build And Test
 
@@ -25,6 +25,18 @@ MixedUp is an Android party game built with Java, Fragments, and Firebase Realti
 .\gradlew.bat :MixedUp:assembleDebug
 .\gradlew.bat :API:testDebugUnitTest
 ```
+
+## Beta Smoke Test
+
+Run this checklist before sharing a build:
+
+- 2 players: create room, join room, start, submit If, submit Then, pass both read turns, confirm the game advances automatically, play again, finish a second round, then go Home.
+- 3 players: repeat the core flow and confirm each phone gets exactly one hidden read turn before the game advances automatically.
+- 5 players: repeat the core flow and confirm room code entry, player list updates, pass order, and End screen stay responsive.
+- Late join: try joining before Create, after Create, after Start, and between replay rounds.
+- Leave paths: guest leaves from End, host goes Home from End, host chooses Play Again, guest chooses Play Again.
+- Failure paths: force-close one guest during lobby, writing, reading, and replay; confirm the player list or host-facing state recovers clearly.
+- Regression pass: bad room code, empty name, empty If, empty Then, duplicate taps on Start/Join/Submit/Pass/Done.
 
 Useful Logcat filters:
 
@@ -62,12 +74,22 @@ Useful Logcat filters:
 - [x] Store plain Firebase model objects instead of `MutableLiveData` wrappers so room/player/account data has a clean database shape.
 - [x] Store play-again decisions on the room instead of the host player node so replay survives player-list cleanup.
 - [x] Remove a non-host player's room node when they leave from the end screen.
-- [ ] Add Firebase `onDisconnect()` cleanup for players who force-close the app, lose connection, or leave without tapping Home.
-- [ ] Add an explicit round/session id to round data so old listener events can be ignored if they arrive late.
+- [x] Add Firebase `onDisconnect()` cleanup for player room nodes when players force-close the app, lose connection, or leave without tapping Home.
+- [x] Add an explicit round/session id to round data so old listener events can be ignored if they arrive late.
+- [x] Add JVM tests for local replay round-state cleanup.
+- [x] Detect host removal from the room player list and show a clear host-left message on active game screens.
 - [ ] Add a host-migration or graceful host-left flow for lobby, writing, reading, voting, and replay screens.
-- [ ] Add a visible reconnect/retry state when Firebase writes fail during submit, pass, vote, play again, or room cleanup.
+- [x] Add a visible reconnect/retry state when Firebase writes fail during submit, pass, vote, play again, or room cleanup.
+- [x] Remove legacy per-player `hostStarted` start flag; game start now uses room `currentRoundId`.
 - [ ] Add Firebase emulator or fake-repository tests for replay loops, late joins, player leaves, and stale room data.
-- [ ] Add a beta smoke-test checklist for 2, 3, and 5 players across fresh game, replay, home, leave, and app force-close flows.
+- [x] Add a small shared action-button loading helper so submit/pass/vote/replay buttons use one busy-state pattern.
+- [x] Add a lightweight connection status banner when Firebase reports offline/disconnected state.
+- [x] Gate lobby start navigation on a fresh round id so stale replay data cannot flash clients into the next screen when the host sends everyone Home.
+- [x] Reserve unique rooms atomically and retry rare room-code collisions before showing a code to the host.
+- [x] Clean up unstarted Firebase rooms when the host backs out of the Create Game screen.
+- [ ] Add manual QA steps for toggling airplane mode during submit, pass, vote, play again, and Home.
+- [x] Add a beta smoke-test checklist for 2, 3, and 5 players across fresh game, replay, home, leave, and app force-close flows.
+- [ ] ensure gameroom is cleaned up after host ends rounds in the ending frag
 
 ### Game Flow
 
@@ -75,10 +97,18 @@ Useful Logcat filters:
 - [x] Store a randomized Firebase assignment map when the host starts each round so every device uses the same hidden If/Then pairing.
 - [x] Let the active reader pass the read-aloud turn to the next player when they are done.
 - [x] Hide each read result until that phone becomes the active reader, then let the player reveal it when the group is ready.
+- [x] Store host-first read order and active reader key in Firebase so phones cannot race into simultaneous read turns.
 - [x] Keep the reading phase open until every player has read, then let only the host finish the phase for all devices.
+- [x] Auto-finish the reading phase from Firebase after the final reader passes, without requiring the host to tap Done.
 - [x] Add a short delay or timer for the last submitter so screen transitions are less abrupt.
 - [ ] Add clearer player-facing messages for waiting on host, waiting on readers, replay disabled, and missing players.
-- [ ] Decide whether players can join between replay rounds only, and make the lobby copy/state enforce that clearly.
+- [x] Players can join between replay rounds, and the lobby copy/state enforces that clearly.
+- [x] Room DB clean up when HOST ends gameroom decides NOT to play again.
+
+### Accessibility
+
+- [x] Choose a room-code font that makes mixed-case letters and numbers easier to distinguish.
+- [x] Hook up Enter/Done on the keyboard to press the affirmative button on room join, If, and Then entry screens.
 
 ### Architecture And Maintainability
 

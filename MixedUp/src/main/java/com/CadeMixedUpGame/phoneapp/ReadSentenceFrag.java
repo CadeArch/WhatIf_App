@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.GameFlowPolicy;
 import com.CadeMixedUpGame.api.GameLogic;
 import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
@@ -41,7 +42,8 @@ public class ReadSentenceFrag extends Fragment {
     View nextButton;
     TextView ifQuestionText;
     TextView thenAnswerText;
-    int currentUserReadIndex = 0;
+    int currentUserReadIndex = -1;
+    String currentUserPlayerKey = "";
     RoundAssignment currentRoundAssignment;
     boolean sentenceReady = false;
     boolean sentenceRevealed = false;
@@ -49,6 +51,9 @@ public class ReadSentenceFrag extends Fragment {
     boolean readTurnPassed = false;
     boolean everyoneHasRead = false;
     boolean votingItemPushed = false;
+    boolean roundListenersStarted = false;
+    boolean assignmentListenerStarted = false;
+    boolean readingActionInProgress = false;
 
     public ReadSentenceFrag() {
         super(R.layout.fragment_read_sentence);
@@ -60,6 +65,7 @@ public class ReadSentenceFrag extends Fragment {
         bindViewModels();
         userViewModel.gamePhase.setValue(GamePhase.READING);
         setupRoomMessages(view);
+        setupUserMessages(view);
         setupActiveReaderState();
         resetHostPlayAgainIfNeeded();
         setupNextButton(view);
@@ -79,6 +85,16 @@ public class ReadSentenceFrag extends Fragment {
             if (message != null && message.length() > 0) {
                 UiMessenger.showTopSnackbar(view, message);
                 roomViewModel.databaseMessage.setValue("");
+                setReadingActionSaving(false);
+            }
+        });
+    }
+
+    private void setupUserMessages(View view) {
+        userViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showTopSnackbar(view, message);
+                userViewModel.databaseMessage.setValue("");
             }
         });
     }
@@ -90,15 +106,39 @@ public class ReadSentenceFrag extends Fragment {
             return;
         }
         resetLocalReadingState();
-        currentUserReadIndex = findCurrentUserIndex(currentUser);
+        currentUserPlayerKey = GameLogic.playerKey(currentUser);
+        roomViewModel.listenToCurrentRoundId(currentUser.gameRoom);
+        roomViewModel.currentRoundId.observe(getViewLifecycleOwner(), roundId -> {
+            if (roundId != null && roundId.length() > 0 && !roundListenersStarted) {
+                startRoundListeners(currentUser);
+            }
+        });
+        roomViewModel.activeReaderIndex.observe(getViewLifecycleOwner(), activeReaderIndex -> {
+            if (Boolean.TRUE.equals(roomViewModel.activeReaderLoaded.getValue())) {
+                updateActiveReaderControls();
+            }
+            else {
+                AppLog.d(AppLog.GAME_FLOW, "Read controls waiting for Firebase active reader");
+            }
+        });
+        roomViewModel.activeReaderLoaded.observe(getViewLifecycleOwner(), loaded -> {
+            if (Boolean.TRUE.equals(loaded)) {
+                updateActiveReaderControls();
+            }
+        });
+        roomViewModel.activeReaderKey.observe(getViewLifecycleOwner(), ignored -> {
+            if (Boolean.TRUE.equals(roomViewModel.activeReaderLoaded.getValue())) {
+                updateActiveReaderControls();
+            }
+        });
+        roomViewModel.readingComplete.observe(getViewLifecycleOwner(), this::handleReadingComplete);
+    }
+
+    private void startRoundListeners(User currentUser) {
+        roundListenersStarted = true;
         roomViewModel.listenToActiveReader(currentUser.gameRoom);
         roomViewModel.listenToReadingComplete(currentUser.gameRoom);
-        if (currentUser.host) {
-            roomViewModel.setActiveReaderIndex(currentUser.gameRoom, 0);
-            roomViewModel.setReadingComplete(currentUser.gameRoom, false);
-        }
-        roomViewModel.activeReaderIndex.observe(getViewLifecycleOwner(), this::updateActiveReaderControls);
-        roomViewModel.readingComplete.observe(getViewLifecycleOwner(), this::handleReadingComplete);
+        AppLog.i(AppLog.GAME_FLOW, "Round listeners started roundId=" + roomViewModel.currentRoundId.getValue());
     }
 
     private void resetLocalReadingState() {
@@ -108,7 +148,11 @@ public class ReadSentenceFrag extends Fragment {
         readTurnPassed = false;
         everyoneHasRead = false;
         votingItemPushed = false;
+        roundListenersStarted = false;
+        assignmentListenerStarted = false;
         currentRoundAssignment = null;
+        currentUserReadIndex = -1;
+        currentUserPlayerKey = "";
         myRandomThen = "";
         AppLog.d(AppLog.GAME_FLOW, "Local reading state reset for new read screen");
     }
@@ -140,7 +184,13 @@ public class ReadSentenceFrag extends Fragment {
 
         ifQuestionText.setText("Loading...");
         thenAnswerText.setText("");
-        roomViewModel.listenToAssignment(currentUser.gameRoom, GameLogic.playerKey(currentUser));
+        roomViewModel.listenToCurrentRoundId(currentUser.gameRoom);
+        roomViewModel.currentRoundId.observe(getViewLifecycleOwner(), roundId -> {
+            if (roundId != null && roundId.length() > 0 && !assignmentListenerStarted) {
+                assignmentListenerStarted = true;
+                roomViewModel.listenToAssignment(currentUser.gameRoom, GameLogic.playerKey(currentUser));
+            }
+        });
         roomViewModel.currentAssignment.observe(getViewLifecycleOwner(), assignment -> {
             if (assignment != null) {
                 applyAssignment(assignment);
@@ -165,7 +215,7 @@ public class ReadSentenceFrag extends Fragment {
 
         currentRoundAssignment = assignment;
         sentenceReady = true;
-        updateSentenceVisibility();
+        updateActiveReaderControls();
         pushVotingItemIfNeeded();
         AppLog.i(AppLog.GAME_FLOW, "Read assignment applied: ifOwner=" + assignment.ifOwnerKey + ", thenOwner=" + assignment.thenOwnerKey);
     }
@@ -196,7 +246,7 @@ public class ReadSentenceFrag extends Fragment {
     private void revealSentence() {
         sentenceRevealed = true;
         updateSentenceVisibility();
-        AppLog.i(AppLog.GAME_FLOW, "Read sentence revealed for active reader index=" + currentUserReadIndex);
+        AppLog.i(AppLog.GAME_FLOW, "Read sentence revealed for active reader key=" + currentUserPlayerKey);
     }
 
     private void updateSentenceVisibility() {
@@ -206,8 +256,7 @@ public class ReadSentenceFrag extends Fragment {
         if (!sentenceReady) {
             ifQuestionText.setText("Loading...");
             thenAnswerText.setText("");
-            nextButton.setEnabled(false);
-            nextButton.setAlpha(0.35f);
+            ActionButtonState.setEnabled(nextButton, false);
             setNextButtonText("show");
             return;
         }
@@ -215,23 +264,20 @@ public class ReadSentenceFrag extends Fragment {
             if (currentReaderTurn) {
                 ifQuestionText.setText("What if the show button is enabled?");
                 thenAnswerText.setText("Then tap show when the group is ready and enjoy a laugh!");
-                nextButton.setEnabled(true);
-                nextButton.setAlpha(1.0f);
+                ActionButtonState.setEnabled(nextButton, true);
             }
             else {
                 ifQuestionText.setText("What if it's not your turn?");
                 thenAnswerText.setText("Then listen to the person who is revealing a twisted sentence!");
-                nextButton.setEnabled(false);
-                nextButton.setAlpha(0.35f);
+                ActionButtonState.setEnabled(nextButton, false);
             }
             setNextButtonText("show");
             return;
         }
         ifQuestionText.setText(GameLogic.formatIfSentence(myRandomIf));
         thenAnswerText.setText(GameLogic.formatThenSentence(myRandomThen));
-        boolean canPass = currentReaderTurn && !readTurnPassed;
-        nextButton.setEnabled(canPass);
-        nextButton.setAlpha(canPass ? 1.0f : 0.35f);
+        boolean canPass = currentReaderTurn && !readTurnPassed && !readingActionInProgress;
+        ActionButtonState.setSaving(nextButton, readingActionInProgress, canPass);
         setNextButtonText("pass");
         updateDoneButtonVisibility();
     }
@@ -243,14 +289,8 @@ public class ReadSentenceFrag extends Fragment {
     }
 
     private boolean allPlayersHaveAccounts() {
-        int numAccountPlayers = 0;
-        for (User user: userViewModel.getUsers()) {
-            if (user != null && Boolean.TRUE.equals(user.accountPlay)) {
-                numAccountPlayers += 1;
-            }
-        }
-        boolean allAccountPlayers = numAccountPlayers == userViewModel.getUsers().size();
-        AppLog.d(AppLog.GAME_FLOW, "Account player check: accountPlayers=" + numAccountPlayers + ", total=" + userViewModel.getUsers().size());
+        boolean allAccountPlayers = GameFlowPolicy.allPlayersHaveAccounts(userViewModel.getUsers());
+        AppLog.d(AppLog.GAME_FLOW, "Account player check: allAccountPlayers=" + allAccountPlayers + ", total=" + userViewModel.getUsers().size());
         return allAccountPlayers;
     }
 
@@ -373,7 +413,6 @@ public class ReadSentenceFrag extends Fragment {
     private void setupReadingControls(View view) {
         readButton = view.findViewById(R.id.readSentence);
         doneButton = view.findViewById(R.id.pass_reading_turn);
-        setDoneButtonText("done");
         doneButton.setVisibility(View.GONE);
         if (currentUserHasAccount()) {
             tts = new TextToSpeech(getContext(), status -> {
@@ -387,8 +426,7 @@ public class ReadSentenceFrag extends Fragment {
             view.findViewById(R.id.spinnerObject).setVisibility(View.GONE);
             AppLog.i(AppLog.TTS, "TextToSpeech skipped for free-play reader");
         }
-        doneButton.setOnClickListener(v -> finishReadingPhase());
-        updateActiveReaderControls(roomViewModel.activeReaderIndex.getValue());
+        updateSentenceVisibility();
     }
 
     private boolean currentUserHasAccount() {
@@ -396,18 +434,20 @@ public class ReadSentenceFrag extends Fragment {
         return currentUser != null && Boolean.TRUE.equals(currentUser.accountPlay);
     }
 
-    private int findCurrentUserIndex(User currentUser) {
-        for (int index = 0; index < userViewModel.getUsers().size(); index++) {
-            User user = userViewModel.getUsers().get(index);
-            if (user.userID == currentUser.userID) {
+    private int findCurrentUserIndexInReadOrder() {
+        if (roomViewModel.readOrder.getValue() == null) {
+            return -1;
+        }
+        for (int index = 0; index < roomViewModel.readOrder.getValue().size(); index++) {
+            if (roomViewModel.readOrder.getValue().get(index).equals(currentUserPlayerKey)) {
                 return index;
             }
         }
-        AppLog.w(AppLog.TTS, "Current user not found in read order; using immediate read-aloud");
-        return 0;
+        AppLog.w(AppLog.TTS, "Current user not found in DB read order; playerKey=" + currentUserPlayerKey);
+        return -1;
     }
 
-    private void updateActiveReaderControls(Integer activeReaderIndex) {
+    private void updateActiveReaderControls() {
         if (readButton == null || doneButton == null) {
             return;
         }
@@ -415,9 +455,16 @@ public class ReadSentenceFrag extends Fragment {
         if (currentUser == null) {
             return;
         }
-        int activeIndex = activeReaderIndex == null ? 0 : activeReaderIndex;
-        everyoneHasRead = activeIndex >= userViewModel.getUsers().size() && userViewModel.getUsers().size() > 0;
-        boolean isCurrentReader = activeIndex == currentUserReadIndex;
+        if (currentUserPlayerKey.length() == 0) {
+            currentUserPlayerKey = GameLogic.playerKey(currentUser);
+        }
+        currentUserReadIndex = findCurrentUserIndexInReadOrder();
+        int activeIndex = roomViewModel.activeReaderIndex.getValue() == null ? 0 : roomViewModel.activeReaderIndex.getValue();
+        int readOrderSize = roomViewModel.readOrder.getValue() == null ? 0 : roomViewModel.readOrder.getValue().size();
+        everyoneHasRead = activeIndex >= readOrderSize && readOrderSize > 0;
+        boolean isCurrentReader = currentUserPlayerKey.length() > 0
+                && currentUserPlayerKey.equals(roomViewModel.activeReaderKey.getValue())
+                && currentUserReadIndex >= 0;
         currentReaderTurn = isCurrentReader;
         boolean canReadAloud = isCurrentReader && sentenceRevealed;
         if (readButton.getVisibility() != View.GONE) {
@@ -425,18 +472,20 @@ public class ReadSentenceFrag extends Fragment {
             readButton.setAlpha(canReadAloud ? 1.0f : 0.35f);
         }
         updateSentenceVisibility();
-        updateDoneButtonVisibility();
         if (isCurrentReader && !sentenceRevealed) {
             UiMessenger.showTopSnackbar(requireView(), "Your turn to read");
         }
-        AppLog.d(AppLog.TTS, "Read controls updated: activeIndex=" + activeIndex + ", myIndex=" + currentUserReadIndex);
+        AppLog.d(AppLog.TTS, "Read controls updated: activeIndex=" + activeIndex
+                + ", activeKey=" + roomViewModel.activeReaderKey.getValue()
+                + ", myKey=" + currentUserPlayerKey
+                + ", myIndex=" + currentUserReadIndex);
     }
 
     private void passReadingTurn() {
         User currentUser = userViewModel.getUser().getValue();
-        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0 || userViewModel.getUsers().size() == 0) {
+        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0 || roomViewModel.readOrder.getValue() == null || roomViewModel.readOrder.getValue().size() == 0) {
             UiMessenger.showTopSnackbar(requireView(), "Cannot pass reading turn yet");
-            AppLog.w(AppLog.TTS, "Pass reading turn blocked: missing user, room, or players");
+            AppLog.w(AppLog.TTS, "Pass reading turn blocked: missing user, room, or DB read order");
             return;
         }
         if (!currentReaderTurn || !sentenceRevealed || readTurnPassed) {
@@ -446,52 +495,35 @@ public class ReadSentenceFrag extends Fragment {
         }
         readTurnPassed = true;
         int nextReaderIndex = currentUserReadIndex + 1;
-        roomViewModel.setActiveReaderIndex(currentUser.gameRoom, nextReaderIndex);
-        AppLog.i(AppLog.TTS, "Passed reading turn from index=" + currentUserReadIndex + " to index=" + nextReaderIndex);
+        setReadingActionSaving(true);
+        if (GameFlowPolicy.finalReaderPassed(nextReaderIndex, roomViewModel.readOrder.getValue().size())) {
+            roomViewModel.completeReadingAfterFinalPass(currentUser.gameRoom, nextReaderIndex, () -> setReadingActionSaving(false));
+            AppLog.i(AppLog.GAME_FLOW, "Final reader passed; reading phase will complete room=" + currentUser.gameRoom);
+        }
+        else {
+            roomViewModel.setActiveReaderIndex(currentUser.gameRoom, nextReaderIndex, () -> setReadingActionSaving(false));
+        }
+        AppLog.i(AppLog.TTS, "Passed reading turn from key=" + currentUserPlayerKey + " to index=" + nextReaderIndex);
     }
 
     private void updateDoneButtonVisibility() {
         if (doneButton == null) {
             return;
         }
-        User currentUser = userViewModel.getUser().getValue();
-        boolean showDone = currentUser != null && currentUser.host && everyoneHasRead;
-        doneButton.setVisibility(showDone ? View.VISIBLE : View.GONE);
-        doneButton.setEnabled(showDone);
-        doneButton.setAlpha(showDone ? 1.0f : 0.35f);
-        if (everyoneHasRead && !showDone && ifQuestionText != null && thenAnswerText != null) {
+        doneButton.setVisibility(View.GONE);
+        if (everyoneHasRead && ifQuestionText != null && thenAnswerText != null) {
             ifQuestionText.setText("What if everyone has read?");
-            thenAnswerText.setText("Then wait for the host to finish the round.");
+            thenAnswerText.setText("Then the next part of the game starts now.");
             if (nextButton != null) {
-                nextButton.setEnabled(false);
-                nextButton.setAlpha(0.35f);
-            }
-        }
-        else if (everyoneHasRead && showDone && ifQuestionText != null && thenAnswerText != null) {
-            ifQuestionText.setText("What if everyone has read?");
-            thenAnswerText.setText("Then tap done to finish the round.");
-            if (nextButton != null) {
-                nextButton.setEnabled(false);
-                nextButton.setAlpha(0.35f);
+                ActionButtonState.setEnabled(nextButton, false);
             }
         }
     }
 
-    private void setDoneButtonText(String text) {
-        if (doneButton instanceof TextView) {
-            ((TextView) doneButton).setText(text);
-        }
-    }
-
-    private void finishReadingPhase() {
-        User currentUser = userViewModel.getUser().getValue();
-        if (currentUser == null || !currentUser.host || !everyoneHasRead) {
-            UiMessenger.showTopSnackbar(requireView(), "Everyone needs a reading turn first");
-            AppLog.w(AppLog.GAME_FLOW, "Finish reading blocked: host=" + (currentUser != null && currentUser.host) + ", everyoneHasRead=" + everyoneHasRead);
-            return;
-        }
-        roomViewModel.setReadingComplete(currentUser.gameRoom, true);
-        AppLog.i(AppLog.GAME_FLOW, "Host finished reading phase room=" + currentUser.gameRoom);
+    private void setReadingActionSaving(boolean saving) {
+        readingActionInProgress = saving;
+        updateSentenceVisibility();
+        updateDoneButtonVisibility();
     }
 
     private void handleReadingComplete(Boolean complete) {
@@ -527,6 +559,7 @@ public class ReadSentenceFrag extends Fragment {
         roomViewModel.removeAssignmentListener();
         roomViewModel.removeReadingCompleteListener();
         roomViewModel.removeActiveReaderListener();
+        roomViewModel.removeCurrentRoundListener();
         if (tts != null) {
             tts.stop();
             tts.shutdown();

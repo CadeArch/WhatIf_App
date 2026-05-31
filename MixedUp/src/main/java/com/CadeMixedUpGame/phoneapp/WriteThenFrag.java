@@ -23,8 +23,10 @@ public class WriteThenFrag extends Fragment {
     RoomViewModel roomViewModel;
     String myRandomIf = "";
     View submitButton;
+    private boolean submitInProgress = false;
     private int debugSubmitTapCount = 0;
     private long lastDebugSubmitTapMs = 0L;
+    private boolean assignmentListenerStarted = false;
 
     public WriteThenFrag() {
         super(R.layout.fragment_write_then);
@@ -41,6 +43,7 @@ public class WriteThenFrag extends Fragment {
             if (message != null && message.length() > 0) {
                 UiMessenger.showSnackbar(view, message);
                 userViewModel.databaseMessage.setValue("");
+                setSubmitSaving(false);
             }
         });
 
@@ -48,6 +51,7 @@ public class WriteThenFrag extends Fragment {
         EditText thenSentence = view.findViewById(R.id.thenAnswer);
         submitButton = view.findViewById(R.id.writeThen_submit);
         submitButton.setEnabled(false);
+        Utils.clickButtonOnKeyboardSubmit(thenSentence, submitButton, "Keyboard submitted Then response");
         bindAssignment(ifQuestion);
 
 
@@ -79,6 +83,9 @@ public class WriteThenFrag extends Fragment {
     }
 
     private void submitThen(View view, EditText thenSentence) {
+        if (submitInProgress) {
+            return;
+        }
         if (myRandomIf == null || myRandomIf.length() == 0) {
             AppLog.w(AppLog.GAME_FLOW, "Then submit blocked: assignment not loaded");
             UiMessenger.showSnackbar(view, "Still loading your prompt. Try again in a moment.");
@@ -97,15 +104,29 @@ public class WriteThenFrag extends Fragment {
             }
             userViewModel.getUser().getValue().thenSentence = thenSent;
             userViewModel.getUser().getValue().thenFinished = true;
-            userViewModel.gamePhase.setValue(GamePhase.COLLECTING_THENS);
-            AppLog.i(AppLog.GAME_FLOW, "WriteThenFrag -> CollectingAnswersFrag");
-
-            getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, CollectingAnswersFrag.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
+            setSubmitSaving(true);
+            userViewModel.pushThen(userViewModel.getUser(), this::navigateToCollectingAnswers);
         }
+    }
+
+    private void setSubmitSaving(boolean saving) {
+        submitInProgress = saving;
+        boolean canSubmit = myRandomIf != null && myRandomIf.length() > 0;
+        ActionButtonState.setSaving(submitButton, saving, canSubmit);
+    }
+
+    private void navigateToCollectingAnswers() {
+        if (!isAdded()) {
+            return;
+        }
+        userViewModel.gamePhase.setValue(GamePhase.COLLECTING_THENS);
+        AppLog.i(AppLog.GAME_FLOW, "WriteThenFrag -> CollectingAnswersFrag");
+
+        getActivity().getSupportFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, CollectingAnswersFrag.class, null)
+                .setReorderingAllowed(true)
+                .addToBackStack(null)
+                .commit();
     }
 
     private void bindAssignment(TextView ifQuestion) {
@@ -115,7 +136,13 @@ public class WriteThenFrag extends Fragment {
             return;
         }
 
-        roomViewModel.listenToAssignment(currentUser.gameRoom, GameLogic.playerKey(currentUser));
+        roomViewModel.listenToCurrentRoundId(currentUser.gameRoom);
+        roomViewModel.currentRoundId.observe(getViewLifecycleOwner(), roundId -> {
+            if (roundId != null && roundId.length() > 0 && !assignmentListenerStarted) {
+                assignmentListenerStarted = true;
+                roomViewModel.listenToAssignment(currentUser.gameRoom, GameLogic.playerKey(currentUser));
+            }
+        });
         roomViewModel.currentAssignment.observe(getViewLifecycleOwner(), assignment -> {
             if (assignment != null) {
                 applyAssignment(assignment, ifQuestion);
@@ -133,7 +160,7 @@ public class WriteThenFrag extends Fragment {
         myRandomIf = ifOwner.ifSentence;
         userViewModel.localRandIf = myRandomIf;
         ifQuestion.setText(GameLogic.formatIfSentence(myRandomIf));
-        submitButton.setEnabled(true);
+        setSubmitSaving(false);
         AppLog.i(AppLog.GAME_FLOW, "WriteThen assignment applied ifOwner=" + assignment.ifOwnerKey);
     }
 
@@ -149,6 +176,7 @@ public class WriteThenFrag extends Fragment {
     @Override
     public void onDestroyView() {
         roomViewModel.removeAssignmentListener();
+        roomViewModel.removeCurrentRoundListener();
         super.onDestroyView();
     }
 }

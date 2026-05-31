@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 public class GameLogic {
     public static String cleanIfSentence(String sentence) {
@@ -71,6 +72,16 @@ public class GameLogic {
         Collections.shuffle(assignedKeys, new Random(seed));
         repairSelfAssignments(playerKeys, assignedKeys);
         return assignedKeys;
+    }
+
+    public static String newRoundId() {
+        return "round-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    public static boolean isCurrentRound(String currentRoundId, String eventRoundId) {
+        return currentRoundId != null
+                && currentRoundId.length() > 0
+                && currentRoundId.equals(eventRoundId);
     }
 
     private static void repairSelfAssignments(List<String> playerKeys, ArrayList<String> assignedKeys) {

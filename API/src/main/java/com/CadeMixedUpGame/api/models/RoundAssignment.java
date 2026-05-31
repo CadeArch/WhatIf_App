@@ -9,6 +9,8 @@ public class RoundAssignment {
     public String ifContributorID;
     public String thenContributorID;
     public long seed;
+    public String roundId;
+    public int readOrderIndex;
 
     public RoundAssignment() {
     }
@@ -20,7 +22,9 @@ public class RoundAssignment {
                            String thenContributor,
                            String ifContributorID,
                            String thenContributorID,
-                           long seed) {
+                           long seed,
+                           String roundId,
+                           int readOrderIndex) {
         this.playerKey = playerKey;
         this.ifOwnerKey = ifOwnerKey;
         this.thenOwnerKey = thenOwnerKey;
@@ -29,5 +33,7 @@ public class RoundAssignment {
         this.ifContributorID = ifContributorID;
         this.thenContributorID = thenContributorID;
         this.seed = seed;
+        this.roundId = roundId;
+        this.readOrderIndex = readOrderIndex;
     }
 }

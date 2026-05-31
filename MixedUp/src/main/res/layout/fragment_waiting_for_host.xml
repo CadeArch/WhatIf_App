@@ -28,6 +28,7 @@
 
 
     <TextView
+        style="@style/RoomCodeText"
 
         android:id="@+id/gameCode"
         android:layout_width="100dp"

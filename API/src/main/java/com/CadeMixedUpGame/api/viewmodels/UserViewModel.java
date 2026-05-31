@@ -23,6 +23,9 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class UserViewModel extends ViewModel {
     public MutableLiveData<String> signInMessage = new MutableLiveData<String>();
     public MutableLiveData<String> databaseMessage = new MutableLiveData<String>();
@@ -44,8 +47,8 @@ public class UserViewModel extends ViewModel {
     public ObservableArrayList<Unlockable> userUnlocked = new ObservableArrayList<Unlockable>();
     public ChildEventListener listener;
     private String listenerRoom;
-    private ValueEventListener hostListener;
-    private String hostListenerPath;
+    private DatabaseReference onDisconnectPlayerRef;
+    private String onDisconnectPlayerPath;
 
     public UserViewModel() {
         this(FirebaseDatabase.getInstance().getReference(), FirebaseAuth.getInstance(), true);
@@ -106,7 +109,6 @@ public class UserViewModel extends ViewModel {
         currentUser.setIfSentence("");
         currentUser.setThenFinished(false);
         currentUser.setThenSentence("");
-        currentUser.setHostStarted(false);
         currentUser.setHostPlayedAgain("");
 
     }
@@ -246,7 +248,6 @@ public class UserViewModel extends ViewModel {
 
     public void removeListenerOnDB() {
         removePlayersListenerOnDB();
-        removeHostListener();
     }
 
     public void removePlayersListenerOnDB() {
@@ -288,6 +289,7 @@ public class UserViewModel extends ViewModel {
                 if (removedUser != null) {
                     users.remove(removedUser);
                     AppLog.d(AppLog.ROOM, "Player removed: total=" + users.size());
+                    handleRemovedHost(removedUser);
                 }
             }
 
@@ -355,8 +357,27 @@ public class UserViewModel extends ViewModel {
         return user != null;
     }
 
+    private void handleRemovedHost(User removedUser) {
+        if (removedUser == null || !removedUser.host) {
+            return;
+        }
+        host.setValue(null);
+        User currentUser = user.getValue();
+        AppLog.w(AppLog.ROOM, "Host removed from room=" + removedUser.gameRoom + ", host=" + removedUser.userName);
+        if (currentUser != null && !currentUser.host) {
+            databaseMessage.setValue("The host left the room. If the game stops moving, go Home and create a new room.");
+        }
+    }
+
     private DatabaseReference playerRef(User user) {
         return db.child("rooms").child(user.gameRoom).child("players").child(user.userName + "-" + user.userID);
+    }
+
+    private String playerPath(User user) {
+        if (user == null || user.gameRoom == null || user.userName == null) {
+            return "";
+        }
+        return "rooms/" + user.gameRoom + "/players/" + user.userName + "-" + user.userID;
     }
 
     private DatabaseReference accountPlayerRef(User user) {
@@ -382,6 +403,7 @@ public class UserViewModel extends ViewModel {
         playerRef(currentUser).removeValue()
                 .addOnSuccessListener(unused -> {
                     AppLog.i(AppLog.FIREBASE, "Current player removed room=" + room + ", playerKey=" + playerKey);
+                    cancelOnDisconnectCleanup();
                     if (onComplete != null) {
                         onComplete.run();
                     }
@@ -389,26 +411,7 @@ public class UserViewModel extends ViewModel {
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not leave the room cleanly. Check your connection.");
                     AppLog.e(AppLog.FIREBASE, "Failed removing current player room=" + room + ", playerKey=" + playerKey, e);
-                    if (onComplete != null) {
-                        onComplete.run();
-                    }
                 });
-    }
-
-    //key to update values in firebase
-    public void hostStarted(User user) {
-        if (user == null || user.gameRoom == null || user.gameRoom.length() == 0) {
-            AppLog.w(AppLog.ROOM, "hostStarted skipped: missing user or game room");
-            return;
-        }
-        //updating the status that the host has started the game
-        playerRef(user).child("hostStarted").setValue(true)
-                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Host started write succeeded room=" + user.gameRoom))
-                .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not start the game. Check your connection and try again.");
-                    AppLog.e(AppLog.FIREBASE, "Host started write failed room=" + user.gameRoom, e);
-                });
-
     }
 
     public void hostPlayedAgain(User user) {
@@ -427,61 +430,6 @@ public class UserViewModel extends ViewModel {
                     databaseMessage.setValue("Could not update play-again state. Check your connection and try again.");
                     AppLog.e(AppLog.FIREBASE, "hostPlayedAgain write failed room=" + user.gameRoom, e);
                 });
-    }
-
-    public void listenToHost(MutableLiveData<User> host) {
-        //todo in one use case this produced a null pointer somewhere and killed for a non host player
-        if (host == null || host.getValue() == null) {
-            return;
-        }
-        User hostUser = host.getValue();
-        String path = "rooms/" + hostUser.gameRoom + "/players/" + hostUser.userName + "-" + hostUser.userID;
-        if (path.equals(hostListenerPath) && hostListener != null) {
-            return;
-        }
-        removeHostListener();
-        hostListenerPath = path;
-        AppLog.i(AppLog.FIREBASE, "Attaching host listener room=" + hostUser.gameRoom + ", host=" + hostUser.userName);
-        hostListener = new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                User theChanged = readPlayerSnapshot(snapshot);
-                if (theChanged == null || getUser().getValue() == null) {
-                    return;
-                }
-//                System.out.println("Host Changed Values in DB: " + theChanged.userName + theChanged.host + theChanged.hostStarted);
-//                System.out.println("Host played again in DB: " + theChanged.hostPlayedAgain);
-                if (theChanged.hostStarted) {
-                    getUser().getValue().hostStarted = true;
-                    getUser().setValue(getUser().getValue());
-                }
-
-                if ("yes".equals(theChanged.hostPlayedAgain)) {
-                    getUser().getValue().hostPlayedAgain = "yes";
-                    getUser().setValue(getUser().getValue());
-                }
-                if ("no".equals(theChanged.hostPlayedAgain)) {
-                    getUser().getValue().hostPlayedAgain = "no";
-                    getUser().setValue(getUser().getValue());
-                }
-//                System.out.println("DATABASE noticed Change On Host Player ");
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                AppLog.e(AppLog.FIREBASE, "Host listener cancelled: " + error.getMessage());
-            }
-        };
-        db.child(hostListenerPath).addValueEventListener(hostListener);
-    }
-
-    private void removeHostListener() {
-        if (hostListener != null && hostListenerPath != null) {
-            AppLog.i(AppLog.FIREBASE, "Removing host listener path=" + hostListenerPath);
-            db.child(hostListenerPath).removeEventListener(hostListener);
-            hostListener = null;
-            hostListenerPath = null;
-        }
     }
 
     public void getMadeLeaderBoard(MutableLiveData<User> user) {
@@ -550,6 +498,11 @@ public class UserViewModel extends ViewModel {
     }
 
     public void pushPerson(MutableLiveData<User> user, Runnable onSuccess) {
+        if (user == null || user.getValue() == null || user.getValue().gameRoom == null || user.getValue().gameRoom.length() == 0 || user.getValue().userName == null) {
+            databaseMessage.setValue("Could not join the room. Missing player or room information.");
+            AppLog.w(AppLog.ROOM, "pushPerson skipped: missing player or room data");
+            return;
+        }
         int userID = (int)(Math.random() * 100000);
         if (user.getValue().userID == 0) {
             user.getValue().userID = userID;
@@ -558,27 +511,73 @@ public class UserViewModel extends ViewModel {
         else {
             AppLog.d(AppLog.ROOM, "User id already set for " + user.getValue().userName);
         }
-        db.child("rooms").child(user.getValue().gameRoom).child("players").child(user.getValue().userName + "-" + user.getValue().userID).setValue(user.getValue()).addOnCompleteListener(new OnCompleteListener<Void>() {
+        User currentUser = user.getValue();
+        DatabaseReference ref = playerRef(currentUser);
+        ref.setValue(currentUser).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()){
-                    AppLog.i(AppLog.FIREBASE, "Pushed player to room=" + user.getValue().gameRoom);
+                    AppLog.i(AppLog.FIREBASE, "Pushed player to room=" + currentUser.gameRoom);
+                    registerOnDisconnectCleanup(currentUser, ref);
                     if (onSuccess != null) {
                         onSuccess.run();
                     }
                 }
                 else {
                     databaseMessage.setValue("Could not join the room. Check your connection and try again.");
-                    AppLog.e(AppLog.FIREBASE, "Failed to push player to room=" + user.getValue().gameRoom, task.getException());
+                    AppLog.e(AppLog.FIREBASE, "Failed to push player to room=" + currentUser.gameRoom, task.getException());
                 }
             }
         });
     }
 
+    private void registerOnDisconnectCleanup(User user, DatabaseReference ref) {
+        String path = playerPath(user);
+        if (path.length() == 0 || ref == null) {
+            AppLog.w(AppLog.FIREBASE, "onDisconnect registration skipped: missing player path");
+            return;
+        }
+        if (path.equals(onDisconnectPlayerPath)) {
+            AppLog.d(AppLog.FIREBASE, "onDisconnect already registered path=" + path);
+            return;
+        }
+        cancelOnDisconnectCleanup();
+        onDisconnectPlayerRef = ref;
+        onDisconnectPlayerPath = path;
+        ref.onDisconnect().removeValue()
+                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Registered onDisconnect player cleanup path=" + path))
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not set disconnect cleanup. If someone drops, the host may need to recreate the room.");
+                    AppLog.e(AppLog.FIREBASE, "Failed registering onDisconnect cleanup path=" + path, e);
+                });
+    }
+
+    private void cancelOnDisconnectCleanup() {
+        if (onDisconnectPlayerRef == null || onDisconnectPlayerPath == null) {
+            return;
+        }
+        String path = onDisconnectPlayerPath;
+        onDisconnectPlayerRef.onDisconnect().cancel()
+                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Cancelled onDisconnect player cleanup path=" + path))
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed cancelling onDisconnect cleanup path=" + path, e));
+        onDisconnectPlayerRef = null;
+        onDisconnectPlayerPath = null;
+    }
+
     public void deleteRoom(User userLeft) {
+        deleteRoom(userLeft, null);
+    }
+
+    public void deleteRoom(User userLeft, Runnable onSuccess) {
         AppLog.i(AppLog.ROOM, "Deleting room=" + userLeft.gameRoom);
         db.child("rooms").child(userLeft.gameRoom).removeValue()
-                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Room deleted room=" + userLeft.gameRoom))
+                .addOnSuccessListener(unused -> {
+                    cancelOnDisconnectCleanup();
+                    AppLog.i(AppLog.FIREBASE, "Room deleted room=" + userLeft.gameRoom);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not delete the room. Check your connection.");
                     AppLog.e(AppLog.FIREBASE, "Failed deleting room=" + userLeft.gameRoom, e);
@@ -624,33 +623,68 @@ public class UserViewModel extends ViewModel {
     }
 
     public void pushIf(MutableLiveData<User> user) {
+        pushIf(user, null);
+    }
 
-        AppLog.i(AppLog.FIREBASE, "Submitting If room=" + user.getValue().gameRoom);
-        playerRef(user.getValue()).child("ifSentence").setValue(user.getValue().ifSentence)
+    public void pushIf(MutableLiveData<User> user, Runnable onSuccess) {
+        if (!canSubmitSentence(user)) {
+            databaseMessage.setValue("Could not submit. Missing player or room information.");
+            AppLog.w(AppLog.ROOM, "pushIf skipped: missing player or room data");
+            return;
+        }
+        User currentUser = user.getValue();
+        AppLog.i(AppLog.FIREBASE, "Submitting If room=" + currentUser.gameRoom);
+        playerRef(currentUser).updateChildren(sentenceUpdate("ifSentence", currentUser.ifSentence, "ifFinished", currentUser.ifFinished))
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.FIREBASE, "If submitted room=" + currentUser.gameRoom);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
                 .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not submit your question. Check your connection and try again.");
-                    AppLog.e(AppLog.FIREBASE, "Failed submitting If sentence", e);
-                });
-        playerRef(user.getValue()).child("ifFinished").setValue(user.getValue().ifFinished)
-                .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not mark your question complete. Check your connection.");
-                    AppLog.e(AppLog.FIREBASE, "Failed submitting If finished", e);
+                    databaseMessage.setValue("Could not submit your question. Check your connection and tap submit again.");
+                    AppLog.e(AppLog.FIREBASE, "Failed submitting If", e);
                 });
     }
 
     public void pushThen(MutableLiveData<User> user) {
+        pushThen(user, null);
+    }
 
-        AppLog.i(AppLog.FIREBASE, "Submitting Then room=" + user.getValue().gameRoom);
-        playerRef(user.getValue()).child("thenSentence").setValue(user.getValue().thenSentence)
+    public void pushThen(MutableLiveData<User> user, Runnable onSuccess) {
+        if (!canSubmitSentence(user)) {
+            databaseMessage.setValue("Could not submit. Missing player or room information.");
+            AppLog.w(AppLog.ROOM, "pushThen skipped: missing player or room data");
+            return;
+        }
+        User currentUser = user.getValue();
+        AppLog.i(AppLog.FIREBASE, "Submitting Then room=" + currentUser.gameRoom);
+        playerRef(currentUser).updateChildren(sentenceUpdate("thenSentence", currentUser.thenSentence, "thenFinished", currentUser.thenFinished))
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.FIREBASE, "Then submitted room=" + currentUser.gameRoom);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
                 .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not submit your response. Check your connection and try again.");
-                    AppLog.e(AppLog.FIREBASE, "Failed submitting Then sentence", e);
+                    databaseMessage.setValue("Could not submit your response. Check your connection and tap submit again.");
+                    AppLog.e(AppLog.FIREBASE, "Failed submitting Then", e);
                 });
-        playerRef(user.getValue()).child("thenFinished").setValue(user.getValue().thenFinished)
-                .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not mark your response complete. Check your connection.");
-                    AppLog.e(AppLog.FIREBASE, "Failed submitting Then finished", e);
-                });
+    }
+
+    private boolean canSubmitSentence(MutableLiveData<User> user) {
+        return user != null
+                && user.getValue() != null
+                && user.getValue().gameRoom != null
+                && user.getValue().gameRoom.length() > 0
+                && user.getValue().userName != null;
+    }
+
+    private Map<String, Object> sentenceUpdate(String sentenceKey, String sentence, String finishedKey, Boolean finished) {
+        Map<String, Object> update = new HashMap<String, Object>();
+        update.put(sentenceKey, sentence == null ? "" : sentence);
+        update.put(finishedKey, Boolean.TRUE.equals(finished));
+        return update;
     }
 
     public void fillUnlockables(MutableLiveData<User> user) {
@@ -749,6 +783,7 @@ public class UserViewModel extends ViewModel {
     @Override
     protected void onCleared() {
         removeListenerOnDB();
+        cancelOnDisconnectCleanup();
         super.onCleared();
     }
 
