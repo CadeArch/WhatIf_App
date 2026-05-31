@@ -17,10 +17,14 @@ import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 
 public class WriteThenFrag extends Fragment {
+    private static final long DEV_TAP_WINDOW_MS = 2000L;
+
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
     String myRandomIf = "";
     View submitButton;
+    private int debugSubmitTapCount = 0;
+    private long lastDebugSubmitTapMs = 0L;
 
     public WriteThenFrag() {
         super(R.layout.fragment_write_then);
@@ -49,33 +53,59 @@ public class WriteThenFrag extends Fragment {
 
         //giving submit button functionality
         submitButton.setOnClickListener(v -> {
-
-            if (myRandomIf == null || myRandomIf.length() == 0) {
-                AppLog.w(AppLog.GAME_FLOW, "Then submit blocked: assignment not loaded");
-                UiMessenger.showSnackbar(view, "Still loading your prompt. Try again in a moment.");
+            if (thenSentence.getText().toString().trim().length() == 0 && shouldAutoFillThen(thenSentence)) {
+                thenSentence.setText(DevBackdoor.randomThenResponse());
+                thenSentence.setSelection(thenSentence.getText().length());
+                AppLog.i(AppLog.UI, "Debug auto-filled Then response");
             }
-            else if (thenSentence.getText().toString().trim().equals("")) {
-                AppLog.w(AppLog.UI, "Then submit blocked: empty response");
-                UiMessenger.showError(thenSentence, "Response required");
-            }
-            else {
-                UiMessenger.clearError(thenSentence);
-                String thenSent = GameLogic.cleanThenSentence(thenSentence.getText().toString());
-                userViewModel.getUser().getValue().thenSentence = thenSent;
-                userViewModel.getUser().getValue().thenFinished = true;
-                userViewModel.gamePhase.setValue(GamePhase.COLLECTING_THENS);
-                AppLog.i(AppLog.GAME_FLOW, "WriteThenFrag -> CollectingAnswersFrag");
-
-                getActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fragment_container, CollectingAnswersFrag.class, null)
-                        .setReorderingAllowed(true)
-                        .addToBackStack(null)
-                        .commit();
-            }
+            submitThen(view, thenSentence);
         });
 
 
 
+    }
+
+    private boolean shouldAutoFillThen(EditText thenSentence) {
+        if (!DevBackdoor.isEnabled(getContext()) || thenSentence == null || thenSentence.getText().toString().trim().length() > 0) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastDebugSubmitTapMs > DEV_TAP_WINDOW_MS) {
+            debugSubmitTapCount = 0;
+        }
+        lastDebugSubmitTapMs = now;
+        debugSubmitTapCount += 1;
+        return debugSubmitTapCount >= 3;
+    }
+
+    private void submitThen(View view, EditText thenSentence) {
+        if (myRandomIf == null || myRandomIf.length() == 0) {
+            AppLog.w(AppLog.GAME_FLOW, "Then submit blocked: assignment not loaded");
+            UiMessenger.showSnackbar(view, "Still loading your prompt. Try again in a moment.");
+        }
+        else if (thenSentence.getText().toString().trim().equals("")) {
+            AppLog.w(AppLog.UI, "Then submit blocked: empty response");
+            UiMessenger.showError(thenSentence, "Response required");
+        }
+        else {
+            UiMessenger.clearError(thenSentence);
+            String thenSent = GameLogic.cleanThenSentence(thenSentence.getText().toString());
+            if (thenSent.length() == 0) {
+                AppLog.w(AppLog.UI, "Then submit blocked: response prefix only");
+                UiMessenger.showError(thenSentence, "Add your response");
+                return;
+            }
+            userViewModel.getUser().getValue().thenSentence = thenSent;
+            userViewModel.getUser().getValue().thenFinished = true;
+            userViewModel.gamePhase.setValue(GamePhase.COLLECTING_THENS);
+            AppLog.i(AppLog.GAME_FLOW, "WriteThenFrag -> CollectingAnswersFrag");
+
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, CollectingAnswersFrag.class, null)
+                    .setReorderingAllowed(true)
+                    .addToBackStack(null)
+                    .commit();
+        }
     }
 
     private void bindAssignment(TextView ifQuestion) {
@@ -102,7 +132,7 @@ public class WriteThenFrag extends Fragment {
 
         myRandomIf = ifOwner.ifSentence;
         userViewModel.localRandIf = myRandomIf;
-        ifQuestion.setText(myRandomIf + "?");
+        ifQuestion.setText(GameLogic.formatIfSentence(myRandomIf));
         submitButton.setEnabled(true);
         AppLog.i(AppLog.GAME_FLOW, "WriteThen assignment applied ifOwner=" + assignment.ifOwnerKey);
     }

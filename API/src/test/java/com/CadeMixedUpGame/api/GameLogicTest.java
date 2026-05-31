@@ -13,7 +13,7 @@ import static org.junit.Assert.assertFalse;
 public class GameLogicTest {
     @Test
     public void cleanIfSentence_trimsPunctuationAndCapitalizes() {
-        assertEquals("If i win", GameLogic.cleanIfSentence("  if i win?! "));
+        assertEquals("I win", GameLogic.cleanIfSentence("  if i win?! "));
     }
 
     @Test
@@ -25,18 +25,28 @@ public class GameLogicTest {
 
     @Test
     public void cleanIfSentence_keepsInternalWhitespaceAndRemovesAllPunctuation() {
-        assertEquals("What if  we win", GameLogic.cleanIfSentence(" what if,  we win!!! "));
+        assertEquals("We win", GameLogic.cleanIfSentence(" what if,  we win!!! "));
     }
 
     @Test
     public void cleanThenSentence_trimsPunctuationWithoutCapitalizing() {
-        assertEquals("then we play", GameLogic.cleanThenSentence(" then we play. "));
+        assertEquals("we play", GameLogic.cleanThenSentence(" then we play. "));
     }
 
     @Test
     public void cleanThenSentence_handlesNullAndDoesNotChangeCapitalization() {
         assertEquals("", GameLogic.cleanThenSentence(null));
-        assertEquals("Then we play", GameLogic.cleanThenSentence(" Then we play. "));
+        assertEquals("we play", GameLogic.cleanThenSentence(" Then we play. "));
+    }
+
+    @Test
+    public void formatIfSentence_addsPromptPrefixAndQuestionMark() {
+        assertEquals("What if I win?", GameLogic.formatIfSentence("if i win"));
+    }
+
+    @Test
+    public void formatThenSentence_addsResponsePrefixAndPeriod() {
+        assertEquals("then we play.", GameLogic.formatThenSentence("then we play"));
     }
 
     @Test

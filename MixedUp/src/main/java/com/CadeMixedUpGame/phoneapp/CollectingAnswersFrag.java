@@ -29,6 +29,7 @@ public class CollectingAnswersFrag extends Fragment {
     Boolean onCollectingAnswers;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean navigationScheduled = false;
+    private ObservableList.OnListChangedCallback<ObservableList<User>> usersCallback;
 
     public CollectingAnswersFrag() {
         super(R.layout.fragment_collecting_answers);
@@ -58,14 +59,18 @@ public class CollectingAnswersFrag extends Fragment {
         recyclerView.setAdapter(adapter);
 
         // when the users array changes reset the adapter to include all people
-        userViewModel.getUsers().addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<User>>() {
+        usersCallback = new ObservableList.OnListChangedCallback<ObservableList<User>>() {
             @Override
             public void onChanged(ObservableList<User> sender) {
                 AppLog.d(AppLog.GAME_FLOW, "Collecting Then user list changed");
+                refreshThenProgress(adapter);
             }
 
             @Override
             public void onItemRangeChanged(ObservableList<User> sender, int positionStart, int itemCount) {
+                if (onCollectingAnswers) {
+                    refreshThenProgress(adapter);
+                }
             }
 
             @Override
@@ -84,22 +89,35 @@ public class CollectingAnswersFrag extends Fragment {
             public void onItemRangeRemoved(ObservableList<User> sender, int positionStart, int itemCount) {
 
             }
-        });
+        };
+        userViewModel.getUsers().addOnListChangedCallback(usersCallback);
 
         userViewModel.pushThen(userViewModel.getUser());
+        refreshThenProgress(adapter);
 
 
 
     }
 
     private void addThenSubmittedUser(User user) {
-        if (user != null && user.thenFinished && !whoSubmittedThen.contains(user)) {
+        if (user != null && Boolean.TRUE.equals(user.thenFinished) && !whoSubmittedThen.contains(user)) {
             whoSubmittedThen.add(user);
         }
     }
 
     private void handleThenUserInserted(int positionStart, MyRecyclerViewAdapter adapter) {
         addThenSubmittedUser(userViewModel.getUsers().get(positionStart));
+        refreshThenProgress(adapter);
+    }
+
+    private void refreshThenProgress(MyRecyclerViewAdapter adapter) {
+        if (!onCollectingAnswers) {
+            return;
+        }
+        whoSubmittedThen.clear();
+        for (User user : userViewModel.getUsers()) {
+            addThenSubmittedUser(user);
+        }
         adapter.notifyDataSetChanged();
         int finishedCount = countFinishedThens();
         AppLog.d(AppLog.GAME_FLOW, "Collecting Then progress: finished=" + finishedCount + ", total=" + userViewModel.getUsers().size());
@@ -112,7 +130,7 @@ public class CollectingAnswersFrag extends Fragment {
     private int countFinishedThens() {
         int count = 0;
         for (User user : userViewModel.getUsers()) {
-            if (user.thenFinished) {
+            if (user != null && Boolean.TRUE.equals(user.thenFinished)) {
                 count += 1;
             }
         }
@@ -140,6 +158,10 @@ public class CollectingAnswersFrag extends Fragment {
     @Override
     public void onDestroyView() {
         handler.removeCallbacksAndMessages(null);
+        if (usersCallback != null) {
+            userViewModel.getUsers().removeOnListChangedCallback(usersCallback);
+            usersCallback = null;
+        }
         super.onDestroyView();
     }
 }

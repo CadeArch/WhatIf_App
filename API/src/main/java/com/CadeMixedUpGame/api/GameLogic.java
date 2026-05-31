@@ -9,7 +9,8 @@ import java.util.Random;
 
 public class GameLogic {
     public static String cleanIfSentence(String sentence) {
-        String cleaned = cleanSentence(sentence);
+        String cleaned = removeLeadingPhrase(cleanSentence(sentence), "what if");
+        cleaned = removeLeadingPhrase(cleaned, "if");
         if (cleaned.length() == 0) {
             return cleaned;
         }
@@ -17,7 +18,23 @@ public class GameLogic {
     }
 
     public static String cleanThenSentence(String sentence) {
-        return cleanSentence(sentence);
+        return removeLeadingPhrase(cleanSentence(sentence), "then");
+    }
+
+    public static String formatIfSentence(String sentence) {
+        String cleaned = cleanIfSentence(sentence);
+        if (cleaned.length() == 0) {
+            return "";
+        }
+        return "What if " + cleaned + "?";
+    }
+
+    public static String formatThenSentence(String sentence) {
+        String cleaned = cleanThenSentence(sentence);
+        if (cleaned.length() == 0) {
+            return "";
+        }
+        return "then " + cleaned + ".";
     }
 
     public static int nextPlayerIndex(int currentIndex, int playerCount) {
@@ -173,5 +190,20 @@ public class GameLogic {
         return sentence.replaceAll("\\p{Punct}", "")
                 .replaceAll("\\s+$", "")
                 .replaceAll("^\\s+", "");
+    }
+
+    private static String removeLeadingPhrase(String sentence, String phrase) {
+        if (sentence == null || sentence.length() == 0) {
+            return "";
+        }
+        String lowerSentence = sentence.toLowerCase();
+        String lowerPhrase = phrase.toLowerCase();
+        if (lowerSentence.equals(lowerPhrase)) {
+            return "";
+        }
+        if (lowerSentence.startsWith(lowerPhrase + " ")) {
+            return sentence.substring(phrase.length()).trim();
+        }
+        return sentence;
     }
 }

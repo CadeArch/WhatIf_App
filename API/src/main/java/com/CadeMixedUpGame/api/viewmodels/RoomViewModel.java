@@ -41,11 +41,17 @@ public class RoomViewModel extends ViewModel {
     public MutableLiveData<RoomJoinState> roomJoinState = new MutableLiveData<RoomJoinState>(RoomJoinState.IDLE);
     public MutableLiveData<String> databaseMessage = new MutableLiveData<String>();
     public MutableLiveData<Integer> activeReaderIndex = new MutableLiveData<Integer>(0);
+    public MutableLiveData<Boolean> readingComplete = new MutableLiveData<Boolean>(false);
+    public MutableLiveData<String> replayState = new MutableLiveData<String>("");
     public MutableLiveData<RoundAssignment> currentAssignment = new MutableLiveData<RoundAssignment>();
     private ValueEventListener activeReaderListener;
     private String activeReaderListenerRoom;
+    private ValueEventListener readingCompleteListener;
+    private String readingCompleteListenerRoom;
     private ValueEventListener assignmentListener;
     private String assignmentListenerPath;
+    private ValueEventListener replayStateListener;
+    private String replayStateListenerRoom;
 
     public enum RoomJoinState {
         IDLE,
@@ -362,27 +368,113 @@ public class RoomViewModel extends ViewModel {
     }
 
     public void deleteRoundAssignments(String roomId) {
+        deleteRoundAssignments(roomId, null);
+    }
+
+    public void deleteRoundAssignments(String roomId, Runnable onSuccess) {
         if (roomId == null || roomId.length() == 0) {
             return;
         }
         AppLog.i(AppLog.GAME_FLOW, "Deleting round assignments room=" + roomId);
         db.child("rooms").child(roomId).child("roundAssignments").removeValue()
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.FIREBASE, "Round assignments deleted room=" + roomId);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not clear round pairings. Check your connection.");
                     AppLog.e(AppLog.FIREBASE, "Failed deleting round assignments room=" + roomId, e);
                 });
     }
 
+    public void clearRoomRoundStateForReplay(String roomId, Runnable onSuccess) {
+        if (roomId == null || roomId.length() == 0) {
+            AppLog.w(AppLog.ROOM, "clearRoomRoundStateForReplay skipped: missing room id");
+            return;
+        }
+        AppLog.i(AppLog.GAME_FLOW, "Clearing room round state for replay room=" + roomId);
+        deleteRoundAssignments(roomId, () ->
+                setActiveReaderIndex(roomId, 0, () ->
+                        setReadingComplete(roomId, false, onSuccess)));
+    }
+
+    public void clearLocalRoundState() {
+        activeReaderIndex.setValue(0);
+        readingComplete.setValue(false);
+        replayState.setValue("");
+        currentAssignment.setValue(null);
+        removeAssignmentListener();
+        removeReadingCompleteListener();
+        removeActiveReaderListener();
+        AppLog.i(AppLog.GAME_FLOW, "Cleared local room round state");
+    }
+
     public void setActiveReaderIndex(String roomId, int index) {
+        setActiveReaderIndex(roomId, index, null);
+    }
+
+    public void setActiveReaderIndex(String roomId, int index, Runnable onSuccess) {
         if (roomId == null || roomId.length() == 0) {
             AppLog.w(AppLog.ROOM, "setActiveReaderIndex skipped: missing room id");
             return;
         }
         AppLog.i(AppLog.ROOM, "Setting active reader room=" + roomId + ", index=" + index);
         db.child("rooms").child(roomId).child("activeReaderIndex").setValue(index)
+                .addOnSuccessListener(unused -> {
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not pass reading turn. Check your connection.");
                     AppLog.e(AppLog.FIREBASE, "Failed setting active reader room=" + roomId, e);
+                });
+    }
+
+    public void setReadingComplete(String roomId, boolean complete) {
+        setReadingComplete(roomId, complete, null);
+    }
+
+    public void setReadingComplete(String roomId, boolean complete, Runnable onSuccess) {
+        if (roomId == null || roomId.length() == 0) {
+            AppLog.w(AppLog.ROOM, "setReadingComplete skipped: missing room id");
+            return;
+        }
+        AppLog.i(AppLog.ROOM, "Setting reading complete room=" + roomId + ", complete=" + complete);
+        db.child("rooms").child(roomId).child("readingComplete").setValue(complete)
+                .addOnSuccessListener(unused -> {
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not finish the reading round. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed setting reading complete room=" + roomId, e);
+                });
+    }
+
+    public void setReplayState(String roomId, String state) {
+        setReplayState(roomId, state, null);
+    }
+
+    public void setReplayState(String roomId, String state, Runnable onSuccess) {
+        if (roomId == null || roomId.length() == 0) {
+            AppLog.w(AppLog.ROOM, "setReplayState skipped: missing room id");
+            return;
+        }
+        String safeState = state == null ? "" : state;
+        AppLog.i(AppLog.ROOM, "Setting replay state room=" + roomId + ", state=" + safeState);
+        db.child("rooms").child(roomId).child("replayState").setValue(safeState)
+                .addOnSuccessListener(unused -> {
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not update play-again state. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed setting replay state room=" + roomId, e);
                 });
     }
 
@@ -395,6 +487,7 @@ public class RoomViewModel extends ViewModel {
             return;
         }
         removeActiveReaderListener();
+        activeReaderIndex.setValue(0);
         activeReaderListenerRoom = roomId;
         activeReaderListener = new ValueEventListener() {
             @Override
@@ -413,6 +506,62 @@ public class RoomViewModel extends ViewModel {
         db.child("rooms").child(roomId).child("activeReaderIndex").addValueEventListener(activeReaderListener);
     }
 
+    public void listenToReadingComplete(String roomId) {
+        if (roomId == null || roomId.length() == 0) {
+            AppLog.w(AppLog.ROOM, "listenToReadingComplete skipped: missing room id");
+            return;
+        }
+        if (roomId.equals(readingCompleteListenerRoom) && readingCompleteListener != null) {
+            return;
+        }
+        removeReadingCompleteListener();
+        readingComplete.setValue(false);
+        readingCompleteListenerRoom = roomId;
+        readingCompleteListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Boolean complete = snapshot.getValue(Boolean.class);
+                readingComplete.setValue(complete != null && complete);
+                AppLog.d(AppLog.ROOM, "Reading complete updated room=" + roomId + ", complete=" + readingComplete.getValue());
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                databaseMessage.setValue("Could not listen for reading completion. Check your connection.");
+                AppLog.e(AppLog.FIREBASE, "Reading completion listener cancelled room=" + roomId + ": " + error.getMessage());
+            }
+        };
+        db.child("rooms").child(roomId).child("readingComplete").addValueEventListener(readingCompleteListener);
+    }
+
+    public void listenToReplayState(String roomId) {
+        if (roomId == null || roomId.length() == 0) {
+            AppLog.w(AppLog.ROOM, "listenToReplayState skipped: missing room id");
+            return;
+        }
+        if (roomId.equals(replayStateListenerRoom) && replayStateListener != null) {
+            return;
+        }
+        removeReplayStateListener();
+        replayState.setValue("");
+        replayStateListenerRoom = roomId;
+        replayStateListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                String value = snapshot.getValue(String.class);
+                replayState.setValue(value == null ? "" : value);
+                AppLog.d(AppLog.ROOM, "Replay state updated room=" + roomId + ", state=" + replayState.getValue());
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                databaseMessage.setValue("Could not listen for play-again state. Check your connection.");
+                AppLog.e(AppLog.FIREBASE, "Replay state listener cancelled room=" + roomId + ": " + error.getMessage());
+            }
+        };
+        db.child("rooms").child(roomId).child("replayState").addValueEventListener(replayStateListener);
+    }
+
     public void removeActiveReaderListener() {
         if (activeReaderListener != null && activeReaderListenerRoom != null) {
             AppLog.i(AppLog.FIREBASE, "Removing active reader listener room=" + activeReaderListenerRoom);
@@ -422,10 +571,30 @@ public class RoomViewModel extends ViewModel {
         }
     }
 
+    public void removeReadingCompleteListener() {
+        if (readingCompleteListener != null && readingCompleteListenerRoom != null) {
+            AppLog.i(AppLog.FIREBASE, "Removing reading complete listener room=" + readingCompleteListenerRoom);
+            db.child("rooms").child(readingCompleteListenerRoom).child("readingComplete").removeEventListener(readingCompleteListener);
+            readingCompleteListener = null;
+            readingCompleteListenerRoom = null;
+        }
+    }
+
+    public void removeReplayStateListener() {
+        if (replayStateListener != null && replayStateListenerRoom != null) {
+            AppLog.i(AppLog.FIREBASE, "Removing replay state listener room=" + replayStateListenerRoom);
+            db.child("rooms").child(replayStateListenerRoom).child("replayState").removeEventListener(replayStateListener);
+            replayStateListener = null;
+            replayStateListenerRoom = null;
+        }
+    }
+
     @Override
     protected void onCleared() {
         removeAssignmentListener();
+        removeReadingCompleteListener();
         removeActiveReaderListener();
+        removeReplayStateListener();
         super.onCleared();
     }
 
