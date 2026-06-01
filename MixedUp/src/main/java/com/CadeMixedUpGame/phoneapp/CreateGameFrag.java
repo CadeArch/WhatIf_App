@@ -2,27 +2,23 @@ package com.CadeMixedUpGame.phoneapp;
 
 import android.os.Bundle;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
-import androidx.databinding.ObservableArrayList;
-import androidx.databinding.ObservableList;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelProvider;
 import android.view.View;
 
 import android.widget.TextView;
 
 import com.CadeMixedUpGame.api.AppLog;
-import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
-import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 
 public class CreateGameFrag extends Fragment {
 
-    RoomViewModel roomViewModel;
     UserViewModel userViewModel;
+    private boolean roomCleanupRequested = false;
 
     public CreateGameFrag() {
         super(R.layout.fragment_create_game);
@@ -32,7 +28,6 @@ public class CreateGameFrag extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
 
         TextView replace = view.findViewById(R.id.replace);
@@ -42,16 +37,16 @@ public class CreateGameFrag extends Fragment {
         }
         replace.setText(userViewModel.myRoom);
 
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                cleanupRoomAndReturnHome(view, "android back");
+            }
+        });
 
         //giving back button functionality
         view.findViewById(R.id.createGame_back).setOnClickListener(v -> {
-            roomViewModel.deleteRoom(userViewModel.myRoom);
-
-            getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, StartFragment.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
+            cleanupRoomAndReturnHome(view, "back button");
         });
 
         //giving start button functionality
@@ -65,12 +60,36 @@ public class CreateGameFrag extends Fragment {
 
             userViewModel.loadUsers(userViewModel.myRoom);
 
-
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
                     .setReorderingAllowed(true)
                     .addToBackStack(null)
                     .commit();
         });
+    }
+
+    private void cleanupRoomAndReturnHome(View view, String reason) {
+        if (roomCleanupRequested) {
+            return;
+        }
+        roomCleanupRequested = true;
+        AppLog.i(AppLog.ROOM, "Cleaning up unstarted room from CreateGameFrag reason=" + reason + ", room=" + userViewModel.myRoom);
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0) {
+            navigateHome();
+            return;
+        }
+        userViewModel.deleteRoom(currentUser, this::navigateHome);
+    }
+
+    private void navigateHome() {
+        if (!isAdded()) {
+            return;
+        }
+        getActivity().getSupportFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, StartFragment.class, null)
+                .setReorderingAllowed(true)
+                .addToBackStack(null)
+                .commit();
     }
 }

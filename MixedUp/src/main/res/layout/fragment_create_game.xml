@@ -26,6 +26,7 @@
         app:layout_constraintVertical_bias="0.243" />
 
     <TextView
+        style="@style/RoomCodeText"
         android:gravity="center_horizontal"
 
         android:id="@+id/replace"

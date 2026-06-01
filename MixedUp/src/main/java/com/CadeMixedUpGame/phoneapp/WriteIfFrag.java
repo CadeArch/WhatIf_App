@@ -18,6 +18,8 @@ public class WriteIfFrag extends Fragment {
 
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
+    private View submitButton;
+    private boolean submitInProgress = false;
     private int debugSubmitTapCount = 0;
     private long lastDebugSubmitTapMs = 0L;
 
@@ -36,13 +38,16 @@ public class WriteIfFrag extends Fragment {
             if (message != null && message.length() > 0) {
                 UiMessenger.showSnackbar(view, message);
                 userViewModel.databaseMessage.setValue("");
+                setSubmitSaving(false);
             }
         });
 
         EditText ifSentence = getActivity().findViewById(R.id.ifQuestion);
+        submitButton = view.findViewById(R.id.writeIf_submit);
+        Utils.clickButtonOnKeyboardSubmit(ifSentence, submitButton, "Keyboard submitted If prompt");
 
         //giving submit button functionality
-        view.findViewById(R.id.writeIf_submit).setOnClickListener(v -> {
+        submitButton.setOnClickListener(v -> {
             if (ifSentence.getText().toString().trim().length() == 0 && shouldAutoFillIf(ifSentence)) {
                 ifSentence.setText(DevBackdoor.randomIfPrompt());
                 ifSentence.setSelection(ifSentence.getText().length());
@@ -67,6 +72,9 @@ public class WriteIfFrag extends Fragment {
     }
 
     private void submitIf(EditText ifSentence) {
+        if (submitInProgress) {
+            return;
+        }
         if (ifSentence.getText().toString().trim().equals("")) {
             AppLog.w(AppLog.UI, "If submit blocked: empty question");
             UiMessenger.showError(ifSentence, "Question required");
@@ -81,14 +89,27 @@ public class WriteIfFrag extends Fragment {
             }
             userViewModel.getUser().getValue().ifSentence = ifsent;
             userViewModel.getUser().getValue().ifFinished = true;
-            userViewModel.gamePhase.setValue(GamePhase.COLLECTING_IFS);
-            AppLog.i(AppLog.GAME_FLOW, "WriteIfFrag -> CollectingQuestionsFrag");
-
-            getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
+            setSubmitSaving(true);
+            userViewModel.pushIf(userViewModel.getUser(), this::navigateToCollectingQuestions);
         }
+    }
+
+    private void setSubmitSaving(boolean saving) {
+        submitInProgress = saving;
+        ActionButtonState.setSaving(submitButton, saving);
+    }
+
+    private void navigateToCollectingQuestions() {
+        if (!isAdded()) {
+            return;
+        }
+        userViewModel.gamePhase.setValue(GamePhase.COLLECTING_IFS);
+        AppLog.i(AppLog.GAME_FLOW, "WriteIfFrag -> CollectingQuestionsFrag");
+
+        getActivity().getSupportFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
+                .setReorderingAllowed(true)
+                .addToBackStack(null)
+                .commit();
     }
 }

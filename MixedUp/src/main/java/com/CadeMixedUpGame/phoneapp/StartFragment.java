@@ -26,6 +26,7 @@ public class StartFragment extends Fragment {
     RoomViewModel roomViewModel;
     UserViewModel userViewModel;
     LeaderBoardViewModel leaderBoardViewModel;
+    private View createGameButton;
     private int debugNameTapCount = 0;
     private long lastDebugNameTapMs = 0L;
 
@@ -44,12 +45,14 @@ public class StartFragment extends Fragment {
             if (message != null && message.length() > 0) {
                 UiMessenger.showSnackbar(view, message);
                 roomViewModel.databaseMessage.setValue("");
+                setCreateGameSaving(false);
             }
         });
         userViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
             if (message != null && message.length() > 0) {
                 UiMessenger.showSnackbar(view, message);
                 userViewModel.databaseMessage.setValue("");
+                setCreateGameSaving(false);
             }
         });
 
@@ -121,7 +124,8 @@ public class StartFragment extends Fragment {
         });
 
         //giving create game button functionality MAYBE MAKE THIS ONLY AVAILABLE TO ACCOUNT PLAY
-        view.findViewById(R.id.create_game).setOnClickListener(v -> {
+        createGameButton = view.findViewById(R.id.create_game);
+        createGameButton.setOnClickListener(v -> {
             User user = userViewModel.getUser().getValue();
             if (user == null) {
                 UiMessenger.showSnackbar(view, "User is not loaded yet. Go back and try again.");
@@ -148,33 +152,7 @@ public class StartFragment extends Fragment {
                 AppLog.d(AppLog.AUTH, "Free-play host name set");
             }
 
-            //creating a new roomID to make a room and storing info locally
-            String roomID = roomViewModel.makeRoomID();
-            userViewModel.myRoom = roomID;
-
-            //pushing the data to firebase
-            roomViewModel.pushRoom(roomID);
-
-            MutableLiveData<User> newUser = userViewModel.getUser();
-            if (newUser.getValue().accountPlay && (newUser.getValue().userName == null || newUser.getValue().userName.length() == 0)) {
-                newUser.getValue().userName = userName.getText().toString();
-            }
-            else if (!newUser.getValue().accountPlay) {
-                newUser.getValue().userName = userViewModel.localName;
-            }
-            newUser.getValue().host = true;
-            newUser.getValue().hostStarted = false;
-            newUser.getValue().gameRoom = userViewModel.myRoom;
-
-            userViewModel.pushPerson(newUser);
-
-            //moving to the fragment where they can share their room code
-            getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, CreateGameFrag.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
-            AppLog.i(AppLog.GAME_FLOW, "StartFragment -> CreateGameFrag room=" + roomID);
+            createReservedRoom(userName);
         });
 
         //giving the join game button functionality
@@ -272,5 +250,41 @@ public class StartFragment extends Fragment {
         lastDebugNameTapMs = now;
         debugNameTapCount += 1;
         return debugNameTapCount >= 3;
+    }
+
+    private void createReservedRoom(TextView userName) {
+        setCreateGameSaving(true);
+        roomViewModel.createUniqueRoom(roomID -> {
+            if (!isAdded()) {
+                return;
+            }
+            userViewModel.myRoom = roomID;
+            MutableLiveData<User> newUser = userViewModel.getUser();
+            if (newUser.getValue().accountPlay && (newUser.getValue().userName == null || newUser.getValue().userName.length() == 0)) {
+                newUser.getValue().userName = userName.getText().toString();
+            }
+            else if (!newUser.getValue().accountPlay) {
+                newUser.getValue().userName = userViewModel.localName;
+            }
+            newUser.getValue().host = true;
+            newUser.getValue().gameRoom = userViewModel.myRoom;
+
+            userViewModel.pushPerson(newUser, () -> {
+                if (!isAdded()) {
+                    return;
+                }
+                setCreateGameSaving(false);
+                getActivity().getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, CreateGameFrag.class, null)
+                        .setReorderingAllowed(true)
+                        .addToBackStack(null)
+                        .commit();
+                AppLog.i(AppLog.GAME_FLOW, "StartFragment -> CreateGameFrag room=" + roomID);
+            });
+        });
+    }
+
+    private void setCreateGameSaving(boolean saving) {
+        ActionButtonState.setSaving(createGameButton, saving);
     }
 }

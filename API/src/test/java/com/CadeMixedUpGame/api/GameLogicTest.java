@@ -9,6 +9,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class GameLogicTest {
     @Test
@@ -93,10 +94,58 @@ public class GameLogicTest {
     }
 
     @Test
+    public void randomizedAssignment_preservesEveryPlayerExactlyOnce() {
+        List<String> players = Arrays.asList("a-1", "b-2", "c-3", "d-4", "e-5");
+        List<String> assignments = GameLogic.randomizedAssignment(players, 123L);
+
+        ArrayList<String> sortedPlayers = new ArrayList<String>(players);
+        ArrayList<String> sortedAssignments = new ArrayList<String>(assignments);
+        Collections.sort(sortedPlayers);
+        Collections.sort(sortedAssignments);
+
+        assertEquals(sortedPlayers, sortedAssignments);
+    }
+
+    @Test
+    public void randomizedAssignment_handlesTwoPlayersWithoutSelfAssignment() {
+        List<String> players = Arrays.asList("a-1", "b-2");
+        List<String> assignments = GameLogic.randomizedAssignment(players, 7L);
+
+        assertEquals("b-2", assignments.get(0));
+        assertEquals("a-1", assignments.get(1));
+    }
+
+    @Test
     public void randomizedAssignment_allowsSinglePlayerFallback() {
         assertEquals(
                 Collections.singletonList("solo-1"),
                 GameLogic.randomizedAssignment(Collections.singletonList("solo-1"), 42L));
+    }
+
+    @Test
+    public void newRoundId_returnsNonEmptyRoundPrefixedValue() {
+        String roundId = GameLogic.newRoundId();
+
+        assertTrue(roundId.startsWith("round-"));
+        assertTrue(roundId.length() > "round-".length());
+    }
+
+    @Test
+    public void playerKeyUsesUserNameAndId() {
+        com.CadeMixedUpGame.api.models.User user = new com.CadeMixedUpGame.api.models.User("guest-Cade");
+        user.userID = 42;
+
+        assertEquals("guest-Cade-42", GameLogic.playerKey(user));
+        assertEquals("", GameLogic.playerKey(null));
+    }
+
+    @Test
+    public void isCurrentRound_acceptsMatchingRoundOnly() {
+        assertTrue(GameLogic.isCurrentRound("round-1", "round-1"));
+        assertFalse(GameLogic.isCurrentRound("round-1", "round-2"));
+        assertFalse(GameLogic.isCurrentRound("", "round-1"));
+        assertFalse(GameLogic.isCurrentRound(null, "round-1"));
+        assertFalse(GameLogic.isCurrentRound("round-1", null));
     }
 
     @Test

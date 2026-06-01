@@ -23,7 +23,6 @@ public class UserTest {
         assertEquals("", user.getIfSentence());
         assertEquals("", user.getThenSentence());
         assertFalse(user.getHost());
-        assertFalse(user.getHostStarted());
         assertFalse(user.isPlayAgain());
         assertEquals("", user.getHostPlayedAgain());
         assertFalse(user.madeLeaderBoard);
@@ -45,7 +44,6 @@ public class UserTest {
         user.setIfSentence("if this");
         user.setThenSentence("then that");
         user.setHost(true);
-        user.setHostStarted(true);
         user.setPlayAgain(true);
         user.setHostPlayedAgain("yes");
 
@@ -60,7 +58,6 @@ public class UserTest {
         assertEquals("if this", user.getIfSentence());
         assertEquals("then that", user.getThenSentence());
         assertTrue(user.getHost());
-        assertTrue(user.getHostStarted());
         assertTrue(user.isPlayAgain());
         assertEquals("yes", user.getHostPlayedAgain());
     }

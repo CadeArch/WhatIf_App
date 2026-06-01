@@ -22,4 +22,8 @@
     <style name="ThemeOverlay.AppTheme.TextInputEditText.Box" parent="">
         <item name="colorControlActivated">@color/black</item>
     </style>
+    <style name="RoomCodeText">
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:letterSpacing">0.08</item>
+    </style>
 </resources>

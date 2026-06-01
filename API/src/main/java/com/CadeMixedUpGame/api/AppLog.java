@@ -16,23 +16,38 @@ public class AppLog {
     }
 
     public static void d(String tag, String message) {
-        Log.d(tag, message);
+        try {
+            Log.d(tag, message);
+        } catch (RuntimeException ignored) {
+        }
     }
 
     public static void i(String tag, String message) {
-        Log.i(tag, message);
+        try {
+            Log.i(tag, message);
+        } catch (RuntimeException ignored) {
+        }
     }
 
     public static void w(String tag, String message) {
-        Log.w(tag, message);
+        try {
+            Log.w(tag, message);
+        } catch (RuntimeException ignored) {
+        }
     }
 
     public static void e(String tag, String message) {
-        Log.e(tag, message);
+        try {
+            Log.e(tag, message);
+        } catch (RuntimeException ignored) {
+        }
     }
 
     public static void e(String tag, String message, Throwable throwable) {
-        Log.e(tag, message, throwable);
+        try {
+            Log.e(tag, message, throwable);
+        } catch (RuntimeException ignored) {
+        }
     }
 
     public static String user(UserLogInfo user) {

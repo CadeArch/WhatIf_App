@@ -24,6 +24,8 @@ public class VoteFrag extends Fragment {
     LeaderBoardViewModel leaderBoardViewModel;
     int sentencesSelected = 0;
     static final int SELECTED_COLOR = 2012063468;
+    private View submitButton;
+    private boolean voteSubmitting = false;
 
     public VoteFrag() {
         super(R.layout.fragment_vote);
@@ -39,6 +41,7 @@ public class VoteFrag extends Fragment {
             if (message != null && message.length() > 0) {
                 UiMessenger.showBanner(view, message, UiMessenger.MessageType.ERROR);
                 leaderBoardViewModel.databaseMessage.setValue("");
+                setVoteSubmitting(false);
             }
         });
 
@@ -55,7 +58,8 @@ public class VoteFrag extends Fragment {
 
 
         //giving vote button functionality
-        view.findViewById(R.id.vote_submit).setOnClickListener(v -> submitVote(view, potentialLBIlist));
+        submitButton = view.findViewById(R.id.vote_submit);
+        submitButton.setOnClickListener(v -> submitVote(view, potentialLBIlist));
 
     }
 
@@ -117,6 +121,9 @@ public class VoteFrag extends Fragment {
     }
 
     private void submitVote(View root, LinearLayout potentialLBIlist) {
+        if (voteSubmitting) {
+            return;
+        }
         sentencesSelected = countSelectedVotes(potentialLBIlist);
         AppLog.d(AppLog.VOTE, "Vote submit clicked: selected=" + sentencesSelected);
         if (sentencesSelected != 1) {
@@ -126,10 +133,20 @@ public class VoteFrag extends Fragment {
         }
 
         String selectedVoteId = findSelectedVoteId(potentialLBIlist);
-        leaderBoardViewModel.castVote(userViewModel.getUser(), selectedVoteId);
         UiMessenger.hideBanner(root);
-        UiMessenger.showSnackbar(root, "Vote sent");
-        navigateToEnd();
+        setVoteSubmitting(true);
+        leaderBoardViewModel.castVote(userViewModel.getUser(), selectedVoteId, () -> {
+            if (!isAdded()) {
+                return;
+            }
+            UiMessenger.showSnackbar(root, "Vote sent");
+            navigateToEnd();
+        });
+    }
+
+    private void setVoteSubmitting(boolean submitting) {
+        voteSubmitting = submitting;
+        ActionButtonState.setSaving(submitButton, submitting);
     }
 
     private int countSelectedVotes(LinearLayout potentialLBIlist) {

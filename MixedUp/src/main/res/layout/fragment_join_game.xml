@@ -37,12 +37,17 @@
         app:layout_constraintVertical_bias="1.0" />
 
     <EditText
+        style="@style/RoomCodeText"
         android:id="@+id/enterGameCode"
         android:layout_width="250dp"
         android:layout_height="60dp"
 
         android:hint="Enter Join Code"
         android:gravity="center_horizontal"
+        android:imeOptions="actionDone"
+        android:inputType="textVisiblePassword|textNoSuggestions"
+        android:maxLines="1"
+        android:singleLine="true"
         android:textSize="20dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

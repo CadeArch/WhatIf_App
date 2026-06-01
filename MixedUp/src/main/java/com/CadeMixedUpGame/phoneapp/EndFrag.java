@@ -2,8 +2,6 @@ package com.CadeMixedUpGame.phoneapp;
 
 import android.graphics.Color;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -19,13 +17,13 @@ import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 import java.util.Objects;
 
 public class EndFrag extends Fragment {
-    private static final long HOST_HOME_ROOM_DELETE_DELAY_MS = 3000L;
-
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
     LeaderBoardViewModel leaderBoardViewModel;
     boolean allAccountPlayers = false;
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private View homeButton;
+    private View againButton;
+    private boolean endActionInProgress = false;
 
     public EndFrag() {
         super(R.layout.fragment_end);
@@ -44,12 +42,21 @@ public class EndFrag extends Fragment {
             if (message != null && message.length() > 0) {
                 UiMessenger.showBanner(view, message, UiMessenger.MessageType.ERROR);
                 userViewModel.databaseMessage.setValue("");
+                setEndActionSaving(false);
+            }
+        });
+        roomViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showBanner(view, message, UiMessenger.MessageType.ERROR);
+                roomViewModel.databaseMessage.setValue("");
+                setEndActionSaving(false);
             }
         });
         leaderBoardViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
             if (message != null && message.length() > 0) {
                 UiMessenger.showBanner(view, message, UiMessenger.MessageType.ERROR);
                 leaderBoardViewModel.databaseMessage.setValue("");
+                setEndActionSaving(false);
             }
         });
 
@@ -77,11 +84,13 @@ public class EndFrag extends Fragment {
 
         AppLog.d(AppLog.GAME_FLOW, "End screen current user=" + userViewModel.getUser().getValue().userName + ", host=" + userViewModel.getUser().getValue().host);
         userViewModel.onEndFrag = true;
+        homeButton = view.findViewById(R.id.home_ending);
+        againButton = view.findViewById(R.id.again_ending);
         // only host can say to play again
         if (!userViewModel.getUser().getValue().host) {
             // may not need the background color change with set enabled
-            view.findViewById(R.id.again_ending).setBackgroundColor(Color.GRAY);
-            view.findViewById(R.id.again_ending).setEnabled(false);
+            againButton.setBackgroundColor(Color.GRAY);
+            againButton.setEnabled(false);
 
             roomViewModel.replayState.observe(this.getViewLifecycleOwner(), new Observer<String>() {
                 @Override
@@ -89,14 +98,15 @@ public class EndFrag extends Fragment {
                     AppLog.d(AppLog.GAME_FLOW, "Room replay state changed to=" + state);
                     if ("yes".equals(state)) {
                         // if host hits again button will be clickable for rest of players
-                        view.findViewById(R.id.again_ending).setEnabled(true);
-                        view.findViewById(R.id.again_ending).setBackgroundColor(Color.parseColor("#FFEDA6EC"));
+                        againButton.setEnabled(true);
+                        againButton.setBackgroundColor(Color.parseColor("#FFEDA6EC"));
 
                     }
                     else if ("no".equals(state) && userViewModel.onEndFrag) {
                         userViewModel.onEndFrag = false;
-                        UiMessenger.showBanner(view, "Host left the game room.", UiMessenger.MessageType.ERROR);
-                        finishHomeNavigation();
+                        AppLog.i(AppLog.GAME_FLOW, "EndFrag received host home signal; currentFragment="
+                                + Utils.currentFragmentName(getActivity()));
+                        finishHomeNavigation("host replayState=no");
                     }
                 }
             });
@@ -104,7 +114,10 @@ public class EndFrag extends Fragment {
 
 
         //giving home button functionality
-        view.findViewById(R.id.home_ending).setOnClickListener(v -> {
+        homeButton.setOnClickListener(v -> {
+            if (endActionInProgress) {
+                return;
+            }
 
             if (hasPendingRequiredVotes()) {
                 AppLog.w(AppLog.VOTE, "Home blocked: not all votes are in");
@@ -113,19 +126,24 @@ public class EndFrag extends Fragment {
                 UiMessenger.hideBanner(view);
                 User currentUser = userViewModel.getUser().getValue();
                 if (currentUser != null && currentUser.host) {
-                    roomViewModel.setReplayState(currentUser.gameRoom, "no");
-                    leaderBoardViewModel.removeCastVotesListener(userViewModel.myRoom);
-                    scheduleRoomDelete(currentUser);
-                    finishHomeNavigation();
+                    setEndActionSaving(true);
+                    roomViewModel.setReplayState(currentUser.gameRoom, "no", () -> {
+                        leaderBoardViewModel.removeCastVotesListener(userViewModel.myRoom);
+                        userViewModel.deleteRoom(currentUser, () -> finishHomeNavigation("host home deleted room"));
+                    });
                 }
                 else {
-                    userViewModel.removeCurrentPlayerFromRoom(this::finishHomeNavigation);
+                    setEndActionSaving(true);
+                    userViewModel.removeCurrentPlayerFromRoom(() -> finishHomeNavigation("guest home removed self"));
                 }
             }
         });
 
         //giving again button functionality
-        view.findViewById(R.id.again_ending).setOnClickListener(v -> {
+        againButton.setOnClickListener(v -> {
+            if (endActionInProgress) {
+                return;
+            }
             AppLog.i(AppLog.GAME_FLOW, "Play again clicked");
 
             if (hasPendingRequiredVotes()) {
@@ -134,6 +152,7 @@ public class EndFrag extends Fragment {
             }
             else {
                 UiMessenger.hideBanner(view);
+                setEndActionSaving(true);
 
                 clearLocalStateForReplayOrExit();
 
@@ -170,29 +189,40 @@ public class EndFrag extends Fragment {
 
         userViewModel.pushPerson(userViewModel.getUser(), () -> {
             if (host) {
-                roomViewModel.setReplayState(userViewModel.myRoom, "yes");
+                roomViewModel.setReplayState(userViewModel.myRoom, "yes", () ->
+                        roomViewModel.gameInProgressFalse(userViewModel.myRoom, this::finishPlayAgainNavigation));
             }
-            roomViewModel.removeReplayStateListener();
-            userViewModel.getUser().getValue().hostPlayedAgain = "";
-            userViewModel.loadUsers(userViewModel.myRoom);
-            if (!isAdded()) {
-                return;
+            else {
+                finishPlayAgainNavigation();
             }
-            getActivity().getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
-                    .setReorderingAllowed(true)
-                    .addToBackStack(null)
-                    .commit();
-            AppLog.i(AppLog.GAME_FLOW, "EndFrag -> WaitingForHostFrag via play again");
         });
     }
 
-    private void scheduleRoomDelete(User hostUser) {
-        handler.postDelayed(() -> {
-            if (hostUser != null) {
-                userViewModel.deleteRoom(hostUser);
-            }
-        }, HOST_HOME_ROOM_DELETE_DELAY_MS);
+    private void finishPlayAgainNavigation() {
+        roomViewModel.removeReplayStateListener();
+        userViewModel.getUser().getValue().hostPlayedAgain = "";
+        userViewModel.loadUsers(userViewModel.myRoom);
+        if (!isAdded()) {
+            return;
+        }
+        getActivity().getSupportFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, WaitingForHostFrag.class, null)
+                .setReorderingAllowed(true)
+                .addToBackStack(null)
+                .commit();
+        AppLog.i(AppLog.GAME_FLOW, "EndFrag -> WaitingForHostFrag via play again");
+    }
+
+    private void setEndActionSaving(boolean saving) {
+        endActionInProgress = saving;
+        if (homeButton != null) {
+            ActionButtonState.setSaving(homeButton, saving);
+        }
+        if (againButton != null && userViewModel != null && userViewModel.getUser().getValue() != null) {
+            boolean host = userViewModel.getUser().getValue().host;
+            boolean replayAllowed = host || "yes".equals(roomViewModel.replayState.getValue());
+            ActionButtonState.setSaving(againButton, saving, replayAllowed);
+        }
     }
 
     private boolean hasPendingRequiredVotes() {
@@ -206,20 +236,19 @@ public class EndFrag extends Fragment {
         AppLog.i(AppLog.GAME_FLOW, "Cleared local end-of-round state");
     }
 
-    private void finishHomeNavigation() {
+    private void finishHomeNavigation(String reason) {
         if (!isAdded()) {
             return;
         }
+        AppLog.i(AppLog.GAME_FLOW, "EndFrag finishing home navigation reason=" + reason
+                + ", currentFragment=" + Utils.currentFragmentName(getActivity())
+                + ", backStack=" + getActivity().getSupportFragmentManager().getBackStackEntryCount());
         userViewModel.removeListenerOnDB();
         roomViewModel.removeReplayStateListener();
         clearLocalStateForReplayOrExit();
         userViewModel.host = new MutableLiveData<User>();
-        getActivity().getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragment_container, StartFragment.class, null)
-                .setReorderingAllowed(true)
-                .addToBackStack(null)
-                .commit();
-        AppLog.i(AppLog.GAME_FLOW, "EndFrag -> StartFragment via home");
+        Utils.navigateHomeReplacingCurrent(getActivity());
+        AppLog.i(AppLog.GAME_FLOW, "EndFrag -> StartFragment via home reason=" + reason);
     }
 
 }

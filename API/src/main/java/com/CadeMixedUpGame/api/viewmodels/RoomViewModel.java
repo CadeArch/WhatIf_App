@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel;
 
 import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.GameLogic;
+import com.CadeMixedUpGame.api.RoomCreationPolicy;
 import com.CadeMixedUpGame.api.models.RoundAssignment;
 import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
@@ -18,6 +19,8 @@ import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.MutableData;
+import com.google.firebase.database.Transaction;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
@@ -35,7 +38,7 @@ public class RoomViewModel extends ViewModel {
     public DatabaseReference db;
     private final GameRepository repository;
     // removed capitol I and lowercase l because they were ambiguous with the font i am using
-    String allChars = "a b c d e f g h i j k m n o p q r s t u v w x y z A B C D E F G H J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9";
+    String allChars = "a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9";
     String[] usableCharacter;
     public MutableLiveData<Boolean> inProgress = new MutableLiveData<Boolean>();
     public MutableLiveData<RoomJoinState> roomJoinState = new MutableLiveData<RoomJoinState>(RoomJoinState.IDLE);
@@ -44,6 +47,12 @@ public class RoomViewModel extends ViewModel {
     public MutableLiveData<Boolean> readingComplete = new MutableLiveData<Boolean>(false);
     public MutableLiveData<String> replayState = new MutableLiveData<String>("");
     public MutableLiveData<RoundAssignment> currentAssignment = new MutableLiveData<RoundAssignment>();
+    public MutableLiveData<String> currentRoundId = new MutableLiveData<String>("");
+    public MutableLiveData<Boolean> currentRoundLoaded = new MutableLiveData<Boolean>(false);
+    public MutableLiveData<Boolean> firebaseConnected = new MutableLiveData<Boolean>(true);
+    public MutableLiveData<Boolean> activeReaderLoaded = new MutableLiveData<Boolean>(false);
+    public MutableLiveData<String> activeReaderKey = new MutableLiveData<String>("");
+    public MutableLiveData<List<String>> readOrder = new MutableLiveData<List<String>>(new ArrayList<String>());
     private ValueEventListener activeReaderListener;
     private String activeReaderListenerRoom;
     private ValueEventListener readingCompleteListener;
@@ -52,6 +61,9 @@ public class RoomViewModel extends ViewModel {
     private String assignmentListenerPath;
     private ValueEventListener replayStateListener;
     private String replayStateListenerRoom;
+    private ValueEventListener currentRoundListener;
+    private String currentRoundListenerRoom;
+    private ValueEventListener connectionListener;
 
     public enum RoomJoinState {
         IDLE,
@@ -59,6 +71,10 @@ public class RoomViewModel extends ViewModel {
         DOES_NOT_EXIST,
         IN_PROGRESS,
         ERROR
+    }
+
+    public interface RoomCreationCallback {
+        void onRoomCreated(String roomId);
     }
 
     public RoomViewModel() {
@@ -81,6 +97,35 @@ public class RoomViewModel extends ViewModel {
             if (loadRoomsOnCreate) {
                 loadRooms();
             }
+        }
+    }
+
+    public void listenToConnectionState() {
+        if (db == null || connectionListener != null) {
+            return;
+        }
+        AppLog.i(AppLog.FIREBASE, "Attaching Firebase connection listener");
+        connectionListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Boolean connected = snapshot.getValue(Boolean.class);
+                firebaseConnected.setValue(connected == null || connected);
+                AppLog.i(AppLog.FIREBASE, "Firebase connection state connected=" + firebaseConnected.getValue());
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                AppLog.e(AppLog.FIREBASE, "Connection listener cancelled: " + error.getMessage());
+            }
+        };
+        db.getDatabase().getReference(".info/connected").addValueEventListener(connectionListener);
+    }
+
+    public void removeConnectionListener() {
+        if (db != null && connectionListener != null) {
+            AppLog.i(AppLog.FIREBASE, "Removing Firebase connection listener");
+            db.getDatabase().getReference(".info/connected").removeEventListener(connectionListener);
+            connectionListener = null;
         }
     }
 
@@ -134,9 +179,18 @@ public class RoomViewModel extends ViewModel {
     }
 
     public void deleteRoom(String roomID) {
+        deleteRoom(roomID, null);
+    }
+
+    public void deleteRoom(String roomID, Runnable onSuccess) {
         AppLog.i(AppLog.ROOM, "Deleting room=" + roomID);
         db.child("rooms").child(roomID).removeValue()
-                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Room deleted id=" + roomID))
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.FIREBASE, "Room deleted id=" + roomID);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not delete room. Check your connection and try again.");
                     AppLog.e(AppLog.FIREBASE, "Failed deleting room=" + roomID, e);
@@ -152,6 +206,53 @@ public class RoomViewModel extends ViewModel {
                     databaseMessage.setValue("Could not create room. Check your connection and try again.");
                     AppLog.e(AppLog.FIREBASE, "Failed creating room=" + room.roomID, e);
                 });
+    }
+
+    public void createUniqueRoom(RoomCreationCallback callback) {
+        reserveUniqueRoom(callback, 0);
+    }
+
+    private void reserveUniqueRoom(RoomCreationCallback callback, int attemptIndex) {
+        String candidateRoomId = makeRoomID();
+        AppLog.i(AppLog.ROOM, "Reserving room id attempt=" + (attemptIndex + 1) + ", room=" + candidateRoomId);
+        db.child("rooms").child(candidateRoomId).runTransaction(new Transaction.Handler() {
+            @NonNull
+            @Override
+            public Transaction.Result doTransaction(@NonNull MutableData currentData) {
+                if (currentData.getValue() != null) {
+                    return Transaction.abort();
+                }
+                currentData.setValue(new Room(candidateRoomId));
+                return Transaction.success(currentData);
+            }
+
+            @Override
+            public void onComplete(DatabaseError error, boolean committed, DataSnapshot currentData) {
+                if (error == null && committed) {
+                    room = new Room(candidateRoomId);
+                    AppLog.i(AppLog.FIREBASE, "Unique room reserved id=" + candidateRoomId + ", attempts=" + (attemptIndex + 1));
+                    if (callback != null) {
+                        callback.onRoomCreated(candidateRoomId);
+                    }
+                    return;
+                }
+
+                boolean hadError = error != null;
+                if (RoomCreationPolicy.shouldRetry(attemptIndex, committed, hadError)) {
+                    AppLog.w(AppLog.ROOM, "Room id unavailable; retrying attempt=" + (attemptIndex + 1)
+                            + ", room=" + candidateRoomId
+                            + ", error=" + (error == null ? "collision" : error.getMessage()));
+                    reserveUniqueRoom(callback, attemptIndex + 1);
+                    return;
+                }
+
+                databaseMessage.setValue("Could not create a unique game room. Please try again.");
+                AppLog.e(AppLog.FIREBASE, "Failed reserving unique room after attempts=" + (attemptIndex + 1)
+                        + ", lastRoom=" + candidateRoomId
+                        + ", committed=" + committed
+                        + ", error=" + (error == null ? "collision" : error.getMessage()));
+            }
+        });
     }
     public void gameInProgressTrue() {
         if (room != null) {
@@ -185,14 +286,26 @@ public class RoomViewModel extends ViewModel {
     }
 
     public void gameInProgressFalse(String room) {
+        gameInProgressFalse(room, null);
+    }
+
+    public void gameInProgressFalse(String room, Runnable onSuccess) {
         if (room != null && room.length() > 0) {
             Task<Void> task = repository.setRoomInProgress(room, false);
             if (task != null) {
-                task.addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Room unlocked room=" + room))
+                task.addOnSuccessListener(unused -> {
+                            AppLog.i(AppLog.FIREBASE, "Room unlocked room=" + room);
+                            if (onSuccess != null) {
+                                onSuccess.run();
+                            }
+                        })
                         .addOnFailureListener(e -> {
                             databaseMessage.setValue("Could not update room status. Check your connection.");
                             AppLog.e(AppLog.FIREBASE, "Failed unlocking room=" + room, e);
                         });
+            }
+            else if (onSuccess != null) {
+                onSuccess.run();
             }
         }
     }
@@ -268,8 +381,10 @@ public class RoomViewModel extends ViewModel {
         }
 
         long seed = System.currentTimeMillis();
+        String roundId = GameLogic.newRoundId();
         List<String> ifOwners = GameLogic.randomizedAssignment(playerKeys, seed);
         List<String> thenOwners = GameLogic.randomizedAssignment(playerKeys, seed + 9973L);
+        List<String> readerOrder = buildHostFirstReadOrder(usersByKey, playerKeys, seed + 19997L);
         Map<String, RoundAssignment> assignments = new LinkedHashMap<String, RoundAssignment>();
         for (int index = 0; index < playerKeys.size(); index++) {
             String playerKey = playerKeys.get(index);
@@ -285,13 +400,30 @@ public class RoomViewModel extends ViewModel {
                     displayName(thenOwner),
                     contributorId(ifOwner),
                     contributorId(thenOwner),
-                    seed));
+                    seed,
+                    roundId,
+                    readerOrder.indexOf(playerKey)));
         }
 
-        AppLog.i(AppLog.GAME_FLOW, "Creating round assignment map room=" + roomId + ", players=" + assignments.size());
-        db.child("rooms").child(roomId).child("roundAssignments").setValue(assignments)
+        AppLog.i(AppLog.GAME_FLOW, "Creating round assignment map room=" + roomId + ", roundId=" + roundId + ", players=" + assignments.size());
+        Map<String, Object> roundUpdate = new HashMap<String, Object>();
+        roundUpdate.put("currentRoundId", roundId);
+        roundUpdate.put("roundAssignments", assignments);
+        roundUpdate.put("readOrder", readerOrder);
+        roundUpdate.put("activeReaderIndex", 0);
+        roundUpdate.put("activeReaderKey", readerOrder.get(0));
+        roundUpdate.put("activeReaderRoundId", roundId);
+        roundUpdate.put("readingComplete", false);
+        roundUpdate.put("readingCompleteRoundId", roundId);
+        db.child("rooms").child(roomId).updateChildren(roundUpdate)
                 .addOnSuccessListener(unused -> {
-                    AppLog.i(AppLog.FIREBASE, "Round assignments written room=" + roomId);
+                    currentRoundId.setValue(roundId);
+                    currentRoundLoaded.setValue(true);
+                    readOrder.setValue(readerOrder);
+                    activeReaderIndex.setValue(0);
+                    activeReaderKey.setValue(readerOrder.get(0));
+                    activeReaderLoaded.setValue(true);
+                    AppLog.i(AppLog.FIREBASE, "Round assignments written room=" + roomId + ", roundId=" + roundId);
                     if (onSuccess != null) {
                         onSuccess.run();
                     }
@@ -311,6 +443,38 @@ public class RoomViewModel extends ViewModel {
             }
         }
         return usersByKey;
+    }
+
+    private List<String> buildHostFirstReadOrder(Map<String, User> usersByKey, List<String> playerKeys, long seed) {
+        List<String> hostKeys = new ArrayList<String>();
+        List<String> guestKeys = new ArrayList<String>();
+        for (String playerKey : playerKeys) {
+            User user = usersByKey.get(playerKey);
+            if (user != null && user.host) {
+                hostKeys.add(playerKey);
+            }
+            else {
+                guestKeys.add(playerKey);
+            }
+        }
+        Collections.shuffle(guestKeys, new Random(seed));
+        List<String> order = new ArrayList<String>();
+        if (hostKeys.size() > 0) {
+            Collections.sort(hostKeys);
+            order.add(hostKeys.get(0));
+        }
+        for (String playerKey : guestKeys) {
+            if (!order.contains(playerKey)) {
+                order.add(playerKey);
+            }
+        }
+        for (String playerKey : playerKeys) {
+            if (!order.contains(playerKey)) {
+                order.add(playerKey);
+            }
+        }
+        AppLog.i(AppLog.GAME_FLOW, "Read order built hostFirst=" + (hostKeys.size() > 0) + ", players=" + order.size());
+        return order;
     }
 
     private String displayName(User user) {
@@ -340,6 +504,12 @@ public class RoomViewModel extends ViewModel {
                 RoundAssignment assignment = snapshot.getValue(RoundAssignment.class);
                 if (assignment == null) {
                     AppLog.d(AppLog.GAME_FLOW, "Waiting for assignment map path=" + path);
+                    return;
+                }
+                if (!GameLogic.isCurrentRound(currentRoundId.getValue(), assignment.roundId)) {
+                    AppLog.w(AppLog.GAME_FLOW, "Ignoring stale assignment playerKey=" + playerKey
+                            + ", eventRoundId=" + assignment.roundId
+                            + ", currentRoundId=" + currentRoundId.getValue());
                     return;
                 }
                 currentAssignment.setValue(assignment);
@@ -395,19 +565,42 @@ public class RoomViewModel extends ViewModel {
             return;
         }
         AppLog.i(AppLog.GAME_FLOW, "Clearing room round state for replay room=" + roomId);
-        deleteRoundAssignments(roomId, () ->
-                setActiveReaderIndex(roomId, 0, () ->
-                        setReadingComplete(roomId, false, onSuccess)));
+        Map<String, Object> update = new HashMap<String, Object>();
+        update.put("roundAssignments", null);
+        update.put("currentRoundId", "");
+        update.put("readOrder", null);
+        update.put("activeReaderIndex", 0);
+        update.put("activeReaderKey", "");
+        update.put("activeReaderRoundId", "");
+        update.put("readingComplete", false);
+        update.put("readingCompleteRoundId", "");
+        db.child("rooms").child(roomId).updateChildren(update)
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.FIREBASE, "Room round state cleared for replay room=" + roomId);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not clear old round state. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed clearing room round state room=" + roomId, e);
+                });
     }
 
     public void clearLocalRoundState() {
         activeReaderIndex.setValue(0);
+        activeReaderLoaded.setValue(false);
+        activeReaderKey.setValue("");
+        readOrder.setValue(new ArrayList<String>());
         readingComplete.setValue(false);
         replayState.setValue("");
+        currentRoundId.setValue("");
+        currentRoundLoaded.setValue(false);
         currentAssignment.setValue(null);
         removeAssignmentListener();
         removeReadingCompleteListener();
         removeActiveReaderListener();
+        removeCurrentRoundListener();
         AppLog.i(AppLog.GAME_FLOW, "Cleared local room round state");
     }
 
@@ -421,7 +614,11 @@ public class RoomViewModel extends ViewModel {
             return;
         }
         AppLog.i(AppLog.ROOM, "Setting active reader room=" + roomId + ", index=" + index);
-        db.child("rooms").child(roomId).child("activeReaderIndex").setValue(index)
+        Map<String, Object> update = new HashMap<String, Object>();
+        update.put("activeReaderIndex", index);
+        update.put("activeReaderKey", activeReaderKeyForIndex(index));
+        update.put("activeReaderRoundId", currentRoundId.getValue() == null ? "" : currentRoundId.getValue());
+        db.child("rooms").child(roomId).updateChildren(update)
                 .addOnSuccessListener(unused -> {
                     if (onSuccess != null) {
                         onSuccess.run();
@@ -443,7 +640,10 @@ public class RoomViewModel extends ViewModel {
             return;
         }
         AppLog.i(AppLog.ROOM, "Setting reading complete room=" + roomId + ", complete=" + complete);
-        db.child("rooms").child(roomId).child("readingComplete").setValue(complete)
+        Map<String, Object> update = new HashMap<String, Object>();
+        update.put("readingComplete", complete);
+        update.put("readingCompleteRoundId", currentRoundId.getValue() == null ? "" : currentRoundId.getValue());
+        db.child("rooms").child(roomId).updateChildren(update)
                 .addOnSuccessListener(unused -> {
                     if (onSuccess != null) {
                         onSuccess.run();
@@ -452,6 +652,30 @@ public class RoomViewModel extends ViewModel {
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not finish the reading round. Check your connection.");
                     AppLog.e(AppLog.FIREBASE, "Failed setting reading complete room=" + roomId, e);
+                });
+    }
+
+    public void completeReadingAfterFinalPass(String roomId, int completedIndex, Runnable onSuccess) {
+        if (roomId == null || roomId.length() == 0) {
+            AppLog.w(AppLog.ROOM, "completeReadingAfterFinalPass skipped: missing room id");
+            return;
+        }
+        AppLog.i(AppLog.ROOM, "Completing reading after final pass room=" + roomId + ", completedIndex=" + completedIndex);
+        Map<String, Object> update = new HashMap<String, Object>();
+        update.put("activeReaderIndex", completedIndex);
+        update.put("activeReaderKey", "");
+        update.put("activeReaderRoundId", currentRoundId.getValue() == null ? "" : currentRoundId.getValue());
+        update.put("readingComplete", true);
+        update.put("readingCompleteRoundId", currentRoundId.getValue() == null ? "" : currentRoundId.getValue());
+        db.child("rooms").child(roomId).updateChildren(update)
+                .addOnSuccessListener(unused -> {
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not finish the reading round. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed completing reading after final pass room=" + roomId, e);
                 });
     }
 
@@ -487,14 +711,26 @@ public class RoomViewModel extends ViewModel {
             return;
         }
         removeActiveReaderListener();
-        activeReaderIndex.setValue(0);
+        activeReaderLoaded.setValue(false);
         activeReaderListenerRoom = roomId;
         activeReaderListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                Integer index = snapshot.getValue(Integer.class);
+                String eventRoundId = snapshot.child("activeReaderRoundId").getValue(String.class);
+                if (!GameLogic.isCurrentRound(currentRoundId.getValue(), eventRoundId)) {
+                    AppLog.w(AppLog.ROOM, "Ignoring stale active reader room=" + roomId
+                            + ", eventRoundId=" + eventRoundId
+                            + ", currentRoundId=" + currentRoundId.getValue());
+                    return;
+                }
+                Integer index = snapshot.child("activeReaderIndex").getValue(Integer.class);
+                String readerKey = snapshot.child("activeReaderKey").getValue(String.class);
+                List<String> order = readStringList(snapshot.child("readOrder"));
                 activeReaderIndex.setValue(index == null ? 0 : index);
-                AppLog.d(AppLog.ROOM, "Active reader updated room=" + roomId + ", index=" + activeReaderIndex.getValue());
+                activeReaderKey.setValue(readerKey == null ? "" : readerKey);
+                readOrder.setValue(order);
+                activeReaderLoaded.setValue(true);
+                AppLog.d(AppLog.ROOM, "Active reader updated room=" + roomId + ", index=" + activeReaderIndex.getValue() + ", key=" + activeReaderKey.getValue());
             }
 
             @Override
@@ -503,7 +739,29 @@ public class RoomViewModel extends ViewModel {
                 AppLog.e(AppLog.FIREBASE, "Active reader listener cancelled room=" + roomId + ": " + error.getMessage());
             }
         };
-        db.child("rooms").child(roomId).child("activeReaderIndex").addValueEventListener(activeReaderListener);
+        db.child("rooms").child(roomId).addValueEventListener(activeReaderListener);
+    }
+
+    private List<String> readStringList(DataSnapshot snapshot) {
+        List<String> values = new ArrayList<String>();
+        if (snapshot == null || !snapshot.exists()) {
+            return values;
+        }
+        for (DataSnapshot child : snapshot.getChildren()) {
+            String value = child.getValue(String.class);
+            if (value != null && value.length() > 0) {
+                values.add(value);
+            }
+        }
+        return values;
+    }
+
+    private String activeReaderKeyForIndex(int index) {
+        List<String> order = readOrder.getValue();
+        if (order == null || index < 0 || index >= order.size()) {
+            return "";
+        }
+        return order.get(index);
     }
 
     public void listenToReadingComplete(String roomId) {
@@ -520,7 +778,14 @@ public class RoomViewModel extends ViewModel {
         readingCompleteListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                Boolean complete = snapshot.getValue(Boolean.class);
+                String eventRoundId = snapshot.child("readingCompleteRoundId").getValue(String.class);
+                if (!GameLogic.isCurrentRound(currentRoundId.getValue(), eventRoundId)) {
+                    AppLog.w(AppLog.ROOM, "Ignoring stale reading complete room=" + roomId
+                            + ", eventRoundId=" + eventRoundId
+                            + ", currentRoundId=" + currentRoundId.getValue());
+                    return;
+                }
+                Boolean complete = snapshot.child("readingComplete").getValue(Boolean.class);
                 readingComplete.setValue(complete != null && complete);
                 AppLog.d(AppLog.ROOM, "Reading complete updated room=" + roomId + ", complete=" + readingComplete.getValue());
             }
@@ -531,7 +796,37 @@ public class RoomViewModel extends ViewModel {
                 AppLog.e(AppLog.FIREBASE, "Reading completion listener cancelled room=" + roomId + ": " + error.getMessage());
             }
         };
-        db.child("rooms").child(roomId).child("readingComplete").addValueEventListener(readingCompleteListener);
+        db.child("rooms").child(roomId).addValueEventListener(readingCompleteListener);
+    }
+
+    public void listenToCurrentRoundId(String roomId) {
+        if (roomId == null || roomId.length() == 0) {
+            AppLog.w(AppLog.ROOM, "listenToCurrentRoundId skipped: missing room id");
+            return;
+        }
+        if (roomId.equals(currentRoundListenerRoom) && currentRoundListener != null) {
+            return;
+        }
+        removeCurrentRoundListener();
+        currentRoundLoaded.setValue(false);
+        currentRoundId.setValue("");
+        currentRoundListenerRoom = roomId;
+        currentRoundListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                String roundId = snapshot.getValue(String.class);
+                currentRoundLoaded.setValue(true);
+                currentRoundId.setValue(roundId == null ? "" : roundId);
+                AppLog.i(AppLog.GAME_FLOW, "Current round updated room=" + roomId + ", roundId=" + currentRoundId.getValue());
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                databaseMessage.setValue("Could not load the current round. Check your connection.");
+                AppLog.e(AppLog.FIREBASE, "Current round listener cancelled room=" + roomId + ": " + error.getMessage());
+            }
+        };
+        db.child("rooms").child(roomId).child("currentRoundId").addValueEventListener(currentRoundListener);
     }
 
     public void listenToReplayState(String roomId) {
@@ -565,7 +860,7 @@ public class RoomViewModel extends ViewModel {
     public void removeActiveReaderListener() {
         if (activeReaderListener != null && activeReaderListenerRoom != null) {
             AppLog.i(AppLog.FIREBASE, "Removing active reader listener room=" + activeReaderListenerRoom);
-            db.child("rooms").child(activeReaderListenerRoom).child("activeReaderIndex").removeEventListener(activeReaderListener);
+            db.child("rooms").child(activeReaderListenerRoom).removeEventListener(activeReaderListener);
             activeReaderListener = null;
             activeReaderListenerRoom = null;
         }
@@ -574,7 +869,7 @@ public class RoomViewModel extends ViewModel {
     public void removeReadingCompleteListener() {
         if (readingCompleteListener != null && readingCompleteListenerRoom != null) {
             AppLog.i(AppLog.FIREBASE, "Removing reading complete listener room=" + readingCompleteListenerRoom);
-            db.child("rooms").child(readingCompleteListenerRoom).child("readingComplete").removeEventListener(readingCompleteListener);
+            db.child("rooms").child(readingCompleteListenerRoom).removeEventListener(readingCompleteListener);
             readingCompleteListener = null;
             readingCompleteListenerRoom = null;
         }
@@ -589,12 +884,23 @@ public class RoomViewModel extends ViewModel {
         }
     }
 
+    public void removeCurrentRoundListener() {
+        if (currentRoundListener != null && currentRoundListenerRoom != null) {
+            AppLog.i(AppLog.FIREBASE, "Removing current round listener room=" + currentRoundListenerRoom);
+            db.child("rooms").child(currentRoundListenerRoom).child("currentRoundId").removeEventListener(currentRoundListener);
+            currentRoundListener = null;
+            currentRoundListenerRoom = null;
+        }
+    }
+
     @Override
     protected void onCleared() {
         removeAssignmentListener();
         removeReadingCompleteListener();
         removeActiveReaderListener();
         removeReplayStateListener();
+        removeCurrentRoundListener();
+        removeConnectionListener();
         super.onCleared();
     }
 

@@ -181,13 +181,22 @@ public class LeaderBoardViewModel extends ViewModel {
 
     //changed to userName and userID instead of just username in case users have same name todo MAKE SURE IT DIDNT BREAK ANYTHING
     public void castVote(MutableLiveData<User> user, String vote) {
+        castVote(user, vote, null);
+    }
+
+    public void castVote(MutableLiveData<User> user, String vote, Runnable onSuccess) {
         String room = user.getValue().gameRoom;
         String playerKey = user.getValue().userName + "-" + user.getValue().userID;
         AppLog.i(AppLog.VOTE, "Casting vote room=" + room + ", player=" + playerKey + ", vote=" + vote);
         db.child("rooms").child(room).child("votes").child(playerKey).setValue(vote)
-                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Vote write succeeded room=" + room))
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.FIREBASE, "Vote write succeeded room=" + room);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
                 .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not send your vote. Check your connection and try again.");
+                    databaseMessage.setValue("Could not send your vote. Check your connection and tap submit again.");
                     AppLog.e(AppLog.FIREBASE, "Vote write failed room=" + room, e);
                 });
     }
