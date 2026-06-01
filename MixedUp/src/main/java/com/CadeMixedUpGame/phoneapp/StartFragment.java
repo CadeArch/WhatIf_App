@@ -104,24 +104,10 @@ public class StartFragment extends Fragment {
 
         userViewModel.getUser().observe(getViewLifecycleOwner(), user -> {
             if (user != null) {
-//                System.out.println("Frag" + user.userName + user.accountPlay);
-                if (user.accountPlay) {
-                    view.findViewById(R.id.back).setVisibility(View.GONE);
-                    userName.setText(user.userName);
-                    enterName.setVisibility(View.GONE);
-                    view.findViewById(R.id.signOut).setVisibility(View.VISIBLE);
-                    view.findViewById(R.id.profile_button).setVisibility(View.VISIBLE);
-
-                }
-
-                // if non account play take away log out button and show back button
-                else {
-                    view.findViewById(R.id.signOut).setVisibility(View.GONE);
-                    view.findViewById(R.id.back).setVisibility(View.VISIBLE);
-                    view.findViewById(R.id.profile_button).setVisibility(View.GONE);
-                }
+                applyUserMode(view, enterName, userName, user);
             }
         });
+        applyUserMode(view, enterName, userName, currentUser);
 
         //giving create game button functionality MAYBE MAKE THIS ONLY AVAILABLE TO ACCOUNT PLAY
         createGameButton = view.findViewById(R.id.create_game);
@@ -250,6 +236,21 @@ public class StartFragment extends Fragment {
         lastDebugNameTapMs = now;
         debugNameTapCount += 1;
         return debugNameTapCount >= 3;
+    }
+
+    private void applyUserMode(View view, EditText enterName, TextView userName, User user) {
+        if (user == null) {
+            return;
+        }
+        boolean accountPlayer = Boolean.TRUE.equals(user.accountPlay);
+        view.findViewById(R.id.signOut).setVisibility(accountPlayer ? View.VISIBLE : View.GONE);
+        view.findViewById(R.id.back).setVisibility(accountPlayer ? View.GONE : View.VISIBLE);
+        view.findViewById(R.id.profile_button).setVisibility(accountPlayer ? View.VISIBLE : View.GONE);
+        enterName.setVisibility(accountPlayer ? View.GONE : View.VISIBLE);
+        userName.setVisibility(accountPlayer ? View.VISIBLE : View.GONE);
+        if (accountPlayer) {
+            userName.setText(user.userName);
+        }
     }
 
     private void createReservedRoom(TextView userName) {

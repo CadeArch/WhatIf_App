@@ -32,6 +32,16 @@ public class Utils {
                 .commitNowAllowingStateLoss();
     }
 
+    public static void navigateLandingReplacingCurrent(FragmentActivity activity) {
+        if (activity == null) {
+            return;
+        }
+        activity.getSupportFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, FirstFrag.class, null)
+                .setReorderingAllowed(true)
+                .commitNowAllowingStateLoss();
+    }
+
     public static String currentFragmentName(FragmentActivity activity) {
         if (activity == null) {
             return "unknown";

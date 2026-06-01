@@ -61,6 +61,36 @@ Useful Logcat filters:
 - Account-only games go to voting and can submit winning sentences to the leaderboard.
 - The host controls whether the room goes home or plays again.
 
+
+## Completed Highlights
+
+- Firebase-backed room creation and joining.
+- Player list listener for rooms.
+- If/Then submission flow.
+- Collection screens showing submitted players.
+- Mixed sentence reading screen.
+- Account-only voting flow.
+- Leaderboard submission and replacement logic.
+- Unlockable voice model and partial voice mutation support.
+- Player profiles and games-played tracking.
+- Push notification setup.
+- Hybrid user messaging with inline errors, Snackbars, and persistent banners.
+- Structured Logcat logging through `MU.*` tags.
+- Real-device plus emulator multiplayer smoke test.
+
+## Helpful References
+
+- Firebase Auth Android docs: https://firebase.google.com/docs/auth/android/password-auth
+- Firebase Auth error reference: https://firebase.google.com/docs/reference/js/v8/firebase.auth.Auth#signinwithemailandpassword
+- Firebase Cloud Messaging: https://firebase.google.com/docs/cloud-messaging/android/first-message
+- RecyclerView basics: https://stackoverflow.com/questions/40584424/simple-android-recyclerview-example
+- GridLayoutManager example: https://www.journaldev.com/13792/android-gridlayoutmanager-example
+- Spinner example: https://stackoverflow.com/questions/13377361/how-to-create-a-drop-down-list
+- ScrollView bottom cutoff fix: https://stackoverflow.com/questions/38663428/android-scrollview-gets-cut-off-at-the-bottom
+- Disable night mode: https://stackoverflow.com/questions/57175226/how-to-disable-night-mode-in-my-application-even-if-night-mode-is-enable-in-andr
+- Google Play publishing overview: https://www.goodbarber.com/blog/how-to-publish-your-app-on-google-play-and-the-app-store-a107/
+
+
 ## Roadmap
 
 ### Reliability And Firebase
@@ -75,21 +105,25 @@ Useful Logcat filters:
 - [x] Store play-again decisions on the room instead of the host player node so replay survives player-list cleanup.
 - [x] Remove a non-host player's room node when they leave from the end screen.
 - [x] Add Firebase `onDisconnect()` cleanup for player room nodes when players force-close the app, lose connection, or leave without tapping Home.
+- [x] Add player connection-state tracking so brief network drops do not instantly remove players from a room.
+- [x] Add a host disconnect grace timer before clients are sent home after the host loses connection.
+- [x] Block automatic phase advancement while any player is marked disconnected, so the group waits for stable phones before moving on.
 - [x] Add an explicit round/session id to round data so old listener events can be ignored if they arrive late.
 - [x] Add JVM tests for local replay round-state cleanup.
 - [x] Detect host removal from the room player list and show a clear host-left message on active game screens.
-- [ ] Add a host-migration or graceful host-left flow for lobby, writing, reading, voting, and replay screens.
 - [x] Add a visible reconnect/retry state when Firebase writes fail during submit, pass, vote, play again, or room cleanup.
 - [x] Remove legacy per-player `hostStarted` start flag; game start now uses room `currentRoundId`.
-- [ ] Add Firebase emulator or fake-repository tests for replay loops, late joins, player leaves, and stale room data.
 - [x] Add a small shared action-button loading helper so submit/pass/vote/replay buttons use one busy-state pattern.
 - [x] Add a lightweight connection status banner when Firebase reports offline/disconnected state.
 - [x] Gate lobby start navigation on a fresh round id so stale replay data cannot flash clients into the next screen when the host sends everyone Home.
 - [x] Reserve unique rooms atomically and retry rare room-code collisions before showing a code to the host.
 - [x] Clean up unstarted Firebase rooms when the host backs out of the Create Game screen.
-- [ ] Add manual QA steps for toggling airplane mode during submit, pass, vote, play again, and Home.
 - [x] Add a beta smoke-test checklist for 2, 3, and 5 players across fresh game, replay, home, leave, and app force-close flows.
-- [ ] ensure gameroom is cleaned up after host ends rounds in the ending frag
+- [x] Ensure gameroom is cleaned up after the host ends from `EndFrag`.
+- [x] Add a graceful host-left flow for lobby, writing, reading, voting, and replay screens. Host migration is intentionally deferred; non-host players are sent back to Start with a clear message when the host disconnects.
+- [ ] Add Firebase emulator or fake-repository tests for replay loops, late joins, player leaves, and stale room data.
+- [ ] Add manual QA steps for toggling airplane mode during submit, pass, vote, play again, and Home.
+- [ ] Add host controls for removing a player who stays disconnected too long but is not the host.
 
 ### Game Flow
 
@@ -101,7 +135,7 @@ Useful Logcat filters:
 - [x] Keep the reading phase open until every player has read, then let only the host finish the phase for all devices.
 - [x] Auto-finish the reading phase from Firebase after the final reader passes, without requiring the host to tap Done.
 - [x] Add a short delay or timer for the last submitter so screen transitions are less abrupt.
-- [ ] Add clearer player-facing messages for waiting on host, waiting on readers, replay disabled, and missing players.
+- [x] Add clearer player-facing messages for waiting on host, waiting on readers, replay disabled, and missing players.
 - [x] Players can join between replay rounds, and the lobby copy/state enforces that clearly.
 - [x] Room DB clean up when HOST ends gameroom decides NOT to play again.
 
@@ -112,13 +146,13 @@ Useful Logcat filters:
 
 ### Architecture And Maintainability
 
-- [ ] Look for duplicate code that can be abstracted into shared helpers or `Utils` methods for reuse across fragments.
-- [ ] Reorganize `src/main/java` into human-readable packages/folders by feature, such as account, lobby, writing, reading, voting, leaderboard, messaging, and devtools.
+- [x] Look for duplicate code that can be abstracted into shared helpers or `Utils` methods for reuse across fragments.
+- [ ] Reorganize `src/main/java` into human-readable folders/sub-folders by features/screens of the app, such as account, lobby, writing, reading, voting, leaderboard, messaging, and devtools. This is worthwhile, but should be handled as a focused branch because it is higher-churn than small safety refactors.
 - [ ] Group each fragment with its helper classes/adapters where practical so it is clear which files support each game screen.
-- [ ] Find long, complex functions and break them into smaller named methods for clarity and easier unit testing.
+- [x] Find long, complex functions and break them into smaller named methods for clarity and easier unit testing.
 - [ ] Move pure game decisions out of fragments and into testable helpers or ViewModel/repository methods.
-- [ ] Add focused unit tests for extracted logic, especially replay cleanup, reader turn advancement, assignment selection, and validation.
-- [ ] Standardize fragment setup patterns for binding views, observing ViewModels, handling submit clicks, and cleanup in `onDestroyView`.
+- [x] Add focused unit tests for extracted logic, especially replay cleanup, reader turn advancement, assignment selection, and validation.
+- [ ] Standardize fragment setup patterns for binding views, observing ViewModels, handling submit clicks, and cleanup in `onDestroyView`. Started with shared UI message observer helpers.
 - [ ] Review listener ownership so every Firebase listener has one obvious attach/detach location.
 
 ### Sentence Formatting
@@ -163,30 +197,42 @@ Useful Logcat filters:
 - Shaggy voice idea: add "like" in different places.
 - Jokester voice idea: add "haha, jk" at the end, or other creative things
 
-## Completed Highlights
+## Branch Session Notes
 
-- Firebase-backed room creation and joining.
-- Player list listener for rooms.
-- If/Then submission flow.
-- Collection screens showing submitted players.
-- Mixed sentence reading screen.
-- Account-only voting flow.
-- Leaderboard submission and replacement logic.
-- Unlockable voice model and partial voice mutation support.
-- Player profiles and games-played tracking.
-- Push notification setup.
-- Hybrid user messaging with inline errors, Snackbars, and persistent banners.
-- Structured Logcat logging through `MU.*` tags.
-- Real-device plus emulator multiplayer smoke test.
+Use this section as the running record for the current branch/session. When work is completed, add short bullets here in addition to checking off roadmap items. Keep bullets concrete enough to become a commit message or PR description later.
 
-## Helpful References
+### Current Session Changes
 
-- Firebase Auth Android docs: https://firebase.google.com/docs/auth/android/password-auth
-- Firebase Auth error reference: https://firebase.google.com/docs/reference/js/v8/firebase.auth.Auth#signinwithemailandpassword
-- Firebase Cloud Messaging: https://firebase.google.com/docs/cloud-messaging/android/first-message
-- RecyclerView basics: https://stackoverflow.com/questions/40584424/simple-android-recyclerview-example
-- GridLayoutManager example: https://www.journaldev.com/13792/android-gridlayoutmanager-example
-- Spinner example: https://stackoverflow.com/questions/13377361/how-to-create-a-drop-down-list
-- ScrollView bottom cutoff fix: https://stackoverflow.com/questions/38663428/android-scrollview-gets-cut-off-at-the-bottom
-- Disable night mode: https://stackoverflow.com/questions/57175226/how-to-disable-night-mode-in-my-application-even-if-night-mode-is-enable-in-andr
-- Google Play publishing overview: https://www.goodbarber.com/blog/how-to-publish-your-app-on-google-play-and-the-app-store-a107/
+- Start new branch/session notes here.
+
+### Archived Session: feature/AI-round-5
+
+- Added robust connection-state tracking so temporary network drops mark players disconnected instead of immediately removing them from the room.
+- Added a host disconnect grace timer before clients are sent home, with a countdown banner on the host device.
+- Moved host disconnect detection to a room-level `hostConnection` signal so it works even when screen-specific player listeners are not active.
+- Added a room-level host heartbeat timestamp so non-host clients can expire the room about 20 seconds after the host app is killed, without waiting for Firebase `onDisconnect()` latency.
+- Added an activity-level presence pulse so host heartbeat starts reliably after a user becomes host, even if Android/Firebase connection state did not change at that exact moment.
+- Tightened host heartbeat/presence updates from 5 seconds to 1 second so host-disconnect expiration aligns more closely with the visible grace countdown.
+- Tuned the client send-home delay after host heartbeat expiration to 4 seconds so non-host phones visually leave closer to the host countdown reaching 0 on real devices.
+- Disabled autofill/password-manager suggestions on the join-game room-code field.
+- Cleaned up stale rooms when the host remains disconnected past the grace window.
+- Added an `expiredRooms` tombstone so a host that reconnects after clients have already left can detect the disrupted room and return home instead of recreating partial room data.
+- Added expired-room tombstone cleanup: reconnecting hosts remove their room marker, and app startup sweeps markers older than 24 hours.
+- Gated host-side disrupted-room navigation behind the host phone's own expired connection countdown, and clear local room identity after disruption so returned clients stop re-firing stale room messages.
+- Send disrupted/corrupted-room recovery to the landing screen instead of Start so freeplay/account state is rebuilt cleanly.
+- Added shared UI message observer helpers and used them on writing screens.
+- Refactored Start screen account/freeplay UI mode into a named helper with safer default XML visibility.
+- Reused shared fragment navigation helpers in writing screens.
+- Added focused tests around host heartbeat and client send-home timing constants.
+- Tightened host disconnect expiration so a late host reconnect after the grace deadline cannot resume the expired game.
+- Blocked automatic If/Then phase advancement while any player is marked disconnected.
+- Added tests for connection-stability game-flow rules.
+- Updated roadmap items for connection resilience and future disconnected-player host controls.
+
+### Session Summary Rules
+
+- Put implementation details here when a task is finished, not only in the roadmap.
+- Keep roadmap items focused on status; keep this section focused on what changed.
+- When a branch/session is finished, use these bullets plus checked roadmap items to generate the commit message and PR description.
+- When Cade says he is ready to commit, archive the current bullets under `Archived Session: <branch-name>` and start a fresh `Current Session Changes` section for the next branch.
+- Do not delete archived session notes unless Cade explicitly asks for cleanup.

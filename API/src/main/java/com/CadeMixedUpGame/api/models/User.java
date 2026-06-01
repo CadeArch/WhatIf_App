@@ -18,6 +18,8 @@ public class User implements Comparable<User>{
     public boolean host;
     public boolean playAgain;
     public String hostPlayedAgain;
+    public Boolean connected;
+    public Long disconnectedAt;
     public int gamesPlayed;
     public boolean madeLeaderBoard;
     public boolean perfectLeaderBoard;
@@ -36,6 +38,8 @@ public class User implements Comparable<User>{
         this.host = false;
         this.playAgain = false;
         this.hostPlayedAgain = "";
+        this.connected = true;
+        this.disconnectedAt = 0L;
         this.madeLeaderBoard = true;
         this.perfectLeaderBoard = true;
     }
@@ -54,6 +58,8 @@ public class User implements Comparable<User>{
         this.host = false;
         this.playAgain = false;
         this.hostPlayedAgain = "";
+        this.connected = true;
+        this.disconnectedAt = 0L;
         this.madeLeaderBoard = false;
         this.perfectLeaderBoard = false;
     }
@@ -63,6 +69,14 @@ public class User implements Comparable<User>{
 
     public String getHostPlayedAgain() {
         return hostPlayedAgain;
+    }
+
+    public Boolean getConnected() {
+        return connected;
+    }
+
+    public Long getDisconnectedAt() {
+        return disconnectedAt;
     }
 
     public Boolean getAccountPlay() {
@@ -131,6 +145,14 @@ public class User implements Comparable<User>{
 
     public void setHostPlayedAgain(String hostPlayedAgain) {
         this.hostPlayedAgain = hostPlayedAgain;
+    }
+
+    public void setConnected(Boolean connected) {
+        this.connected = connected;
+    }
+
+    public void setDisconnectedAt(Long disconnectedAt) {
+        this.disconnectedAt = disconnectedAt;
     }
 
     public void setIfFinished(Boolean ifFinished) {

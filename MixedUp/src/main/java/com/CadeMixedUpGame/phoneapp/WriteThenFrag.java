@@ -39,13 +39,7 @@ public class WriteThenFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel.gamePhase.setValue(GamePhase.WRITING_THEN);
-        userViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
-            if (message != null && message.length() > 0) {
-                UiMessenger.showSnackbar(view, message);
-                userViewModel.databaseMessage.setValue("");
-                setSubmitSaving(false);
-            }
-        });
+        UiMessenger.observeSnackbar(getViewLifecycleOwner(), userViewModel.databaseMessage, view, () -> setSubmitSaving(false));
 
         TextView ifQuestion = view.findViewById(R.id.myIfQuestion);
         EditText thenSentence = view.findViewById(R.id.thenAnswer);
@@ -122,11 +116,7 @@ public class WriteThenFrag extends Fragment {
         userViewModel.gamePhase.setValue(GamePhase.COLLECTING_THENS);
         AppLog.i(AppLog.GAME_FLOW, "WriteThenFrag -> CollectingAnswersFrag");
 
-        getActivity().getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragment_container, CollectingAnswersFrag.class, null)
-                .setReorderingAllowed(true)
-                .addToBackStack(null)
-                .commit();
+        Utils.navigateToFragment(getActivity(), CollectingAnswersFrag.class);
     }
 
     private void bindAssignment(TextView ifQuestion) {
