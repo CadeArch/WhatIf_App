@@ -20,6 +20,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.MutableData;
+import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.Transaction;
 import com.google.firebase.database.ValueEventListener;
 
@@ -53,6 +54,7 @@ public class RoomViewModel extends ViewModel {
     public MutableLiveData<Boolean> activeReaderLoaded = new MutableLiveData<Boolean>(false);
     public MutableLiveData<String> activeReaderKey = new MutableLiveData<String>("");
     public MutableLiveData<List<String>> readOrder = new MutableLiveData<List<String>>(new ArrayList<String>());
+    public MutableLiveData<String> expiredRoomMessage = new MutableLiveData<String>("");
     private ValueEventListener activeReaderListener;
     private String activeReaderListenerRoom;
     private ValueEventListener readingCompleteListener;
@@ -64,6 +66,8 @@ public class RoomViewModel extends ViewModel {
     private ValueEventListener currentRoundListener;
     private String currentRoundListenerRoom;
     private ValueEventListener connectionListener;
+    private ValueEventListener expiredRoomListener;
+    private String expiredRoomListenerRoom;
 
     public enum RoomJoinState {
         IDLE,
@@ -194,6 +198,105 @@ public class RoomViewModel extends ViewModel {
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not delete room. Check your connection and try again.");
                     AppLog.e(AppLog.FIREBASE, "Failed deleting room=" + roomID, e);
+                });
+    }
+
+    public void markRoomExpired(String roomID, String reason) {
+        markRoomExpired(roomID, reason, null);
+    }
+
+    public void markRoomExpired(String roomID, String reason, Runnable onSuccess) {
+        if (roomID == null || roomID.length() == 0) {
+            return;
+        }
+        Map<String, Object> update = new HashMap<String, Object>();
+        update.put("expired", true);
+        update.put("reason", reason == null ? "Room expired." : reason);
+        update.put("expiredAt", ServerValue.TIMESTAMP);
+        AppLog.w(AppLog.ROOM, "Marking room expired room=" + roomID + ", reason=" + update.get("reason"));
+        db.child("expiredRooms").child(roomID).updateChildren(update)
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.FIREBASE, "Room expiration marker written room=" + roomID);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    databaseMessage.setValue("Could not expire room cleanly. Check your connection.");
+                    AppLog.e(AppLog.FIREBASE, "Failed marking room expired room=" + roomID, e);
+                });
+    }
+
+    public void listenToExpiredRoom(String roomID) {
+        if (roomID == null || roomID.length() == 0) {
+            return;
+        }
+        if (roomID.equals(expiredRoomListenerRoom) && expiredRoomListener != null) {
+            return;
+        }
+        removeExpiredRoomListener();
+        expiredRoomListenerRoom = roomID;
+        expiredRoomListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Boolean expired = snapshot.child("expired").getValue(Boolean.class);
+                if (!Boolean.TRUE.equals(expired)) {
+                    return;
+                }
+                String reason = snapshot.child("reason").getValue(String.class);
+                String message = reason == null || reason.length() == 0
+                        ? "Game room ended. Create a new game!"
+                        : reason;
+                AppLog.w(AppLog.ROOM, "Expired room marker observed room=" + roomID + ", reason=" + message);
+                expiredRoomMessage.setValue(message);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                AppLog.e(AppLog.FIREBASE, "Expired room listener cancelled room=" + roomID + ": " + error.getMessage());
+            }
+        };
+        AppLog.i(AppLog.FIREBASE, "Attaching expired room listener room=" + roomID);
+        db.child("expiredRooms").child(roomID).addValueEventListener(expiredRoomListener);
+    }
+
+    public void removeExpiredRoomListener() {
+        if (expiredRoomListener != null && expiredRoomListenerRoom != null) {
+            AppLog.i(AppLog.FIREBASE, "Removing expired room listener room=" + expiredRoomListenerRoom);
+            db.child("expiredRooms").child(expiredRoomListenerRoom).removeEventListener(expiredRoomListener);
+            expiredRoomListener = null;
+            expiredRoomListenerRoom = null;
+        }
+    }
+
+    public void deleteExpiredRoomMarker(String roomID) {
+        if (roomID == null || roomID.length() == 0) {
+            return;
+        }
+        AppLog.i(AppLog.ROOM, "Deleting expired room marker room=" + roomID);
+        db.child("expiredRooms").child(roomID).removeValue()
+                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Expired room marker deleted room=" + roomID))
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting expired room marker room=" + roomID, e));
+    }
+
+    public void cleanupOldExpiredRoomMarkers(long cutoffTimeMs) {
+        AppLog.i(AppLog.ROOM, "Cleaning old expired room markers cutoff=" + cutoffTimeMs);
+        db.child("expiredRooms").get()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful() || task.getResult() == null) {
+                        AppLog.e(AppLog.FIREBASE, "Failed loading expired room markers for cleanup", task.getException());
+                        return;
+                    }
+                    int deleted = 0;
+                    for (DataSnapshot snapshot : task.getResult().getChildren()) {
+                        Long expiredAt = snapshot.child("expiredAt").getValue(Long.class);
+                        if (expiredAt != null && expiredAt < cutoffTimeMs) {
+                            snapshot.getRef().removeValue()
+                                    .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting stale expired marker room=" + snapshot.getKey(), e));
+                            deleted += 1;
+                        }
+                    }
+                    AppLog.i(AppLog.ROOM, "Expired room marker cleanup queued deleted=" + deleted);
                 });
     }
 
@@ -601,6 +704,8 @@ public class RoomViewModel extends ViewModel {
         removeReadingCompleteListener();
         removeActiveReaderListener();
         removeCurrentRoundListener();
+        removeReplayStateListener();
+        removeExpiredRoomListener();
         AppLog.i(AppLog.GAME_FLOW, "Cleared local room round state");
     }
 
@@ -900,6 +1005,7 @@ public class RoomViewModel extends ViewModel {
         removeActiveReaderListener();
         removeReplayStateListener();
         removeCurrentRoundListener();
+        removeExpiredRoomListener();
         removeConnectionListener();
         super.onCleared();
     }

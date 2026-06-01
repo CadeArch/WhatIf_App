@@ -21,6 +21,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.HashMap;
@@ -29,6 +30,9 @@ import java.util.Map;
 public class UserViewModel extends ViewModel {
     public MutableLiveData<String> signInMessage = new MutableLiveData<String>();
     public MutableLiveData<String> databaseMessage = new MutableLiveData<String>();
+    public MutableLiveData<String> hostDisconnectedMessage = new MutableLiveData<String>();
+    public MutableLiveData<Long> hostDisconnectedAt = new MutableLiveData<Long>(0L);
+    public MutableLiveData<Long> hostLastSeenAt = new MutableLiveData<Long>(0L);
     public MutableLiveData<GamePhase> gamePhase = new MutableLiveData<GamePhase>();
     ObservableArrayList<User> users;
     public MutableLiveData<User> host = new MutableLiveData<User>();
@@ -49,6 +53,10 @@ public class UserViewModel extends ViewModel {
     private String listenerRoom;
     private DatabaseReference onDisconnectPlayerRef;
     private String onDisconnectPlayerPath;
+    private DatabaseReference onDisconnectHostConnectionRef;
+    private String onDisconnectHostConnectionRoom;
+    private ValueEventListener hostConnectionListener;
+    private String hostConnectionListenerRoom;
 
     public UserViewModel() {
         this(FirebaseDatabase.getInstance().getReference(), FirebaseAuth.getInstance(), true);
@@ -248,6 +256,7 @@ public class UserViewModel extends ViewModel {
 
     public void removeListenerOnDB() {
         removePlayersListenerOnDB();
+        removeHostConnectionListener();
     }
 
     public void removePlayersListenerOnDB() {
@@ -312,6 +321,7 @@ public class UserViewModel extends ViewModel {
         if (user != null) {
             users.remove(user);
             users.add(user);
+            handleHostConnectionState(user);
             added = 1;
         }
         AppLog.d(AppLog.ROOM, "Players snapshot " + reason + ": added=" + added + ", total=" + users.size());
@@ -323,6 +333,7 @@ public class UserViewModel extends ViewModel {
         if (shouldReplaceUser(user)) {
             users.remove(user);
             users.add(user);
+            handleHostConnectionState(user);
             changed = 1;
         }
         AppLog.d(AppLog.ROOM, "Players snapshot changed: updated=" + changed + ", total=" + users.size());
@@ -365,8 +376,60 @@ public class UserViewModel extends ViewModel {
         User currentUser = user.getValue();
         AppLog.w(AppLog.ROOM, "Host removed from room=" + removedUser.gameRoom + ", host=" + removedUser.userName);
         if (currentUser != null && !currentUser.host) {
-            databaseMessage.setValue("The host left the room. If the game stops moving, go Home and create a new room.");
+            hostDisconnectedMessage.setValue("Sorry! Host disconnected - create a new game!");
         }
+    }
+
+    public void clearHostDisconnectedMessage() {
+        hostDisconnectedMessage.setValue("");
+    }
+
+    public void clearHostDisconnectedAt() {
+        hostDisconnectedAt.setValue(0L);
+    }
+
+    public void clearHostLastSeenAt() {
+        hostLastSeenAt.setValue(0L);
+    }
+
+    public void clearLocalRoomIdentity() {
+        removeListenerOnDB();
+        cancelOnDisconnectCleanup();
+        User currentUser = user.getValue();
+        if (currentUser != null) {
+            currentUser.gameRoom = "";
+            currentUser.host = false;
+            currentUser.playAgain = false;
+            currentUser.hostPlayedAgain = "";
+            currentUser.connected = true;
+            currentUser.disconnectedAt = 0L;
+        }
+        myRoom = "";
+        host.setValue(null);
+        clearHostDisconnectedMessage();
+        clearHostDisconnectedAt();
+        clearHostLastSeenAt();
+        AppLog.i(AppLog.ROOM, "Cleared local room identity");
+    }
+
+    private void handleHostConnectionState(User changedUser) {
+        if (changedUser == null || !changedUser.host) {
+            return;
+        }
+        User currentUser = user.getValue();
+        if (currentUser == null || currentUser.host) {
+            return;
+        }
+        if (Boolean.FALSE.equals(changedUser.connected)) {
+            long disconnectedAtValue = changedUser.disconnectedAt == null ? System.currentTimeMillis() : changedUser.disconnectedAt;
+            AppLog.w(AppLog.ROOM, "Host marked disconnected room=" + changedUser.gameRoom + ", disconnectedAt=" + disconnectedAtValue);
+            hostDisconnectedAt.setValue(disconnectedAtValue);
+            return;
+        }
+        if (hostDisconnectedAt.getValue() != null && hostDisconnectedAt.getValue() > 0L) {
+            AppLog.i(AppLog.ROOM, "Host reconnected before grace timer expired room=" + changedUser.gameRoom);
+        }
+        hostDisconnectedAt.setValue(0L);
     }
 
     private DatabaseReference playerRef(User user) {
@@ -512,6 +575,7 @@ public class UserViewModel extends ViewModel {
             AppLog.d(AppLog.ROOM, "User id already set for " + user.getValue().userName);
         }
         User currentUser = user.getValue();
+        markUserConnectedLocally(currentUser);
         DatabaseReference ref = playerRef(currentUser);
         ref.setValue(currentUser).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
@@ -519,6 +583,8 @@ public class UserViewModel extends ViewModel {
                 if (task.isSuccessful()){
                     AppLog.i(AppLog.FIREBASE, "Pushed player to room=" + currentUser.gameRoom);
                     registerOnDisconnectCleanup(currentUser, ref);
+                    listenToHostConnection(currentUser.gameRoom);
+                    markHostConnectionConnectedIfNeeded(currentUser);
                     if (onSuccess != null) {
                         onSuccess.run();
                     }
@@ -539,29 +605,220 @@ public class UserViewModel extends ViewModel {
         }
         if (path.equals(onDisconnectPlayerPath)) {
             AppLog.d(AppLog.FIREBASE, "onDisconnect already registered path=" + path);
+            registerHostConnectionOnDisconnect(user);
             return;
         }
         cancelOnDisconnectCleanup();
         onDisconnectPlayerRef = ref;
         onDisconnectPlayerPath = path;
-        ref.onDisconnect().removeValue()
+        ref.onDisconnect().updateChildren(disconnectedUpdate())
                 .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Registered onDisconnect player cleanup path=" + path))
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not set disconnect cleanup. If someone drops, the host may need to recreate the room.");
                     AppLog.e(AppLog.FIREBASE, "Failed registering onDisconnect cleanup path=" + path, e);
                 });
+        registerHostConnectionOnDisconnect(user);
     }
 
     private void cancelOnDisconnectCleanup() {
-        if (onDisconnectPlayerRef == null || onDisconnectPlayerPath == null) {
+        if (onDisconnectPlayerRef != null && onDisconnectPlayerPath != null) {
+            String path = onDisconnectPlayerPath;
+            onDisconnectPlayerRef.onDisconnect().cancel()
+                    .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Cancelled onDisconnect player cleanup path=" + path))
+                    .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed cancelling onDisconnect cleanup path=" + path, e));
+            onDisconnectPlayerRef = null;
+            onDisconnectPlayerPath = null;
+        }
+        cancelHostConnectionOnDisconnect();
+    }
+
+    private void registerHostConnectionOnDisconnect(User user) {
+        if (user == null || !user.host || user.gameRoom == null || user.gameRoom.length() == 0) {
             return;
         }
-        String path = onDisconnectPlayerPath;
-        onDisconnectPlayerRef.onDisconnect().cancel()
-                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Cancelled onDisconnect player cleanup path=" + path))
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed cancelling onDisconnect cleanup path=" + path, e));
-        onDisconnectPlayerRef = null;
-        onDisconnectPlayerPath = null;
+        if (user.gameRoom.equals(onDisconnectHostConnectionRoom) && onDisconnectHostConnectionRef != null) {
+            AppLog.d(AppLog.FIREBASE, "Host connection onDisconnect already registered room=" + user.gameRoom);
+            return;
+        }
+        cancelHostConnectionOnDisconnect();
+        onDisconnectHostConnectionRoom = user.gameRoom;
+        onDisconnectHostConnectionRef = hostConnectionRef(user.gameRoom);
+        onDisconnectHostConnectionRef.onDisconnect().updateChildren(disconnectedUpdate())
+                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Registered host connection onDisconnect room=" + user.gameRoom))
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed registering host connection onDisconnect room=" + user.gameRoom, e));
+    }
+
+    private void cancelHostConnectionOnDisconnect() {
+        if (onDisconnectHostConnectionRef == null || onDisconnectHostConnectionRoom == null) {
+            return;
+        }
+        String room = onDisconnectHostConnectionRoom;
+        onDisconnectHostConnectionRef.onDisconnect().cancel()
+                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Cancelled host connection onDisconnect room=" + room))
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed cancelling host connection onDisconnect room=" + room, e));
+        onDisconnectHostConnectionRef = null;
+        onDisconnectHostConnectionRoom = null;
+    }
+
+    public void markCurrentPlayerConnected() {
+        User currentUser = user.getValue();
+        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0 || currentUser.userName == null) {
+            return;
+        }
+        if (currentUser.host) {
+            markHostConnectedIfRoomActive(currentUser);
+            return;
+        }
+        markUserConnectedLocally(currentUser);
+        listenToHostConnection(currentUser.gameRoom);
+        playerRef(currentUser).updateChildren(connectedUpdate())
+                .addOnSuccessListener(unused -> AppLog.d(AppLog.FIREBASE, "Marked player connected room=" + currentUser.gameRoom))
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed marking player connected room=" + currentUser.gameRoom, e));
+        markHostConnectionConnectedIfNeeded(currentUser);
+    }
+
+    private void markHostConnectionConnectedIfNeeded(User currentUser) {
+        if (currentUser == null || !currentUser.host || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0) {
+            return;
+        }
+        hostConnectionRef(currentUser.gameRoom).updateChildren(hostConnectedUpdate())
+                .addOnSuccessListener(unused -> AppLog.d(AppLog.FIREBASE, "Marked host connection online room=" + currentUser.gameRoom))
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed marking host connection online room=" + currentUser.gameRoom, e));
+    }
+
+    public void writeHostHeartbeat() {
+        User currentUser = user.getValue();
+        if (currentUser == null || !currentUser.host || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0) {
+            return;
+        }
+        runIfHostRoomActive(currentUser, () ->
+                hostConnectionRef(currentUser.gameRoom).updateChildren(hostConnectedUpdate())
+                        .addOnSuccessListener(unused -> AppLog.d(AppLog.FIREBASE, "Host heartbeat written room=" + currentUser.gameRoom))
+                        .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed writing host heartbeat room=" + currentUser.gameRoom, e)));
+    }
+
+    private void markHostConnectedIfRoomActive(User currentUser) {
+        runIfHostRoomActive(currentUser, () -> {
+            markUserConnectedLocally(currentUser);
+            listenToHostConnection(currentUser.gameRoom);
+            playerRef(currentUser).updateChildren(connectedUpdate())
+                    .addOnSuccessListener(unused -> AppLog.d(AppLog.FIREBASE, "Marked host player connected room=" + currentUser.gameRoom))
+                    .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed marking host player connected room=" + currentUser.gameRoom, e));
+            markHostConnectionConnectedIfNeeded(currentUser);
+        });
+    }
+
+    private void runIfHostRoomActive(User currentUser, Runnable activeRoomAction) {
+        db.child("expiredRooms").child(currentUser.gameRoom).get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
+                        AppLog.w(AppLog.ROOM, "Host room already expired; blocking room writes room=" + currentUser.gameRoom);
+                        hostDisconnectedMessage.setValue("Game room ended while connection was lost. Create a new game!");
+                        return;
+                    }
+                    db.child("rooms").child(currentUser.gameRoom).get()
+                            .addOnCompleteListener(roomTask -> {
+                                if (!roomTask.isSuccessful() || roomTask.getResult() == null || !roomTask.getResult().exists()) {
+                                    AppLog.w(AppLog.ROOM, "Host room missing; blocking room writes room=" + currentUser.gameRoom);
+                                    hostDisconnectedMessage.setValue("Game room ended while connection was lost. Create a new game!");
+                                    return;
+                                }
+                                activeRoomAction.run();
+                            });
+                });
+    }
+
+    public void listenToHostConnection(String room) {
+        if (room == null || room.length() == 0) {
+            return;
+        }
+        if (room.equals(hostConnectionListenerRoom) && hostConnectionListener != null) {
+            return;
+        }
+        removeHostConnectionListener();
+        hostConnectionListenerRoom = room;
+        hostConnectionListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                handleHostConnectionSnapshot(room, snapshot);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                AppLog.e(AppLog.FIREBASE, "Host connection listener cancelled room=" + room + ": " + error.getMessage());
+            }
+        };
+        AppLog.i(AppLog.FIREBASE, "Attaching host connection listener room=" + room);
+        hostConnectionRef(room).addValueEventListener(hostConnectionListener);
+    }
+
+    public void removeHostConnectionListener() {
+        if (hostConnectionListener != null && hostConnectionListenerRoom != null) {
+            AppLog.i(AppLog.FIREBASE, "Removing host connection listener room=" + hostConnectionListenerRoom);
+            hostConnectionRef(hostConnectionListenerRoom).removeEventListener(hostConnectionListener);
+            hostConnectionListener = null;
+            hostConnectionListenerRoom = null;
+        }
+    }
+
+    private void handleHostConnectionSnapshot(String room, DataSnapshot snapshot) {
+        User currentUser = user.getValue();
+        if (currentUser == null || currentUser.host) {
+            return;
+        }
+        if (snapshot == null || !snapshot.exists()) {
+            hostDisconnectedAt.setValue(0L);
+            hostLastSeenAt.setValue(0L);
+            return;
+        }
+        Long lastSeenAtValue = snapshot.child("lastSeenAt").getValue(Long.class);
+        if (lastSeenAtValue != null && lastSeenAtValue > 0L) {
+            hostLastSeenAt.setValue(lastSeenAtValue);
+        }
+        Boolean connected = snapshot.child("connected").getValue(Boolean.class);
+        if (Boolean.FALSE.equals(connected)) {
+            Long disconnectedAtValue = snapshot.child("disconnectedAt").getValue(Long.class);
+            long safeDisconnectedAt = disconnectedAtValue == null ? System.currentTimeMillis() : disconnectedAtValue;
+            AppLog.w(AppLog.ROOM, "Room host connection marked offline room=" + room + ", disconnectedAt=" + safeDisconnectedAt);
+            hostDisconnectedAt.setValue(safeDisconnectedAt);
+            return;
+        }
+        if (hostDisconnectedAt.getValue() != null && hostDisconnectedAt.getValue() > 0L) {
+            AppLog.i(AppLog.ROOM, "Room host connection recovered room=" + room);
+        }
+        hostDisconnectedAt.setValue(0L);
+    }
+
+    private void markUserConnectedLocally(User user) {
+        if (user == null) {
+            return;
+        }
+        user.connected = true;
+        user.disconnectedAt = 0L;
+    }
+
+    private Map<String, Object> connectedUpdate() {
+        Map<String, Object> update = new HashMap<String, Object>();
+        update.put("connected", true);
+        update.put("disconnectedAt", 0L);
+        return update;
+    }
+
+    private Map<String, Object> hostConnectedUpdate() {
+        Map<String, Object> update = connectedUpdate();
+        update.put("lastSeenAt", ServerValue.TIMESTAMP);
+        return update;
+    }
+
+    private Map<String, Object> disconnectedUpdate() {
+        Map<String, Object> update = new HashMap<String, Object>();
+        update.put("connected", false);
+        update.put("disconnectedAt", ServerValue.TIMESTAMP);
+        return update;
+    }
+
+    private DatabaseReference hostConnectionRef(String room) {
+        return db.child("rooms").child(room).child("hostConnection");
     }
 
     public void deleteRoom(User userLeft) {
@@ -784,6 +1041,7 @@ public class UserViewModel extends ViewModel {
     protected void onCleared() {
         removeListenerOnDB();
         cancelOnDisconnectCleanup();
+        removeHostConnectionListener();
         super.onCleared();
     }
 

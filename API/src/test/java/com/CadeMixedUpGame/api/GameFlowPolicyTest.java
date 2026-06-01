@@ -45,6 +45,15 @@ public class GameFlowPolicyTest {
     }
 
     @Test
+    public void allPlayersFinishedIfsRequiresStableConnections() {
+        User connected = player("connected", true, false, false);
+        User disconnected = player("disconnected", true, false, false);
+        disconnected.connected = false;
+
+        assertFalse(GameFlowPolicy.allPlayersFinishedIfs(Arrays.asList(connected, disconnected)));
+    }
+
+    @Test
     public void allPlayersFinishedThensRequiresAtLeastOnePlayerAndEveryFlagTrue() {
         assertFalse(GameFlowPolicy.allPlayersFinishedThens(null));
         assertFalse(GameFlowPolicy.allPlayersFinishedThens(Collections.<User>emptyList()));
@@ -54,6 +63,29 @@ public class GameFlowPolicyTest {
         assertTrue(GameFlowPolicy.allPlayersFinishedThens(Arrays.asList(
                 player("a", false, true, false),
                 player("b", false, true, false))));
+    }
+
+    @Test
+    public void allPlayersFinishedThensRequiresStableConnections() {
+        User connected = player("connected", false, true, false);
+        User disconnected = player("disconnected", false, true, false);
+        disconnected.connected = false;
+
+        assertFalse(GameFlowPolicy.allPlayersFinishedThens(Arrays.asList(connected, disconnected)));
+    }
+
+    @Test
+    public void allPlayersConnectedTreatsNullAsConnectedForOlderData() {
+        User connected = player("connected", false, false, false);
+        User olderRecord = player("older", false, false, false);
+        olderRecord.connected = null;
+        User disconnected = player("disconnected", false, false, false);
+        disconnected.connected = false;
+
+        assertFalse(GameFlowPolicy.allPlayersConnected(null));
+        assertFalse(GameFlowPolicy.allPlayersConnected(Collections.<User>emptyList()));
+        assertTrue(GameFlowPolicy.allPlayersConnected(Arrays.asList(connected, olderRecord)));
+        assertFalse(GameFlowPolicy.allPlayersConnected(Arrays.asList(connected, disconnected)));
     }
 
     @Test
@@ -74,6 +106,26 @@ public class GameFlowPolicyTest {
         assertFalse(GameFlowPolicy.finalReaderPassed(1, 2));
         assertTrue(GameFlowPolicy.finalReaderPassed(2, 2));
         assertTrue(GameFlowPolicy.finalReaderPassed(3, 2));
+    }
+
+    @Test
+    public void hostHeartbeatExpiresAfterGraceWindow() {
+        long now = 50000L;
+
+        assertEquals(GameFlowPolicy.CONNECTION_GRACE_MS, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, 0L));
+        assertEquals(5000L, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, 35000L));
+        assertEquals(0L, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, 30000L));
+        assertEquals(0L, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, 25000L));
+        assertFalse(GameFlowPolicy.hostHeartbeatExpired(now, 35000L));
+        assertTrue(GameFlowPolicy.hostHeartbeatExpired(now, 30000L));
+    }
+
+    @Test
+    public void connectionTimingConstantsKeepHeartbeatTighterThanGraceWindow() {
+        assertTrue(GameFlowPolicy.HOST_HEARTBEAT_INTERVAL_MS > 0L);
+        assertTrue(GameFlowPolicy.HOST_HEARTBEAT_INTERVAL_MS < GameFlowPolicy.CONNECTION_GRACE_MS);
+        assertTrue(GameFlowPolicy.CLIENT_HOME_AFTER_HOST_EXPIRE_DELAY_MS > 0L);
+        assertTrue(GameFlowPolicy.CLIENT_HOME_AFTER_HOST_EXPIRE_DELAY_MS < GameFlowPolicy.CONNECTION_GRACE_MS);
     }
 
     @Test

@@ -11,10 +11,16 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
+import android.widget.TextView;
 
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.GameFlowPolicy;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
+import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
+import com.CadeMixedUpGame.api.models.User;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -22,11 +28,22 @@ import com.google.firebase.messaging.FirebaseMessaging;
 
 public class MainActivity extends AppCompatActivity {
     private RoomViewModel roomViewModel;
+    private UserViewModel userViewModel;
     private View connectionBanner;
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
     private boolean firebaseConnected = true;
     private boolean deviceNetworkAvailable = true;
+    private boolean handlingHostDisconnect = false;
+    private final Handler connectionHandler = new Handler(Looper.getMainLooper());
+    private Runnable hostDisconnectRunnable;
+    private Runnable hostConnectionCountdownRunnable;
+    private Runnable hostHeartbeatRunnable;
+    private Runnable presencePulseRunnable;
+    private long pendingHostDisconnectDeadlineMs = 0L;
+    private boolean hostDisconnectExpired = false;
+    private boolean hostLocalGraceExpired = false;
+    private String pendingExpiredRoomMessage = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +53,9 @@ public class MainActivity extends AppCompatActivity {
         // assure nightmode wont work in app
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         setupConnectionBanner();
+        setupHostDisconnectNavigation();
+        startPresencePulse();
+        cleanupOldExpiredRooms();
 
         // showing users token to test messages from firebase
         FirebaseMessaging.getInstance().getToken()
@@ -104,6 +124,146 @@ public class MainActivity extends AppCompatActivity {
             firebaseConnected = connected == null || connected;
             updateConnectionBanner();
         });
+        roomViewModel.expiredRoomMessage.observe(this, message -> {
+            if (message == null || message.length() == 0 || handlingHostDisconnect) {
+                return;
+            }
+            roomViewModel.expiredRoomMessage.setValue("");
+            handleDisruptedRoomMessage(message);
+        });
+    }
+
+    private void setupHostDisconnectNavigation() {
+        userViewModel = new ViewModelProvider(this).get(UserViewModel.class);
+        userViewModel.hostDisconnectedMessage.observe(this, message -> {
+            if (message == null || message.length() == 0 || handlingHostDisconnect) {
+                return;
+            }
+            userViewModel.clearHostDisconnectedMessage();
+            handleDisruptedRoomMessage(message);
+        });
+        userViewModel.hostDisconnectedAt.observe(this, disconnectedAt -> {
+            if (disconnectedAt == null || disconnectedAt <= 0L) {
+                handleHostConnectionRecovered(false);
+                return;
+            }
+            scheduleHostDisconnect(disconnectedAt);
+        });
+        userViewModel.hostLastSeenAt.observe(this, lastSeenAt -> {
+            if (lastSeenAt == null || lastSeenAt <= 0L) {
+                return;
+            }
+            scheduleHostHeartbeatExpiration(lastSeenAt);
+        });
+    }
+
+    private void sendPlayerHomeAfterHostDisconnect(String message) {
+        if (handlingHostDisconnect) {
+            return;
+        }
+        handlingHostDisconnect = true;
+        User currentUser = userViewModel.getUser().getValue();
+        String room = currentUser == null ? "" : currentUser.gameRoom;
+        AppLog.w(AppLog.ROOM, "Host disconnected; returning client home room=" + room
+                + ", from=" + Utils.currentFragmentName(this));
+
+        userViewModel.removePlayersListenerOnDB();
+        roomViewModel.clearLocalRoundState();
+        if (room != null && room.length() > 0) {
+            roomViewModel.deleteRoom(room);
+            if (currentUser != null && currentUser.host) {
+                roomViewModel.deleteExpiredRoomMarker(room);
+            }
+        }
+        userViewModel.reset();
+        userViewModel.clearLocalRoomIdentity();
+        stopHostHeartbeat();
+        cancelPendingHostDisconnect();
+        Utils.navigateLandingReplacingCurrent(this);
+        UiMessenger.showSnackbar(findViewById(R.id.fragment_container), message);
+        roomViewModel.expiredRoomMessage.setValue("");
+        pendingHostDisconnectDeadlineMs = 0L;
+        hostDisconnectExpired = false;
+        hostLocalGraceExpired = false;
+        pendingExpiredRoomMessage = "";
+        handlingHostDisconnect = false;
+    }
+
+    private void handleDisruptedRoomMessage(String message) {
+        User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
+        if (currentUser != null && currentUser.host && !hostLocalGraceExpired) {
+            pendingExpiredRoomMessage = message;
+            AppLog.w(AppLog.ROOM, "Host disruption message held until local grace expires");
+            return;
+        }
+        sendPlayerHomeAfterHostDisconnect(message);
+    }
+
+    private void scheduleHostDisconnect(long disconnectedAt) {
+        cancelPendingHostDisconnect();
+        long elapsedMs = Math.max(0L, System.currentTimeMillis() - disconnectedAt);
+        long remainingMs = Math.max(0L, GameFlowPolicy.CONNECTION_GRACE_MS - elapsedMs);
+        pendingHostDisconnectDeadlineMs = System.currentTimeMillis() + remainingMs;
+        hostDisconnectExpired = false;
+        AppLog.w(AppLog.ROOM, "Host disconnected grace timer started remainingMs=" + remainingMs);
+        hostDisconnectRunnable = () -> expireHostDisconnectedRoom("timer expired");
+        connectionHandler.postDelayed(hostDisconnectRunnable, remainingMs);
+    }
+
+    private void scheduleHostHeartbeatExpiration(long lastSeenAt) {
+        User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
+        if (currentUser == null || currentUser.host) {
+            return;
+        }
+        cancelPendingHostDisconnect();
+        long remainingMs = GameFlowPolicy.millisUntilHostHeartbeatExpires(System.currentTimeMillis(), lastSeenAt);
+        pendingHostDisconnectDeadlineMs = System.currentTimeMillis() + remainingMs;
+        hostDisconnectExpired = false;
+        AppLog.w(AppLog.ROOM, "Host heartbeat deadline scheduled remainingMs=" + remainingMs);
+        hostDisconnectRunnable = () ->
+                connectionHandler.postDelayed(
+                        () -> expireHostDisconnectedRoom("host heartbeat expired"),
+                        GameFlowPolicy.CLIENT_HOME_AFTER_HOST_EXPIRE_DELAY_MS);
+        connectionHandler.postDelayed(hostDisconnectRunnable, remainingMs);
+    }
+
+    private void handleHostConnectionRecovered(boolean cancelHeartbeatTimer) {
+        if (hostDisconnectExpired) {
+            expireHostDisconnectedRoom("host recovered after expiration");
+            return;
+        }
+        if (pendingHostDisconnectDeadlineMs > 0L && System.currentTimeMillis() >= pendingHostDisconnectDeadlineMs) {
+            expireHostDisconnectedRoom("host recovered after deadline");
+            return;
+        }
+        if (cancelHeartbeatTimer) {
+            cancelPendingHostDisconnect();
+            pendingHostDisconnectDeadlineMs = 0L;
+        }
+    }
+
+    private void expireHostDisconnectedRoom(String reason) {
+        if (handlingHostDisconnect || hostDisconnectExpired) {
+            return;
+        }
+        hostDisconnectExpired = true;
+        AppLog.w(AppLog.ROOM, "Expiring room after host disconnect: " + reason);
+        User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
+        String room = currentUser == null ? "" : currentUser.gameRoom;
+        String message = "Sorry! Host disconnected - create a new game!";
+        if (room == null || room.length() == 0) {
+            sendPlayerHomeAfterHostDisconnect(message);
+            return;
+        }
+        roomViewModel.markRoomExpired(room, message, () -> sendPlayerHomeAfterHostDisconnect(message));
+    }
+
+    private void cancelPendingHostDisconnect() {
+        if (hostDisconnectRunnable != null) {
+            connectionHandler.removeCallbacks(hostDisconnectRunnable);
+            hostDisconnectRunnable = null;
+            AppLog.i(AppLog.ROOM, "Host disconnect grace timer cancelled");
+        }
     }
 
     private void setupDeviceNetworkMonitor() {
@@ -120,6 +280,7 @@ public class MainActivity extends AppCompatActivity {
                     firebaseConnected = true;
                     roomViewModel.firebaseConnected.setValue(true);
                     updateConnectionBanner();
+                    markCurrentPlayerConnectedIfNeeded();
                     AppLog.i(AppLog.FIREBASE, "Device network available; hiding connection banner");
                 });
             }
@@ -137,6 +298,11 @@ public class MainActivity extends AppCompatActivity {
         updateConnectionBanner();
     }
 
+    private void cleanupOldExpiredRooms() {
+        long cutoff = System.currentTimeMillis() - GameFlowPolicy.EXPIRED_ROOM_TOMBSTONE_TTL_MS;
+        roomViewModel.cleanupOldExpiredRoomMarkers(cutoff);
+    }
+
     private boolean hasUsableNetwork() {
         if (connectivityManager == null || connectivityManager.getActiveNetwork() == null) {
             return false;
@@ -149,10 +315,132 @@ public class MainActivity extends AppCompatActivity {
         if (connectionBanner == null) {
             return;
         }
-        boolean connected = firebaseConnected || deviceNetworkAvailable;
+        boolean connected = firebaseConnected && deviceNetworkAvailable;
         connectionBanner.setVisibility(connected ? View.GONE : View.VISIBLE);
-        if (!connected) {
+        if (connected) {
+            if (hostLocalGraceExpired && pendingExpiredRoomMessage.length() > 0) {
+                sendPlayerHomeAfterHostDisconnect(pendingExpiredRoomMessage);
+                return;
+            }
+            stopHostConnectionCountdown();
+            markCurrentPlayerConnectedIfNeeded();
+        }
+        else {
+            stopHostHeartbeat();
+            updateDisconnectedBannerText();
             AppLog.w(AppLog.FIREBASE, "Showing offline connection banner");
+        }
+    }
+
+    private void markCurrentPlayerConnectedIfNeeded() {
+        if (userViewModel != null && firebaseConnected && deviceNetworkAvailable) {
+            User currentUser = userViewModel.getUser().getValue();
+            if (currentUser != null && currentUser.gameRoom != null && currentUser.gameRoom.length() > 0) {
+                roomViewModel.listenToExpiredRoom(currentUser.gameRoom);
+            }
+            userViewModel.markCurrentPlayerConnected();
+            startHostHeartbeatIfNeeded();
+        }
+    }
+
+    private void updateDisconnectedBannerText() {
+        User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
+        if (currentUser != null && currentUser.host) {
+            startHostConnectionCountdown();
+            return;
+        }
+        setConnectionBannerText("Connection lost. Reconnecting before the game can move on.");
+    }
+
+    private void startHostConnectionCountdown() {
+        if (hostConnectionCountdownRunnable != null) {
+            return;
+        }
+        long startedAt = System.currentTimeMillis();
+        hostConnectionCountdownRunnable = new Runnable() {
+            @Override
+            public void run() {
+                long elapsedMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+                long remainingMs = Math.max(0L, GameFlowPolicy.CONNECTION_GRACE_MS - elapsedMs);
+                long remainingSeconds = Math.max(0L, (remainingMs + 999L) / 1000L);
+                if (remainingMs > 0L) {
+                    setConnectionBannerText("Connection lost. Host grace: " + remainingSeconds + "s before players are sent home.");
+                }
+                else {
+                    hostLocalGraceExpired = true;
+                    setConnectionBannerText("Connection lost. Create a new game after internet connection is restored.");
+                }
+                if (remainingMs > 0L) {
+                    connectionHandler.postDelayed(this, 1000L);
+                }
+            }
+        };
+        hostConnectionCountdownRunnable.run();
+    }
+
+    private void stopHostConnectionCountdown() {
+        if (hostConnectionCountdownRunnable != null) {
+            connectionHandler.removeCallbacks(hostConnectionCountdownRunnable);
+            hostConnectionCountdownRunnable = null;
+        }
+        if (!hostLocalGraceExpired) {
+            pendingExpiredRoomMessage = "";
+        }
+        setConnectionBannerText("Connection lost. Check Wi-Fi and try again.");
+    }
+
+    private void startHostHeartbeatIfNeeded() {
+        User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
+        if (currentUser == null || !currentUser.host || hostHeartbeatRunnable != null) {
+            return;
+        }
+        hostHeartbeatRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!firebaseConnected || !deviceNetworkAvailable) {
+                    stopHostHeartbeat();
+                    return;
+                }
+                userViewModel.writeHostHeartbeat();
+                connectionHandler.postDelayed(this, GameFlowPolicy.HOST_HEARTBEAT_INTERVAL_MS);
+            }
+        };
+        hostHeartbeatRunnable.run();
+    }
+
+    private void stopHostHeartbeat() {
+        if (hostHeartbeatRunnable != null) {
+            connectionHandler.removeCallbacks(hostHeartbeatRunnable);
+            hostHeartbeatRunnable = null;
+        }
+    }
+
+    private void startPresencePulse() {
+        if (presencePulseRunnable != null) {
+            return;
+        }
+        presencePulseRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (firebaseConnected && deviceNetworkAvailable) {
+                    markCurrentPlayerConnectedIfNeeded();
+                }
+                connectionHandler.postDelayed(this, GameFlowPolicy.HOST_HEARTBEAT_INTERVAL_MS);
+            }
+        };
+        presencePulseRunnable.run();
+    }
+
+    private void stopPresencePulse() {
+        if (presencePulseRunnable != null) {
+            connectionHandler.removeCallbacks(presencePulseRunnable);
+            presencePulseRunnable = null;
+        }
+    }
+
+    private void setConnectionBannerText(String message) {
+        if (connectionBanner instanceof TextView) {
+            ((TextView) connectionBanner).setText(message);
         }
     }
 
@@ -179,6 +467,9 @@ public class MainActivity extends AppCompatActivity {
             connectivityManager.unregisterNetworkCallback(networkCallback);
             networkCallback = null;
         }
+        stopHostHeartbeat();
+        stopPresencePulse();
+        connectionHandler.removeCallbacksAndMessages(null);
         super.onDestroy();
     }
 }

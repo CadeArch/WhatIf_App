@@ -34,13 +34,7 @@ public class WriteIfFrag extends Fragment {
         userViewModel = new ViewModelProvider(getActivity()).get(UserViewModel.class);
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel.gamePhase.setValue(GamePhase.WRITING_IF);
-        userViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
-            if (message != null && message.length() > 0) {
-                UiMessenger.showSnackbar(view, message);
-                userViewModel.databaseMessage.setValue("");
-                setSubmitSaving(false);
-            }
-        });
+        UiMessenger.observeSnackbar(getViewLifecycleOwner(), userViewModel.databaseMessage, view, () -> setSubmitSaving(false));
 
         EditText ifSentence = getActivity().findViewById(R.id.ifQuestion);
         submitButton = view.findViewById(R.id.writeIf_submit);
@@ -106,10 +100,6 @@ public class WriteIfFrag extends Fragment {
         userViewModel.gamePhase.setValue(GamePhase.COLLECTING_IFS);
         AppLog.i(AppLog.GAME_FLOW, "WriteIfFrag -> CollectingQuestionsFrag");
 
-        getActivity().getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragment_container, CollectingQuestionsFrag.class, null)
-                .setReorderingAllowed(true)
-                .addToBackStack(null)
-                .commit();
+        Utils.navigateToFragment(getActivity(), CollectingQuestionsFrag.class);
     }
 }

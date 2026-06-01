@@ -25,6 +25,8 @@ public class UserTest {
         assertFalse(user.getHost());
         assertFalse(user.isPlayAgain());
         assertEquals("", user.getHostPlayedAgain());
+        assertTrue(user.getConnected());
+        assertEquals(Long.valueOf(0L), user.getDisconnectedAt());
         assertFalse(user.madeLeaderBoard);
         assertFalse(user.perfectLeaderBoard);
     }
@@ -46,6 +48,8 @@ public class UserTest {
         user.setHost(true);
         user.setPlayAgain(true);
         user.setHostPlayedAgain("yes");
+        user.setConnected(false);
+        user.setDisconnectedAt(1234L);
 
         assertEquals(42, user.getUserID());
         assertEquals("uid-1", user.getUid());
@@ -60,6 +64,8 @@ public class UserTest {
         assertTrue(user.getHost());
         assertTrue(user.isPlayAgain());
         assertEquals("yes", user.getHostPlayedAgain());
+        assertFalse(user.getConnected());
+        assertEquals(Long.valueOf(1234L), user.getDisconnectedAt());
     }
 
     @Test

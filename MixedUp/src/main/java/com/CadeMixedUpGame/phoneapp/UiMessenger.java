@@ -10,6 +10,8 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.MutableLiveData;
 
 import com.google.android.material.snackbar.Snackbar;
 
@@ -26,6 +28,39 @@ public class UiMessenger {
             return;
         }
         Snackbar.make(root, message, Snackbar.LENGTH_SHORT).show();
+    }
+
+    public static void observeSnackbar(LifecycleOwner owner, MutableLiveData<String> message, View root) {
+        observeSnackbar(owner, message, root, null);
+    }
+
+    public static void observeSnackbar(LifecycleOwner owner, MutableLiveData<String> message, View root, Runnable afterShown) {
+        if (owner == null || message == null || root == null) {
+            return;
+        }
+        message.observe(owner, value -> {
+            if (value == null || value.length() == 0) {
+                return;
+            }
+            showSnackbar(root, value);
+            message.setValue("");
+            if (afterShown != null) {
+                afterShown.run();
+            }
+        });
+    }
+
+    public static void observeBanner(LifecycleOwner owner, MutableLiveData<String> message, View root, MessageType type) {
+        if (owner == null || message == null || root == null) {
+            return;
+        }
+        message.observe(owner, value -> {
+            if (value == null || value.length() == 0) {
+                return;
+            }
+            showBanner(root, value, type);
+            message.setValue("");
+        });
     }
 
     public static void showTopSnackbar(View root, String message) {

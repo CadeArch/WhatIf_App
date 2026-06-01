@@ -91,6 +91,7 @@ public class EndFrag extends Fragment {
             // may not need the background color change with set enabled
             againButton.setBackgroundColor(Color.GRAY);
             againButton.setEnabled(false);
+            setAgainButtonText("waiting");
 
             roomViewModel.replayState.observe(this.getViewLifecycleOwner(), new Observer<String>() {
                 @Override
@@ -100,6 +101,7 @@ public class EndFrag extends Fragment {
                         // if host hits again button will be clickable for rest of players
                         againButton.setEnabled(true);
                         againButton.setBackgroundColor(Color.parseColor("#FFEDA6EC"));
+                        setAgainButtonText("again!");
 
                     }
                     else if ("no".equals(state) && userViewModel.onEndFrag) {
@@ -222,6 +224,12 @@ public class EndFrag extends Fragment {
             boolean host = userViewModel.getUser().getValue().host;
             boolean replayAllowed = host || "yes".equals(roomViewModel.replayState.getValue());
             ActionButtonState.setSaving(againButton, saving, replayAllowed);
+        }
+    }
+
+    private void setAgainButtonText(String text) {
+        if (againButton instanceof android.widget.TextView) {
+            ((android.widget.TextView) againButton).setText(text);
         }
     }
 
