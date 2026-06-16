@@ -1,3 +1,8 @@
+---
+title: MixedUp Account Deletion
+permalink: /account-deletion/
+---
+
 # MixedUp Account Deletion
 
 MixedUp is published by Cade Rasmussen. This page explains how MixedUp users can request deletion of their account and associated data.
