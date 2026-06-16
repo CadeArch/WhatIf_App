@@ -14,3 +14,11 @@
 .cxx
 local.properties
 .idea
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.apk
+*.aab
+/MixedUp/release/
+**/build/
