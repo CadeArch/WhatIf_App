@@ -26,6 +26,24 @@ MixedUp is an Android party game built with Java, Fragments, and Firebase Realti
 .\gradlew.bat :API:testDebugUnitTest
 ```
 
+## Developer Notes
+
+### Release Signing
+
+The local release keystore is stored outside the repo:
+
+```text
+C:\Users\Cade Rasmussen\Documents\GoogleApps_releases\what_if
+```
+
+Known non-secret signing details:
+
+- Keystore file: `what_if.jks`
+- Key alias: `what_if_release_1.0`
+- Upload key SHA-256: `AA:D0:0C:61:10:34:11:E3:90:61:E3:5C:F9:25:5A:06:62:FA:F9:FE:2E:99:2E:C7:F6:6B:2C:69:BB:86:CD:2D`
+
+Do not commit keystores or signing passwords. Keystore file types are ignored in `.gitignore`; keep the actual password in Android Studio/password manager only.
+
 ## Beta Smoke Test
 
 Run this checklist before sharing a build:
@@ -132,6 +150,9 @@ Useful Logcat filters:
 - [x] Add a public account deletion support page for Google Play Data safety review.
 - [ ] Update the Google Play Data safety form with the account deletion declaration before resubmitting.
 - [ ] Enable GitHub Pages for `/docs` or confirm the GitHub-hosted account deletion page URL is accepted by Play Console.
+- [ ] Move the public account deletion/support page to a free Canva site so the code repository can be private again.
+- [ ] Review whether Firebase Analytics and Firebase Messaging are both needed long-term; removing unused SDKs can reduce future Data safety disclosures.
+- [ ] Remove or document the Android developer verification asset after Google package ownership verification is complete.
 
 ### Game Flow
 
