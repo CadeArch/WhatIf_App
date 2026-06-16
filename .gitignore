@@ -22,3 +22,11 @@ local.properties
 *.aab
 /MixedUp/release/
 **/build/
+*.log
+*.hprof
+*.tmp
+*.temp
+.env
+.env.*
+!.env.example
+/out/

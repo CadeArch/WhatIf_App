@@ -44,6 +44,10 @@ Known non-secret signing details:
 
 Do not commit keystores or signing passwords. Keystore file types are ignored in `.gitignore`; keep the actual password in Android Studio/password manager only.
 
+### Android Developer Verification Asset
+
+`MixedUp/src/main/assets/adi-registration.properties` was added only for Google Play Android developer package ownership verification. After Google confirms the package is registered and future releases no longer need the token, remove this asset so the app does not carry a stale verification-only file.
+
 ## Beta Smoke Test
 
 Run this checklist before sharing a build:
