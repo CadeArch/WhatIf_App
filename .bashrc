@@ -12,6 +12,7 @@ debug         Install and relaunch the debug APK on all connected devices/emulat
 build         Build the MixedUp debug APK.
 rerun         Build the debug APK, then run debug.
 tests         Run API debug unit tests.
+amend         Stage all changes and amend the previous commit without editing its message. And push changes
 help          Show this command list.
 EOF
 }
@@ -53,4 +54,10 @@ rerun() {
 
 tests() {
   ./gradlew.bat :API:testDebugUnitTest
+}
+
+amend() {
+  git add -A
+  git commit --amend --no-edit
+  git push -f
 }
