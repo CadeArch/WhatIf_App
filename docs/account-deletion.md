@@ -1,3 +1,8 @@
+---
+title: MixedUp Account Deletion
+permalink: /account-deletion/
+---
+
 # MixedUp Account Deletion
 
 MixedUp is published by Cade Rasmussen. This page explains how MixedUp users can request deletion of their account and associated data.
@@ -34,7 +39,7 @@ Some backup, log, or security records may remain for a limited period if require
 
 If you cannot access the app, request account deletion by contacting the developer:
 
-- Email: cade.rasmussen08@gmail.com
+- Email: rascade@gmail.com
 
 Include the email address used for your MixedUp account so the developer can locate the correct account data.
 
