@@ -111,6 +111,17 @@
                 android:text="To unlock some google voice play 20 games. "
                 android:textSize="15dp" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/delete_account"
+                android:layout_width="match_parent"
+                android:layout_height="75dp"
+                android:layout_marginTop="20dp"
+                android:text="Delete Account"
+                android:textStyle="bold"
+                app:cornerRadius="15dp"
+                app:strokeColor="@color/orange"
+                app:strokeWidth="6dp" />
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 

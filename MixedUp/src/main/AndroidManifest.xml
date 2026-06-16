@@ -4,7 +4,7 @@
 <!-- hardware accelerated might fix an onstartup crash issue -->
     <application
         android:allowBackup="true"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         android:hardwareAccelerated="false"
         android:icon="@mipmap/if_ford_icon"
         android:label="@string/app_name"

@@ -17,7 +17,7 @@ MixedUp is an Android party game built with Java, Fragments, and Firebase Realti
 - Build: Android Gradle Plugin 9.2.1, Gradle 9.4.1, JDK 17+
 - Compile SDK: 36
 - Minimum SDK: 25
-- Target SDK: 33
+- Target SDK: 35
 
 ## Build And Test
 
@@ -124,6 +124,14 @@ Useful Logcat filters:
 - [ ] Add Firebase emulator or fake-repository tests for replay loops, late joins, player leaves, and stale room data.
 - [ ] Add manual QA steps for toggling airplane mode during submit, pass, vote, play again, and Home.
 - [ ] Add host controls for removing a player who stays disconnected too long but is not the host.
+
+### Publishing And Policy
+
+- [x] Target Android 15 / API 35 for Google Play policy compliance.
+- [x] Add an in-app account deletion option from the Profile screen.
+- [x] Add a public account deletion support page for Google Play Data safety review.
+- [ ] Update the Google Play Data safety form with the account deletion declaration before resubmitting.
+- [ ] Enable GitHub Pages for `/docs` or confirm the GitHub-hosted account deletion page URL is accepted by Play Console.
 
 ### Game Flow
 

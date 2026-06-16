@@ -242,6 +242,43 @@ public class UserViewModel extends ViewModel {
         auth.signOut();
     }
 
+    public void deleteAccount() {
+        FirebaseUser firebaseUser = auth == null ? null : auth.getCurrentUser();
+        User currentUser = user.getValue();
+        if (firebaseUser == null || currentUser == null || currentUser.uid == null || currentUser.uid.length() == 0) {
+            signInMessage.setValue("Sign in again before deleting your account.");
+            AppLog.w(AppLog.AUTH, "Delete account skipped: missing current Firebase user");
+            return;
+        }
+
+        removeCurrentPlayerFromRoom(() -> deleteAccountData(currentUser, firebaseUser));
+    }
+
+    private void deleteAccountData(User accountUser, FirebaseUser firebaseUser) {
+        db.child("AccountPlayers").child(accountUser.uid).removeValue()
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.FIREBASE, "Account profile data deleted uid=" + accountUser.uid);
+                    deleteFirebaseAccount(firebaseUser);
+                })
+                .addOnFailureListener(e -> {
+                    signInMessage.setValue("Could not delete account data. Check your connection and try again.");
+                    AppLog.e(AppLog.FIREBASE, "Failed deleting account profile data uid=" + accountUser.uid, e);
+                });
+    }
+
+    private void deleteFirebaseAccount(FirebaseUser firebaseUser) {
+        firebaseUser.delete()
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.AUTH, "Firebase account deleted");
+                    signInMessage.setValue("Account deleted.");
+                    user.setValue(null);
+                })
+                .addOnFailureListener(e -> {
+                    signInMessage.setValue("Sign in again before deleting your account.");
+                    AppLog.e(AppLog.AUTH, "Failed deleting Firebase account", e);
+                });
+    }
+
     public MutableLiveData<User> getUser() {
         return user;
     }
