@@ -3,6 +3,7 @@ package com.CadeMixedUpGame.phoneapp;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
+import androidx.appcompat.app.AlertDialog;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
@@ -35,6 +36,18 @@ public class ProfileFrag extends Fragment {
         TextView madeLeader = view.findViewById(R.id.made_leaderboard);
         TextView perfectLeader = view.findViewById(R.id.perfect_leaderboard);
 
+        userViewModel.signInMessage.observe(getViewLifecycleOwner(), message -> {
+            if (message != null && message.length() > 0) {
+                UiMessenger.showSnackbar(view, message);
+            }
+        });
+
+        userViewModel.getUser().observe(getViewLifecycleOwner(), user -> {
+            if (user == null) {
+                Utils.navigateToFragment(getActivity(), FirstFrag.class);
+            }
+        });
+
         name.setText(name.getText() + userViewModel.getUser().getValue().userName);
         gamesPlayed.setText(gamesPlayed.getText() + Integer.toString(userViewModel.getUser().getValue().gamesPlayed));
         email.setText(email.getText() + userViewModel.getUser().getValue().email);
@@ -51,7 +64,17 @@ public class ProfileFrag extends Fragment {
                     .commit();
         });
 
+        view.findViewById(R.id.delete_account).setOnClickListener(v -> confirmAccountDeletion());
 
+    }
+
+    private void confirmAccountDeletion() {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Delete account?")
+                .setMessage("This removes your account, profile progress, and unlockables. This cannot be undone.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Delete", (dialog, which) -> userViewModel.deleteAccount())
+                .show();
     }
 
 }
