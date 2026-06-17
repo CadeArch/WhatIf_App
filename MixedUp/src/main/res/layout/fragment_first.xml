@@ -7,52 +7,52 @@
     tools:context=".FirstFrag"
     android:id="@+id/layout">
 
-    <!-- TODO: Update blank fragment layout -->
-
     <ImageView
         android:id="@+id/imageView"
-        android:layout_width="480dp"
+        android:layout_width="0dp"
         android:layout_height="120dp"
-        android:layout_marginTop="4dp"
         android:src="@drawable/what_if_full_logo"
         app:layout_constraintBottom_toTopOf="@+id/accountPlay"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.285" />
+        app:layout_constraintVertical_chainStyle="packed"
+        app:layout_constraintWidth_max="480dp"
+        app:layout_constraintWidth_percent="0.76" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/accountPlay"
-        android:layout_width="350dp"
-        android:layout_height="80dp"
+        android:layout_width="0dp"
+        android:layout_height="72dp"
+        android:layout_marginTop="16dp"
         android:text="Account Play"
         android:textSize="25sp"
         android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
-        app:layout_constraintStart_toStartOf="@+id/layout"
-        app:layout_constraintTop_toTopOf="parent"
         app:cornerRadius="15dp"
+        app:layout_constraintBottom_toTopOf="@+id/freePlay"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imageView"
+        app:layout_constraintWidth_max="350dp"
+        app:layout_constraintWidth_percent="0.56"
         app:strokeColor="@color/orange"
         app:strokeWidth="6dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/freePlay"
-        android:layout_width="350dp"
-        android:layout_height="80dp"
-
+        android:layout_width="0dp"
+        android:layout_height="72dp"
+        android:layout_marginTop="12dp"
         android:text="Free Play"
         android:textSize="25sp"
         android:textStyle="bold"
+        app:cornerRadius="15dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/accountPlay"
-        app:layout_constraintVertical_bias="0.454"
-        app:cornerRadius="15dp"
+        app:layout_constraintWidth_max="350dp"
+        app:layout_constraintWidth_percent="0.56"
         app:strokeColor="@color/orange"
         app:strokeWidth="6dp" />
 

@@ -35,7 +35,7 @@ public class GameLogic {
         if (cleaned.length() == 0) {
             return "";
         }
-        return "then " + cleaned + ".";
+        return "Then " + cleaned + ".";
     }
 
     public static int nextPlayerIndex(int currentIndex, int playerCount) {

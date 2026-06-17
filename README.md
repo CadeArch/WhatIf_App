@@ -180,6 +180,7 @@ Useful Logcat filters:
 ### Architecture And Maintainability
 
 - [x] Look for duplicate code that can be abstracted into shared helpers or `Utils` methods for reuse across fragments.
+- [ ] After the Play Console release is approved, audit and upgrade the local build toolchain intentionally: Android Gradle Plugin, Gradle wrapper, supported Gradle JVM, and Android Studio sync settings.
 - [ ] Reorganize `src/main/java` into human-readable folders/sub-folders by features/screens of the app, such as account, lobby, writing, reading, voting, leaderboard, messaging, and devtools. This is worthwhile, but should be handled as a focused branch because it is higher-churn than small safety refactors.
 - [ ] Group each fragment with its helper classes/adapters where practical so it is clear which files support each game screen.
 - [x] Find long, complex functions and break them into smaller named methods for clarity and easier unit testing.
@@ -210,7 +211,9 @@ Useful Logcat filters:
 
 ### UI And Accessibility
 
-- Improve portrait mode support.
+- [x] Lock gameplay to landscape orientation for now so unsupported portrait layouts are not shown during Play Store rollout.
+- Improve portrait mode support later if the app needs portrait play.
+- Add player-controlled sound settings for turn alerts and other game cues, including mute/vibrate options.
 - Add a simple white/black background option.
 - Add a mode or button to show the real original prompt instead of only randomized results.
 - Ensure large-font accessibility works on prompt screens, buttons, and instructions.

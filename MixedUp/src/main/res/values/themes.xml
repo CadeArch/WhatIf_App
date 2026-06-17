@@ -13,6 +13,8 @@
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
         <item name="android:textColor">@color/black</item>
+        <item name="android:editTextStyle">@style/AppEditText</item>
+        <item name="materialButtonStyle">@style/AppMaterialButton</item>
 
         <item name="android:fontFamily">@font/bubbly_font</item>
 
@@ -22,8 +24,19 @@
     <style name="ThemeOverlay.AppTheme.TextInputEditText.Box" parent="">
         <item name="colorControlActivated">@color/black</item>
     </style>
+    <style name="AppEditText" parent="@android:style/Widget.EditText">
+        <item name="android:autoHandwritingEnabled" tools:targetApi="tiramisu">false</item>
+    </style>
+    <style name="AppMaterialButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:ellipsize">none</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="textAllCaps">false</item>
+    </style>
     <style name="RoomCodeText">
         <item name="android:fontFamily">monospace</item>
         <item name="android:letterSpacing">0.08</item>
+        <item name="android:autoHandwritingEnabled" tools:targetApi="tiramisu">false</item>
     </style>
 </resources>

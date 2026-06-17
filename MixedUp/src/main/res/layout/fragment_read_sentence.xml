@@ -4,65 +4,99 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/read_sentence_paper"
     tools:context=".ReadSentenceFrag"
     android:id="@+id/layout">
 
-    <!-- TODO: Update blank fragment layout -->
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/paper_text_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.13" />
 
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/paper_text_end"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.95" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/read_if_top"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.10" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/read_if_bottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.42" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/read_then_bottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.64" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/read_controls_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.68" />
 
     <ScrollView
         android:id="@+id/scrollView2"
-        android:layout_width="match_parent"
-        android:layout_height="115dp"
-        android:layout_marginTop="44dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/layout">
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toTopOf="@id/read_if_bottom"
+        app:layout_constraintEnd_toStartOf="@id/paper_text_end"
+        app:layout_constraintStart_toStartOf="@id/paper_text_start"
+        app:layout_constraintTop_toTopOf="@id/read_if_top">
 
         <TextView
             android:id="@+id/myIfQuestion_ending"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="100dp"
-
-            android:paddingLeft="80dp"
-            android:paddingTop="8dp"
-            android:paddingRight="40dp"
+            android:gravity="top"
+            android:minHeight="0dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="8dp"
             android:paddingBottom="8dp"
             android:text=""
-            android:textSize="24dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.498"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/layout" />
+            android:textColor="@color/black"
+            android:textSize="30sp" />
     </ScrollView>
 
     <ScrollView
         android:id="@+id/scrollView3"
-        android:layout_width="match_parent"
-        android:layout_height="125dp"
-
-        android:layout_marginTop="0dp"
-        app:layout_constraintTop_toBottomOf="@+id/scrollView2"
-        tools:layout_editor_absoluteX="0dp">
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toTopOf="@id/read_then_bottom"
+        app:layout_constraintEnd_toStartOf="@id/paper_text_end"
+        app:layout_constraintStart_toStartOf="@id/paper_text_start"
+        app:layout_constraintTop_toBottomOf="@+id/scrollView2">
 
         <TextView
             android:id="@+id/myThenAnswer_ending"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="110dp"
+            android:gravity="top"
             android:layout_marginTop="0dp"
-            android:paddingLeft="80dp"
-            android:paddingTop="8dp"
-            android:paddingRight="40dp"
+            android:minHeight="0dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="8dp"
             android:paddingBottom="8dp"
             android:text=""
-            android:textSize="24dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.0"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/layout" />
+            android:textColor="@color/black"
+            android:textSize="28sp" />
     </ScrollView>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -71,10 +105,11 @@
         android:layout_height="75dp"
         app:fabCustomSize="70dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="@+id/layout"
-        app:layout_constraintTop_toBottomOf="@+id/scrollView3"
-        app:layout_constraintVertical_bias="0.508"
+        app:layout_constraintEnd_toStartOf="@+id/pass_reading_turn"
+        app:layout_constraintHorizontal_chainStyle="spread"
+        app:layout_constraintStart_toEndOf="@+id/spinnerObject"
+        app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
+        app:layout_constraintVertical_bias="0.45"
         app:srcCompat="@drawable/ic_baseline_mic_24" />
 
     <com.google.android.material.button.MaterialButton
@@ -88,8 +123,8 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/next_frag"
         app:layout_constraintStart_toEndOf="@+id/readSentence"
-        app:layout_constraintTop_toBottomOf="@+id/scrollView3"
-        app:layout_constraintVertical_bias="0.504"
+        app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
+        app:layout_constraintVertical_bias="0.45"
         app:strokeColor="@color/orange"
         app:strokeWidth="6dp" />
 
@@ -100,11 +135,10 @@
         android:textSize="16dp"
         android:text="next"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.8"
+        app:layout_constraintEnd_toStartOf="@id/paper_text_end"
         app:layout_constraintStart_toEndOf="@+id/pass_reading_turn"
-        app:layout_constraintTop_toBottomOf="@+id/scrollView3"
-        app:layout_constraintVertical_bias="0.504"
+        app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
+        app:layout_constraintVertical_bias="0.45"
         app:cornerRadius="15dp"
         app:strokeColor="@color/orange"
         app:strokeWidth="6dp"
@@ -112,17 +146,18 @@
 
     <Spinner
         android:id="@+id/spinnerObject"
-        android:layout_width="225dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:paddingTop="15dp"
         android:paddingLeft="40dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/readSentence"
-
-        app:layout_constraintHorizontal_bias="0.64"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/scrollView3" />
+        app:layout_constraintStart_toStartOf="@id/paper_text_start"
+        app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
+        app:layout_constraintVertical_bias="0.45"
+        app:layout_constraintWidth_max="225dp"
+        app:layout_constraintWidth_min="150dp" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

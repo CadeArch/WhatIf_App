@@ -14,37 +14,49 @@
         android:layout_height="75dp"
         android:layout_marginBottom="2dp"
         android:text="back"
+        android:textStyle="bold"
+        app:cornerRadius="15dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/delete_account"
+        app:layout_constraintHorizontal_chainStyle="spread"
+        app:layout_constraintStart_toStartOf="parent"
+        app:strokeColor="@color/orange"
+        app:strokeWidth="6dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/delete_account"
+        android:layout_width="150dp"
+        android:layout_height="75dp"
+        android:layout_marginStart="28dp"
+        android:text="Delete Account"
+        android:textStyle="bold"
+
+        app:cornerRadius="15dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.499"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintVertical_bias="0.587"
-        app:cornerRadius="15dp"
+        app:layout_constraintStart_toEndOf="@+id/back_profile"
         app:strokeColor="@color/orange"
-        app:strokeWidth="6dp"
-        android:textStyle="bold"/>
+        app:strokeWidth="6dp" />
 
     <TextView
         android:id="@+id/player_name_profile"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:gravity="center_horizontal"
         android:text="Welcome "
-        android:textSize="40dp"
+        android:textSize="40sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll_profile"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingLeft="15dp"
-        android:paddingRight="15dp"
+        android:paddingStart="15dp"
+        android:paddingEnd="15dp"
         app:layout_constraintBottom_toTopOf="@+id/back_profile"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/player_name_profile"
         android:scrollbars="vertical"
@@ -63,64 +75,53 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Total games played: "
-                android:textSize="20dp" />
+                android:textSize="20sp" />
 
             <TextView
                 android:id="@+id/made_leaderboard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Contributed to only part of a leaderboard item: "
-                android:textSize="20dp" />
+                android:textSize="20sp" />
 
             <TextView
                 android:id="@+id/perfect_leaderboard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Contributed to both parts of a single leaderboard item: "
-                android:textSize="20dp" />
+                android:textSize="20sp" />
 
             <TextView
                 android:id="@+id/user_email"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Email: "
-                android:textSize="20dp" />
+                android:textSize="20sp" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingTop="5dp"
                 android:text="To unlock backwords google voice play 5 games. "
-                android:textSize="15dp" />
+                android:textSize="15sp" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="To unlock fuddify google voice contribute to part of a sentence that makes it to the leaderboards. "
-                android:textSize="15dp" />
+                android:textSize="15sp" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="To unlock pig latin google voice contribute to both parts of a sentence that makes it to the leaderboards. "
-                android:textSize="15dp" />
+                android:textSize="15sp" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="To unlock some google voice play 20 games. "
-                android:textSize="15dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/delete_account"
-                android:layout_width="match_parent"
-                android:layout_height="75dp"
-                android:layout_marginTop="20dp"
-                android:text="Delete Account"
-                android:textStyle="bold"
-                app:cornerRadius="15dp"
-                app:strokeColor="@color/orange"
-                app:strokeWidth="6dp" />
+                android:textSize="15sp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

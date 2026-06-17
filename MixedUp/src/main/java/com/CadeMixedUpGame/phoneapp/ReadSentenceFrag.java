@@ -1,8 +1,10 @@
 package com.CadeMixedUpGame.phoneapp;
 
 import android.content.res.Resources;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
+import android.util.TypedValue;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Spinner;
@@ -42,6 +44,8 @@ public class ReadSentenceFrag extends Fragment {
     View nextButton;
     TextView ifQuestionText;
     TextView thenAnswerText;
+    Typeface ifQuestionDefaultTypeface;
+    Typeface thenAnswerDefaultTypeface;
     int currentUserReadIndex = -1;
     String currentUserPlayerKey = "";
     RoundAssignment currentRoundAssignment;
@@ -54,6 +58,9 @@ public class ReadSentenceFrag extends Fragment {
     boolean roundListenersStarted = false;
     boolean assignmentListenerStarted = false;
     boolean readingActionInProgress = false;
+    boolean turnPromptShown = false;
+    String observedActiveReaderKey = "";
+    SoundHelper soundHelper = new SoundHelper();
 
     public ReadSentenceFrag() {
         super(R.layout.fragment_read_sentence);
@@ -153,6 +160,8 @@ public class ReadSentenceFrag extends Fragment {
         currentRoundAssignment = null;
         currentUserReadIndex = -1;
         currentUserPlayerKey = "";
+        observedActiveReaderKey = "";
+        turnPromptShown = false;
         myRandomThen = "";
         AppLog.d(AppLog.GAME_FLOW, "Local reading state reset for new read screen");
     }
@@ -176,6 +185,8 @@ public class ReadSentenceFrag extends Fragment {
     private void bindSentenceText() {
         ifQuestionText = requireActivity().findViewById(R.id.myIfQuestion_ending);
         thenAnswerText = requireActivity().findViewById(R.id.myThenAnswer_ending);
+        ifQuestionDefaultTypeface = ifQuestionText.getTypeface();
+        thenAnswerDefaultTypeface = thenAnswerText.getTypeface();
         User currentUser = userViewModel.getUser().getValue();
         if (currentUser == null) {
             AppLog.w(AppLog.GAME_FLOW, "Read sentence assignment skipped: missing current user");
@@ -254,32 +265,54 @@ public class ReadSentenceFrag extends Fragment {
             return;
         }
         if (!sentenceReady) {
+            applyInstructionTextStyle(false);
             ifQuestionText.setText("Loading...");
             thenAnswerText.setText("");
             ActionButtonState.setEnabled(nextButton, false);
             setNextButtonText("show");
             return;
         }
-        if (!sentenceRevealed) {
+        if (!sentenceRevealed || !currentReaderTurn) {
+            applyInstructionTextStyle(currentReaderTurn);
             if (currentReaderTurn) {
-                ifQuestionText.setText("What if the show button is enabled?");
-                thenAnswerText.setText("Then tap show when the group is ready and enjoy a laugh!");
+                ifQuestionText.setText("Your turn to read.");
+                thenAnswerText.setText("Tap Show when the group is ready.");
                 ActionButtonState.setEnabled(nextButton, true);
             }
             else {
-                ifQuestionText.setText("What if it's not your turn?");
-                thenAnswerText.setText("Then listen to the person who is revealing a twisted sentence!");
+                ifQuestionText.setText("Waiting for another player to read.");
+                thenAnswerText.setText("Listen until it is your turn.");
                 ActionButtonState.setEnabled(nextButton, false);
             }
             setNextButtonText("show");
             return;
         }
+        applySentenceTextStyle();
         ifQuestionText.setText(GameLogic.formatIfSentence(myRandomIf));
         thenAnswerText.setText(GameLogic.formatThenSentence(myRandomThen));
         boolean canPass = currentReaderTurn && !readTurnPassed && !readingActionInProgress;
         ActionButtonState.setSaving(nextButton, readingActionInProgress, canPass);
         setNextButtonText("pass");
         updateDoneButtonVisibility();
+    }
+
+    private void applyInstructionTextStyle(boolean activeReaderPrompt) {
+        int color = activeReaderPrompt ? requireContext().getColor(R.color.turn_instruction_text) : requireContext().getColor(R.color.instruction_text);
+        ifQuestionText.setTextColor(color);
+        thenAnswerText.setTextColor(color);
+        ifQuestionText.setTypeface(Typeface.DEFAULT, activeReaderPrompt ? Typeface.BOLD : Typeface.NORMAL);
+        thenAnswerText.setTypeface(Typeface.DEFAULT, activeReaderPrompt ? Typeface.BOLD_ITALIC : Typeface.ITALIC);
+        ifQuestionText.setTextSize(TypedValue.COMPLEX_UNIT_SP, activeReaderPrompt ? 36 : 32);
+        thenAnswerText.setTextSize(TypedValue.COMPLEX_UNIT_SP, activeReaderPrompt ? 28 : 26);
+    }
+
+    private void applySentenceTextStyle() {
+        ifQuestionText.setTextColor(requireContext().getColor(R.color.black));
+        thenAnswerText.setTextColor(requireContext().getColor(R.color.black));
+        ifQuestionText.setTypeface(ifQuestionDefaultTypeface, Typeface.BOLD);
+        thenAnswerText.setTypeface(thenAnswerDefaultTypeface, Typeface.BOLD);
+        ifQuestionText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30);
+        thenAnswerText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28);
     }
 
     private void setNextButtonText(String text) {
@@ -460,10 +493,12 @@ public class ReadSentenceFrag extends Fragment {
         }
         currentUserReadIndex = findCurrentUserIndexInReadOrder();
         int activeIndex = roomViewModel.activeReaderIndex.getValue() == null ? 0 : roomViewModel.activeReaderIndex.getValue();
+        String activeReaderKey = roomViewModel.activeReaderKey.getValue();
+        resetRevealStateWhenReaderChanges(activeReaderKey);
         int readOrderSize = roomViewModel.readOrder.getValue() == null ? 0 : roomViewModel.readOrder.getValue().size();
         everyoneHasRead = activeIndex >= readOrderSize && readOrderSize > 0;
         boolean isCurrentReader = currentUserPlayerKey.length() > 0
-                && currentUserPlayerKey.equals(roomViewModel.activeReaderKey.getValue())
+                && currentUserPlayerKey.equals(activeReaderKey)
                 && currentUserReadIndex >= 0;
         currentReaderTurn = isCurrentReader;
         boolean canReadAloud = isCurrentReader && sentenceRevealed;
@@ -472,13 +507,30 @@ public class ReadSentenceFrag extends Fragment {
             readButton.setAlpha(canReadAloud ? 1.0f : 0.35f);
         }
         updateSentenceVisibility();
-        if (isCurrentReader && !sentenceRevealed) {
+        if (isCurrentReader && !sentenceRevealed && !turnPromptShown) {
             UiMessenger.showTopSnackbar(requireView(), "Your turn to read");
+            soundHelper.playTurnAlert();
+            turnPromptShown = true;
         }
         AppLog.d(AppLog.TTS, "Read controls updated: activeIndex=" + activeIndex
-                + ", activeKey=" + roomViewModel.activeReaderKey.getValue()
+                + ", activeKey=" + activeReaderKey
                 + ", myKey=" + currentUserPlayerKey
                 + ", myIndex=" + currentUserReadIndex);
+    }
+
+    private void resetRevealStateWhenReaderChanges(String activeReaderKey) {
+        if (activeReaderKey == null || activeReaderKey.length() == 0) {
+            return;
+        }
+        if (activeReaderKey.equals(observedActiveReaderKey)) {
+            return;
+        }
+        observedActiveReaderKey = activeReaderKey;
+        sentenceRevealed = false;
+        readTurnPassed = false;
+        readingActionInProgress = false;
+        turnPromptShown = false;
+        AppLog.d(AppLog.GAME_FLOW, "Read reveal state reset for active reader key=" + activeReaderKey);
     }
 
     private void passReadingTurn() {
@@ -512,6 +564,7 @@ public class ReadSentenceFrag extends Fragment {
         }
         doneButton.setVisibility(View.GONE);
         if (everyoneHasRead && ifQuestionText != null && thenAnswerText != null) {
+            applyInstructionTextStyle(false);
             ifQuestionText.setText("What if everyone has read?");
             thenAnswerText.setText("Then the next part of the game starts now.");
             if (nextButton != null) {
@@ -565,6 +618,7 @@ public class ReadSentenceFrag extends Fragment {
             tts.shutdown();
             tts = null;
         }
+        soundHelper.release();
         super.onDestroyView();
     }
 }

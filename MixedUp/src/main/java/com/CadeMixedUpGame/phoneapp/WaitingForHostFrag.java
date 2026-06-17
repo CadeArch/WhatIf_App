@@ -161,6 +161,7 @@ public class WaitingForHostFrag extends Fragment {
             if ("no".equals(state) && onWaitingForHost && !currentUser.host) {
                 AppLog.i(AppLog.GAME_FLOW, "WaitingForHostFrag received host home signal; currentFragment="
                         + Utils.currentFragmentName(getActivity()));
+                showHostEndedGameOnHome();
                 finishHomeNavigation("host replayState=no");
             }
         });
@@ -265,6 +266,10 @@ public class WaitingForHostFrag extends Fragment {
         roomViewModel.clearLocalRoundState();
         Utils.navigateHomeReplacingCurrent(getActivity());
         AppLog.i(AppLog.GAME_FLOW, "WaitingForHostFrag -> StartFragment via home reason=" + reason);
+    }
+
+    private void showHostEndedGameOnHome() {
+        userViewModel.pendingHomeSnackbar = "The host ended the game room.";
     }
 
     @Override

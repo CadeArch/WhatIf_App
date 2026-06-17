@@ -8,21 +8,20 @@
     android:background="@drawable/white_papers"
     android:id="@+id/layout">
 
-    <!-- TODO: Update blank fragment layout -->
-
     <TextView
 
         android:id="@+id/textView13"
-        android:layout_width="600dp"
-        android:layout_height="50dp"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="56dp"
         android:gravity="center_horizontal"
         android:text="Finish the prompt"
-        android:textSize="30dp"
+        android:textSize="30sp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/layout" />
+        app:layout_constraintTop_toTopOf="@+id/layout"
+        app:layout_constraintWidth_max="600dp"
+        app:layout_constraintWidth_percent="0.9" />
 
     <TextView
         android:id="@+id/whatIfPrefix"
@@ -30,7 +29,7 @@
         android:layout_height="wrap_content"
         android:text="What if"
         android:textColor="@color/black"
-        android:textSize="24dp"
+        android:textSize="24sp"
         app:layout_constraintBaseline_toBaselineOf="@+id/ifQuestion"
         app:layout_constraintEnd_toStartOf="@+id/ifQuestion"
         app:layout_constraintHorizontal_chainStyle="packed"
@@ -38,9 +37,9 @@
 
     <EditText
         android:id="@+id/ifQuestion"
-        android:layout_width="330dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="12dp"
+        android:layout_marginStart="12dp"
         android:layout_marginTop="36dp"
         android:gravity="center"
         android:hint="your question"
@@ -50,12 +49,13 @@
         android:singleLine="true"
 
         android:textColorHint="@color/black"
-        android:textSize="20dp"
+        android:textSize="20sp"
         app:layout_constraintBottom_toTopOf="@+id/writeIf_submit"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/whatIfPrefix"
         app:layout_constraintTop_toBottomOf="@+id/textView13"
-        app:layout_constraintVertical_bias="0.121" />
+        app:layout_constraintVertical_bias="0.121"
+        app:layout_constraintWidth_max="380dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/writeIf_submit"
@@ -63,7 +63,7 @@
         android:layout_height="75dp"
         android:layout_marginBottom="64dp"
         android:text="Submit"
-        android:textSize="16dp"
+        android:textSize="16sp"
         android:textStyle="bold"
         app:cornerRadius="15dp"
         app:layout_constraintBottom_toBottomOf="parent"

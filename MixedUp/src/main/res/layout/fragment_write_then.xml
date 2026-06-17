@@ -8,36 +8,38 @@
     android:background="@drawable/white_papers"
     android:id="@+id/layout">
 
-    <!-- TODO: Update blank fragment layout -->
-
     <TextView
         android:id="@+id/instructions"
-        android:layout_width="600dp"
-        android:layout_height="50dp"
-        android:layout_marginTop="16dp"
-        android:text="Finish the response"
-        android:textSize="25dp"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="56dp"
         android:gravity="center_horizontal"
+        android:text="Finish the response"
+        android:textSize="25sp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintHorizontal_bias="0.496"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/layout" />
+        app:layout_constraintTop_toTopOf="@+id/layout"
+        app:layout_constraintWidth_max="600dp"
+        app:layout_constraintWidth_percent="0.9" />
 
     <ScrollView
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="85dp"
         android:id="@+id/scroller"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/instructions"
-        tools:layout_editor_absoluteX="0dp">
+        app:layout_constraintWidth_percent="0.9">
 
         <TextView
             android:id="@+id/myIfQuestion"
             android:layout_width="match_parent"
             android:layout_height="90dp"
-            android:paddingLeft="65dp"
-            android:paddingRight="65dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
             android:text=""
-            android:textSize="30dp"
+            android:textSize="30sp"
             app:layout_constraintBottom_toTopOf="@+id/thenAnswer"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.498"
@@ -52,7 +54,7 @@
         android:layout_height="wrap_content"
         android:text="then"
         android:textColor="@color/black"
-        android:textSize="24dp"
+        android:textSize="24sp"
         app:layout_constraintBaseline_toBaselineOf="@+id/thenAnswer"
         app:layout_constraintEnd_toStartOf="@+id/thenAnswer"
         app:layout_constraintHorizontal_chainStyle="packed"
@@ -60,9 +62,9 @@
 
     <EditText
         android:id="@+id/thenAnswer"
-        android:layout_width="330dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="12dp"
+        android:layout_marginStart="12dp"
         android:gravity="center"
         android:hint="your response"
         android:imeOptions="actionDone"
@@ -70,12 +72,13 @@
         android:maxLines="1"
         android:singleLine="true"
         android:textColorHint="@color/black"
-        android:textSize="20dp"
+        android:textSize="20sp"
         app:layout_constraintBottom_toTopOf="@+id/writeThen_submit"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/thenPrefix"
         app:layout_constraintTop_toBottomOf="@+id/scroller"
-        app:layout_constraintVertical_bias="0.0" />
+        app:layout_constraintVertical_bias="0.0"
+        app:layout_constraintWidth_max="380dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/writeThen_submit"
@@ -83,12 +86,11 @@
         android:layout_height="75dp"
         android:layout_marginBottom="64dp"
         android:text="Submit"
-        android:textSize="16dp"
+        android:textSize="16sp"
         android:textStyle="bold"
         app:cornerRadius="15dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="@+id/layout"
         app:strokeColor="@color/orange"
         app:strokeWidth="6dp" />

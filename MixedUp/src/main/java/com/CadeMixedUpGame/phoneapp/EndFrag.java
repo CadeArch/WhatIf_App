@@ -108,6 +108,7 @@ public class EndFrag extends Fragment {
                         userViewModel.onEndFrag = false;
                         AppLog.i(AppLog.GAME_FLOW, "EndFrag received host home signal; currentFragment="
                                 + Utils.currentFragmentName(getActivity()));
+                        showHostEndedGameOnHome();
                         finishHomeNavigation("host replayState=no");
                     }
                 }
@@ -231,6 +232,10 @@ public class EndFrag extends Fragment {
         if (againButton instanceof android.widget.TextView) {
             ((android.widget.TextView) againButton).setText(text);
         }
+    }
+
+    private void showHostEndedGameOnHome() {
+        userViewModel.pendingHomeSnackbar = "The host ended the game room.";
     }
 
     private boolean hasPendingRequiredVotes() {

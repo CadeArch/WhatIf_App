@@ -65,6 +65,7 @@ public class StartFragment extends Fragment {
             AppLog.w(AppLog.AUTH, "Start screen opened without current user");
             return;
         }
+        showPendingHomeMessage(view);
 
         if (currentUser.accountPlay) {
             AppLog.d(AppLog.UI, "Start screen account player; leaderboard size=" + leaderBoardViewModel.getLeaderBoard().size());
@@ -251,6 +252,14 @@ public class StartFragment extends Fragment {
         if (accountPlayer) {
             userName.setText(user.userName);
         }
+    }
+
+    private void showPendingHomeMessage(View view) {
+        if (userViewModel.pendingHomeSnackbar == null || userViewModel.pendingHomeSnackbar.length() == 0) {
+            return;
+        }
+        UiMessenger.showSnackbar(view, userViewModel.pendingHomeSnackbar);
+        userViewModel.pendingHomeSnackbar = "";
     }
 
     private void createReservedRoom(TextView userName) {

@@ -47,7 +47,8 @@ public class GameLogicTest {
 
     @Test
     public void formatThenSentence_addsResponsePrefixAndPeriod() {
-        assertEquals("then we play.", GameLogic.formatThenSentence("then we play"));
+        assertEquals("Then we play.", GameLogic.formatThenSentence("then we play"));
+        assertEquals("Then everyone would blame the toaster.", GameLogic.formatThenSentence("Then everyone would blame the toaster."));
     }
 
     @Test
