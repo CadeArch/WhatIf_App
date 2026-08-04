@@ -14,10 +14,10 @@
             android:id="@+id/if_then"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingLeft="10dp"
-            android:paddingTop="10dp"
+            android:paddingStart="@dimen/space_8"
+            android:paddingTop="@dimen/space_8"
             android:textColor="@color/black"
-            android:textSize="18sp"
+            android:textAppearance="@style/TextAppearance.WhatIf.Body"
             tools:layout_editor_absoluteX="0dp"
             tools:layout_editor_absoluteY="73dp" />
 
@@ -26,9 +26,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="@color/grey"
-            android:paddingLeft="6dp"
+            android:paddingStart="@dimen/space_8"
             android:maxLines="1"
-            android:textSize="12sp"
+            android:textAppearance="@style/TextAppearance.WhatIf.Label"
             tools:layout_editor_absoluteX="-16dp"
             tools:layout_editor_absoluteY="275dp" />
 

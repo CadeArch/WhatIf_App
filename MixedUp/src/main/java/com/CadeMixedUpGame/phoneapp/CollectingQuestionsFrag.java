@@ -47,7 +47,7 @@ public class CollectingQuestionsFrag extends Fragment {
         onCollectingQuestionsFrag = true;
         // set up the RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewCollectQ);
-        recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
+        recyclerView.setLayoutManager(new GridLayoutManager(getContext(), Utils.computeSpanCount(getContext())));
 
         // seeing who has submitted
         for (User user:userViewModel.getUsers()) {

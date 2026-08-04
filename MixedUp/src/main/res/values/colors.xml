@@ -12,6 +12,9 @@
     <color name="light_pink">#FFEDA6EC</color>
     <color name="light_orange">#FFEDAF64</color>
     <color name="orange">#FFC4791D</color>
+    <!-- Deeper shade of orange used behind white button text; ~5.6:1 contrast vs white,
+         clears the 4.5:1 accessibility bar (plain "orange" only reaches ~3.4:1). -->
+    <color name="orange_deep">#FF935B16</color>
     <color name="instruction_text">#FF2F2924</color>
     <color name="turn_instruction_text">#FF8A4600</color>
 

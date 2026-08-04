@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".LeaderBoardFrag"
-    android:background="@drawable/white_papers"
+    android:background="@drawable/white_papers_tiled"
     android:id="@+id/layout">
 
     <TextView
@@ -13,10 +13,10 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:gravity="center_horizontal"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp"
+        android:paddingTop="@dimen/space_8"
+        android:paddingBottom="@dimen/space_8"
         android:text="Leaderboards"
-        android:textSize="40sp"
+        android:textAppearance="@style/TextAppearance.WhatIf.Display"
         app:layout_constraintEnd_toStartOf="@+id/lbi_back"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -42,16 +42,13 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/lbi_back"
+        style="@style/Widget.WhatIf.Button.Secondary"
         android:layout_width="100dp"
         android:layout_height="50dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="24dp"
+        android:layout_marginTop="@dimen/space_8"
+        android:layout_marginEnd="@dimen/space_24"
         android:text="back"
         app:layout_constraintEnd_toEndOf="@+id/layout"
-        app:layout_constraintTop_toTopOf="parent"
-        app:cornerRadius="15dp"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp"
-        android:textStyle="bold"/>
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

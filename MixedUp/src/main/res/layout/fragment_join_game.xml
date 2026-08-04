@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".JoinGameFrag"
-    android:background="@drawable/white_papers"
+    android:background="@drawable/white_papers_tiled"
     android:id="@+id/layout">
 
     <include
@@ -23,10 +23,10 @@
 
         android:layout_width="250dp"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
+        android:layout_marginBottom="@dimen/space_16"
         android:gravity="center_horizontal"
         android:text="Game Code"
-        android:textSize="30sp"
+        android:textAppearance="@style/TextAppearance.WhatIf.Headline"
         app:layout_constraintBottom_toTopOf="@+id/enterGameCode"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
@@ -58,33 +58,26 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/joinGame_start"
+        style="@style/Widget.WhatIf.Button.Primary"
         android:layout_width="100dp"
-        android:layout_height="75dp"
+        android:layout_height="@dimen/button_height_hero"
         android:text="join"
-
-        android:textStyle="bold"
-        app:cornerRadius="15dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@+id/enterGameCode"
         app:layout_constraintTop_toBottomOf="@+id/enterGameCode"
-        app:layout_constraintVertical_bias="0.437"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp" />
+        app:layout_constraintVertical_bias="0.437" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/joinGame_back"
+        style="@style/Widget.WhatIf.Button.Secondary"
         android:layout_width="100dp"
-        android:layout_height="75dp"
+        android:layout_height="@dimen/button_height_hero"
         android:text="back"
-        android:textStyle="bold"
-        app:cornerRadius="15dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/joinGame_start"
         app:layout_constraintHorizontal_bias="0.469"
         app:layout_constraintStart_toStartOf="@+id/enterGameCode"
         app:layout_constraintTop_toBottomOf="@+id/enterGameCode"
-        app:layout_constraintVertical_bias="0.437"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp" />
+        app:layout_constraintVertical_bias="0.437" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

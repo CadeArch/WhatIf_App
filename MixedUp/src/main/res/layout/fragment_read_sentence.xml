@@ -4,8 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/read_sentence_paper"
     tools:context=".ReadSentenceFrag"
+    android:background="@drawable/lined_paper_read_tiled"
     android:id="@+id/layout">
 
     <androidx.constraintlayout.widget.Guideline
@@ -99,14 +99,34 @@
             android:textSize="28sp" />
     </ScrollView>
 
+    <!-- 0dp-width + weight on the flexible controls (spinner/pass/next) so this row compresses to
+         fit portrait's narrower width instead of overflowing four fixed dp widths; the FAB keeps
+         its natural circular size. -->
+    <Spinner
+        android:id="@+id/spinnerObject"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:paddingTop="@dimen/space_16"
+        android:paddingStart="@dimen/space_16"
+        app:layout_constraintHorizontal_chainStyle="spread"
+        app:layout_constraintHorizontal_weight="1"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/readSentence"
+        app:layout_constraintStart_toStartOf="@id/paper_text_start"
+        app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
+        app:layout_constraintVertical_bias="0.45" />
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/readSentence"
-        android:layout_width="100dp"
-        android:layout_height="75dp"
-        app:fabCustomSize="70dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_8"
+        android:layout_marginEnd="@dimen/space_8"
+        android:contentDescription="@string/mic_content_description"
+        app:fabCustomSize="64dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/pass_reading_turn"
-        app:layout_constraintHorizontal_chainStyle="spread"
         app:layout_constraintStart_toEndOf="@+id/spinnerObject"
         app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
         app:layout_constraintVertical_bias="0.45"
@@ -114,50 +134,32 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/pass_reading_turn"
-        android:layout_width="130dp"
-        android:layout_height="75dp"
+        style="@style/Widget.WhatIf.Button.Secondary"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/button_height_standard"
         android:text="done"
-        android:textSize="16dp"
-        android:textStyle="bold"
-        app:cornerRadius="15dp"
+        android:textSize="16sp"
+        app:layout_constraintHorizontal_weight="1"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/next_frag"
         app:layout_constraintStart_toEndOf="@+id/readSentence"
         app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
-        app:layout_constraintVertical_bias="0.45"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp" />
+        app:layout_constraintVertical_bias="0.45" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/next_frag"
-        android:layout_width="100dp"
-        android:layout_height="75dp"
-        android:textSize="16dp"
+        style="@style/Widget.WhatIf.Button.Primary"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/button_height_standard"
+        android:layout_marginStart="@dimen/space_8"
+        android:textSize="16sp"
         android:text="next"
+        app:layout_constraintHorizontal_weight="1"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/paper_text_end"
         app:layout_constraintStart_toEndOf="@+id/pass_reading_turn"
         app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
-        app:layout_constraintVertical_bias="0.45"
-        app:cornerRadius="15dp"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp"
-        android:textStyle="bold"/>
-
-    <Spinner
-        android:id="@+id/spinnerObject"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:paddingTop="15dp"
-        android:paddingLeft="40dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/readSentence"
-        app:layout_constraintStart_toStartOf="@id/paper_text_start"
-        app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
-        app:layout_constraintVertical_bias="0.45"
-        app:layout_constraintWidth_max="225dp"
-        app:layout_constraintWidth_min="150dp" />
+        app:layout_constraintVertical_bias="0.45" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

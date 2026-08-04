@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".AccountFrag"
-    android:background="@drawable/white_papers"
+    android:background="@drawable/white_papers_tiled"
     android:id="@+id/layout">
 
     <androidx.constraintlayout.widget.Guideline
@@ -20,10 +20,10 @@
         android:id="@+id/textView7"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="@dimen/space_8"
         android:gravity="center"
         android:text="What If you already had an account? Then you would sign in!"
-        android:textSize="25sp"
+        android:textAppearance="@style/TextAppearance.WhatIf.Title"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
@@ -63,47 +63,38 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/signUp"
+        style="@style/Widget.WhatIf.Button.Primary"
         android:layout_width="175dp"
-        android:layout_height="75dp"
-        android:layout_marginTop="8dp"
+        android:layout_height="@dimen/button_height_hero"
+        android:layout_marginTop="@dimen/space_16"
         android:text="create account"
-        android:textStyle="bold"
-        app:cornerRadius="15dp"
         app:layout_constraintEnd_toStartOf="@+id/signIn"
         app:layout_constraintStart_toStartOf="@+id/password"
-        app:layout_constraintTop_toBottomOf="@+id/password"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp" />
+        app:layout_constraintTop_toBottomOf="@+id/password" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/back_account"
+        style="@style/Widget.WhatIf.Button.Secondary"
         android:layout_width="100dp"
         android:layout_height="55dp"
-        android:layout_marginTop="24dp"
-        android:layout_marginEnd="64dp"
+        android:layout_marginTop="@dimen/space_24"
+        android:layout_marginEnd="@dimen/space_64"
         android:text="back"
-        android:textStyle="bold"
-        app:cornerRadius="15dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/signIn"
+        style="@style/Widget.WhatIf.Button.Primary"
         android:layout_width="130dp"
-        android:layout_height="75dp"
-        android:layout_marginStart="28dp"
-        android:layout_marginTop="8dp"
+        android:layout_height="@dimen/button_height_hero"
+        android:layout_marginStart="@dimen/space_24"
+        android:layout_marginTop="@dimen/space_16"
         android:text="Sign In"
-        android:textStyle="bold"
-        app:cornerRadius="15dp"
         app:layout_constraintEnd_toEndOf="@+id/password"
         app:layout_constraintHorizontal_chainStyle="packed"
         app:layout_constraintStart_toEndOf="@+id/signUp"
-        app:layout_constraintTop_toBottomOf="@+id/password"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp" />
+        app:layout_constraintTop_toBottomOf="@+id/password" />
 
     <EditText
         android:id="@+id/password"
