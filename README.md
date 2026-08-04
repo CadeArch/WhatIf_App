@@ -26,6 +26,37 @@ MixedUp is an Android party game built with Java, Fragments, and Firebase Realti
 .\gradlew.bat :API:testDebugUnitTest
 ```
 
+### Local Firebase Emulator (avoid touching production data)
+
+By default, debug builds talk to the **live production** Firebase project (`mixedupgame`) — the
+same one linked above. That's fine for a quick manual check, but don't leave it running for
+scripted/repeated test flows; it pollutes real room/leaderboard data. For that, run against the
+local Firebase Emulator Suite instead:
+
+```powershell
+# One-time setup: requires Node.js and the Firebase CLI (`npm install -g firebase-tools`).
+# The emulator suite needs a JDK 21+ on PATH — Android Studio's bundled JBR works:
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio3\jbr"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+
+firebase emulators:start --only database,auth
+```
+
+This starts local Database + Auth emulators (`firebase.json`) under a `demo-` project id
+(`.firebaserc`), which requires no `firebase login` and never touches the real project. Emulator
+UI: http://127.0.0.1:4000/. `database.rules.json` is intentionally wide-open (`.read`/`.write:
+true`) for local testing — it is **not** the production security rules and must never be deployed.
+
+To point a debug build at it instead of production:
+
+```powershell
+.\gradlew.bat :MixedUp:assembleDebug -PuseFirebaseEmulator=true
+```
+
+This flag flows through `BuildConfig.USE_FIREBASE_EMULATOR` → `WhatIfApplication.onCreate()` →
+`FirebaseEmulatorConfig.configureIfEnabled(...)` (API module). Defaults to `false`, so ordinary
+builds are unaffected.
+
 ## Developer Notes
 
 ### Release Signing
@@ -181,18 +212,28 @@ Useful Logcat filters:
 ### Automated Testing
 
 Manual reverification of multiplayer edge cases (disconnects, replay, stale rooms, late joins)
-after every branch is expensive. Options considered, in order of increasing cost/coverage — take
-these on next, starting from the top:
+after every branch is expensive. Options considered, in order of increasing cost/coverage:
 
-- [ ] Logic-level tests: expand JVM/unit tests around `GameFlowPolicy`, replay/reconnect logic,
-  and validation. Fast, no emulator needed, likely covers most of the edge cases hit across recent
-  branches without simulating two real UIs.
-- [ ] Single-player Espresso UI tests: instrumented on-device tests for navigation, input
-  validation, and orientation-change persistence on flows a lone player can trigger (Start/Create/Join
-  screens, form validation). Doesn't cover true multiplayer sync since the game disallows solo play.
-- [ ] Two-device multiplayer harness: drive two emulators (or two app processes) through a full
-  room create/join/play loop via UI Automator, or point both at the Firebase Emulator Suite
-  locally. Closest to real coverage of the multiplayer edge cases, but real infrastructure work.
+- [x] Logic-level tests: `GameFlowPolicy`/`GameLogic`/`RoomCreationPolicy` (API module) already
+  have ~75 JUnit test methods — connection timing, assignment randomization, vote tallying, replay
+  reset via the `FakeGameRepository` pattern in `RoomViewModelTest`. Removed the 4 unrenamed
+  template `ExampleUnitTest`/`ExampleInstrumentedTest` files. See `CLAUDE.md` Part 2 for how to
+  keep adding to this (put new game-flow logic in a pure static policy class, not a Fragment).
+- [x] Single-player Espresso UI tests: `MixedUp/src/androidTest/.../NavigationFlowTest.java` —
+  launch/navigation, empty-name validation, and an Activity-recreate (rotation) regression test.
+  Bumped `androidx.test.ext:junit`/`espresso-core` (were 2020-era 1.1.2/3.3.0, failed manifest
+  merge once targeting API 36 — see `CLAUDE.md`-style versioned-dependency notes above).
+  - [ ] **Needs a stable-API (34-36) emulator/AVD to actually execute** — both AVDs configured
+    on the dev machine as of this session run a preview API level (37) ahead of what the
+    installed Espresso release supports, which fails instrumented test startup with
+    `NoSuchMethodException: InputManager.getInstance` (an Espresso/OS-preview compatibility gap,
+    not a bug in the tests). Install a stable API 34-36 system image + AVD (or run these in CI on
+    a standard runner) to get a real pass/fail signal.
+- [ ] Two-device multiplayer harness — two tiers, see `CHANGELOG.md` design notes for this branch:
+  - [ ] **Tier A** (build first): two simulated players in one Robolectric JVM test process, both
+    against the Firebase Emulator Suite — real multi-client behavior, no emulator/device needed.
+  - [ ] **Tier B** (later): true two-emulator end-to-end via Espresso/UiAutomator, the only tier
+    that catches real UI bugs like this branch's portrait header overlap and background seam.
 
 ### Architecture And Maintainability
 

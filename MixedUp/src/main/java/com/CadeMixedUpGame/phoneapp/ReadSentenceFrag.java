@@ -598,13 +598,9 @@ public class ReadSentenceFrag extends Fragment {
             return;
         }
         String sentence = GameLogic.formatIfSentence(myRandomIf) + ", " + GameLogic.formatThenSentence(myRandomThen);
-        String spokenSentence = "0".equals(code) ? sentence : mutateString(sentence);
+        String spokenSentence = "0".equals(code) ? sentence : GameLogic.mutateVoiceText(sentence, code);
         AppLog.i(AppLog.TTS, "Speaking read sentence with voiceCode=" + code);
         tts.speak(spokenSentence, TextToSpeech.QUEUE_FLUSH, null, "readIfThen");
-    }
-
-    public String mutateString(String ifThen) {
-        return GameLogic.mutateVoiceText(ifThen, code);
     }
 
     @Override

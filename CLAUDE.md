@@ -1,9 +1,13 @@
 # CLAUDE.md
 
 Steering doc for working in this repo. See `README.md` for stack, build commands, gameplay rules,
-and the roadmap. This file is the Android UI/XML reference: how to write correct, responsive,
-accessible layouts in `MixedUp/src/main/res/layout/*.xml`, and the orientation-support project
-this repo is currently doing.
+and the roadmap, and `CHANGELOG.md` for the session-by-session change history. This file has two
+parts: **Part 1** is the Android UI/XML reference (how to write correct, responsive, accessible
+layouts in `MixedUp/src/main/res/layout/*.xml`); **Part 2** is general Java/architecture guidance
+(readability, reliability, scalability, encapsulation, reusability) for `MixedUp/src/main/java/`
+and `API/src/main/java/`.
+
+# Part 1: Android UI/XML
 
 All 21 layouts here already use `ConstraintLayout` as the root, which is the right foundation.
 The sections below are how to use it correctly, not a suggestion to switch frameworks.
@@ -120,11 +124,11 @@ The app is being adapted to work well in both orientations. Rules for this work:
    variable-length content in `ScrollView`/`NestedScrollView` so nothing is ever cut off.
 3. **Percent+max-width already used here should get a vertical counterpart** (§1) so the same
    content block doesn't stretch absurdly tall in portrait.
-4. **RecyclerView grids assume landscape width today.** `fragment_collecting_questions.xml`,
-   `fragment_collecting_answers.xml`, and `fragment_waiting_for_host.xml` hardcode
-   `app:spanCount="2"` and a `paddingStart="75dp"`, sized for a wide landscape viewport. In
-   portrait these need either a narrower span count (1) or a size-driven `GridLayoutManager` span
-   count computed from available width in code, not a fixed XML value.
+4. **RecyclerView grids compute span count from width, not a fixed constant.** Fixed via
+   `Utils.computeSpanCount(Context)` in `MixedUp/.../Utils.java`, used by
+   `CollectingQuestionsFrag`/`CollectingAnswersFrag`/`WaitingForHostFrag` — divides current screen
+   width by a minimum comfortable item width instead of hardcoding `2`. Reuse this helper for any
+   new grid; don't reintroduce a literal span count in a `GridLayoutManager` constructor.
 5. **Large screens no longer honor the orientation lock.** Apps targeting API 36 (this app now
    does — see README) get `orientation`/`resizability`/aspect-ratio restrictions ignored on
    displays with smallest width ≥ 600dp. `sensorLandscape` is not guaranteed there, so every screen
@@ -146,3 +150,97 @@ The app is being adapted to work well in both orientations. Rules for this work:
 9. **Test matrix before calling UI work done:** phone portrait, phone landscape, and at least one
    large-screen/tablet-sized viewport (rotated both ways). This is a party game people rotate
    mid-session — both orientations are a real, common path, not an edge case.
+
+# Part 2: Java engineering — readability, reliability, scalability, encapsulation, reusability
+
+`API/` is the shared model/policy/ViewModel module; `MixedUp/` is the Fragment/Activity UI module.
+The rules below are ranked by how much they matter here, each with a real example from this repo
+— not generic advice. The goal isn't a rewrite: apply these when you're already touching a file for
+a feature/bug, the same "opportunistic, not a sweep" approach as Part 1 §2.
+
+## 5. Keep business logic in pure, static, testable classes — this repo already has the right model
+
+`API/.../GameFlowPolicy.java`, `GameLogic.java`, and `RoomCreationPolicy.java` are `public final
+class`es of `public static` pure functions with zero Android/Firebase dependencies (no `Context`,
+no `DatabaseReference`) — connection-grace timing, sentence formatting, randomized assignment,
+vote tallying, room-code retry logic. They're also this repo's best-tested code: ~75 JUnit test
+methods across `API/src/test`, all plain JVM tests with no emulator/mocking needed, because the
+functions are pure. **When you add new game-flow logic, put it here, not in a Fragment or
+Activity** — that's what makes it fast to test and safe to change.
+
+The counter-example already in this repo: `ReadSentenceFrag.java` (~620 lines) mixes view binding,
+Firebase listener setup, TTS/voice logic, and navigation/game-phase decisions in one class, and
+`MainActivity.java` (~520 lines) implements the host-disconnect grace timer and heartbeat
+expiration directly with `Handler.postDelayed` — even though `GameFlowPolicy` already owns the
+*constants* those timers use (`CONNECTION_GRACE_MS`, `millisUntilHostHeartbeatExpires(...)`), the
+scheduling logic itself lives in the `Activity` and can't be unit tested there. Don't treat this as
+a mandate to refactor those files outright (that's real, working, hard-won reliability code — see
+`CHANGELOG.md`'s archived session notes for how much iteration went into the disconnect/heartbeat
+behavior specifically); but if you're already in one of them for a feature, look for a chunk of
+decision-making that could move to a policy class as you go, rather than adding more inline logic
+next to what's already there.
+
+## 6. Encapsulation — match Firebase's actual requirement, not "everything public"
+
+Firebase Realtime Database's POJO mapper needs a no-arg constructor plus **either** public fields
+**or** public getter/setter pairs — it does not require public fields. `API/.../models/User.java`
+has both at once: 16 `public` mutable fields (`userID`, `email`, `host`, `connected`, ...) *and*
+redundant getters/setters for a subset of the same fields (`getHostPlayedAgain()`,
+`setConnected(...)`, etc. starting around line 70) — so callers can bypass the setters entirely and
+mutate fields directly, and it's not obvious from the class which path is the "real" one. `Room.java`
+and `RoundAssignment.java` have the same public-field pattern.
+
+- **New model classes**: private fields + public getters/setters only. This is fully
+  Firebase-compatible and means every mutation is a method call you could add validation/logging to
+  later if needed.
+- **Existing models**: don't do a mass field-privatization pass unprompted — every direct field
+  access (`user.userID`, `player.connected`, etc.) across every Fragment/ViewModel would need to
+  become a method call, which is a large, high-risk, mechanical change with no behavior benefit on
+  its own. Only tighten a specific field's encapsulation when you're already changing how it's used.
+
+## 7. Reusability — look for the shared shape before writing another one-off
+
+`API/src/main` has three independently hand-rolled `ChildEventListener` anonymous classes with the
+same shape (`onChildAdded`/`onChildChanged`/`onChildRemoved` mapping a `DataSnapshot` to a model
+and updating an `ObservableArrayList`) — `RoomViewModel.loadRooms()`, `UserViewModel`'s player
+listener, and one more in `LeaderBoardViewModel` — with no shared helper between them despite the
+repeated structure. If you're adding a fourth one, that's the signal to extract a small generic
+helper (e.g. a `SnapshotListListener<T>` that takes a mapper function) instead of writing a fifth
+copy later. Don't extract it preemptively for the three that already exist unless you're touching
+one of them anyway.
+
+## 8. Testability seam: depend on `GameRepository`, not `DatabaseReference`, for anything you want to unit test
+
+`API/.../repositories/GameRepository.java` is a clean interface (`root()`, `room(id)`,
+`players(id)`, `listenToPlayers(...)`, etc.) that `RoomViewModel` depends on — which is exactly why
+`RoomViewModelTest.java` can test replay-state reset and room-ID generation using a
+`FakeGameRepository implements GameRepository` inner class instead of a real Firebase connection.
+`UserViewModel`, by contrast, takes a raw `DatabaseReference` directly in its constructor and can't
+be tested the same way. If you're adding meaningfully new logic to `UserViewModel`, consider giving
+it a `GameRepository` dependency the same way `RoomViewModel` has one, so it picks up the same fake-based
+test seam — but this is a constructor-signature change with ripple effects on every call site, so
+treat it as a deliberate step tied to a real feature, not a drive-by refactor.
+
+For anything that genuinely needs a real Firebase connection to test (listener add/change/remove
+behavior, multi-client scenarios), use the local Firebase Emulator Suite (`firebase.json`,
+`.firebaserc`, README's "Local Firebase Emulator" section) rather than the live project — manual
+runs and tests against production have already polluted real room/leaderboard data at least once.
+
+## 9. Package structure — flat today, tracked on the roadmap
+
+All 25 Java files in `MixedUp/src/main/java` sit directly in one package
+(`com.CadeMixedUpGame.phoneapp`), no subpackages by feature/screen. `README.md`'s roadmap already
+has this ("Reorganize `src/main/java` into human-readable folders/sub-folders by
+features/screens... handled as a focused branch because it is higher-churn than small safety
+refactors") — that roadmap item is the place to do this, not a side effect of an unrelated change,
+since renaming packages touches every import in the module.
+
+## 10. Defensive null-handling — keep using the pattern already established here
+
+This codebase consistently guards nullable `Boolean`/collection fields with
+`Boolean.TRUE.equals(x)` / `Boolean.FALSE.equals(x)` rather than unboxing directly (see
+`GameFlowPolicy.countFinishedIfs`, `allPlayersConnected`) — safe against `NullPointerException`
+when a Firebase field hasn't loaded yet or an old room record predates a newer field. Keep this
+pattern for any new nullable-`Boolean` check from Firebase data; a direct `if (player.connected)`
+on a `Boolean` field is a latent NPE the moment that field is legitimately null (unset in the DB,
+not yet synced, etc.) rather than `false`.

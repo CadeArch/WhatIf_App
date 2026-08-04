@@ -44,6 +44,8 @@ dependencies {
     implementation 'com.google.android.material:material:1.3.0'
     testImplementation 'junit:junit:4.+'
     testImplementation 'androidx.arch.core:core-testing:2.1.0'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+    // Bumped from 1.1.2/3.3.0 (2020) to match MixedUp/build.gradle — those versions predate the
+    // API 31+ requirement for explicit android:exported on their bundled helper activities.
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }

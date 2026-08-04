@@ -30,3 +30,10 @@ local.properties
 .env.*
 !.env.example
 /out/
+
+# Firebase Emulator Suite (see firebase.json / CLAUDE.md)
+.firebase/
+firebase-debug.*.log
+database-debug.log
+ui-debug.log
+/emulator-data/
