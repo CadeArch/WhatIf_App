@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- lined_paper_read.png is a low-resolution (1180x554) landscape-shaped source image; see
+     white_papers_tiled.xml for why tiling at native resolution beats a single scaled-up copy. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/lined_paper_read"
+    android:tileMode="repeat" />

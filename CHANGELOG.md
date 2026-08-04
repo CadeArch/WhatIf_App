@@ -20,6 +20,17 @@ for stack/build/roadmap; this file is the "what changed and why" log.
 
 ## Archived Session: feature/portrait-landscape-ui-refresh
 
+- Fixed blurry/oversized paper-texture backgrounds: `white_papers.png` (1197x376) and
+  `lined_paper_read.png` (1180x554) are low-resolution, landscape-shaped source images. The
+  `centerCrop` fix from earlier in this branch stopped the non-uniform stretch distortion, but
+  still had to scale these up ~6x to cover a tall portrait screen, which looked blurry/oversized.
+  Replaced with tiled `<bitmap>` drawables (`white_papers_tiled.xml`, `lined_paper_read_tiled.xml`,
+  `android:tileMode="repeat"`) that paint the texture at native resolution instead of scaling a
+  single copy — sharp in both orientations, at the cost of a faint (and much less objectionable)
+  repeat seam. Reverted the 12 fragment layouts from the `ImageView` + `centerCrop` pattern back to
+  plain `android:background`, since tiling drawables don't need the ImageView workaround. Deleted
+  the now-unused `read_sentence_paper.xml` drawable.
+
 - Bumped `targetSdkVersion` 35 → 36 (`MixedUp/build.gradle`, `API/build.gradle`) to meet Google
   Play's Aug 31, 2026 target API level requirement (`compileSdk` was already 36).
 - Migrated `MainActivity`'s global back-button block from an `onBackPressed()` override to

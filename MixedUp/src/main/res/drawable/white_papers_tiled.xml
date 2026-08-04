@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- white_papers.png is a low-resolution (1197x376) landscape-shaped source image. Scaling a
+     single copy to cover a tall portrait screen (centerCrop) requires a large upscale and looks
+     blurry. Tiling at native resolution instead stays sharp. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/white_papers"
+    android:tileMode="repeat" />

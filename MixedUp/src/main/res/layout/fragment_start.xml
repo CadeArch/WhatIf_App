@@ -5,29 +5,12 @@
     android:id="@+id/layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/white_papers_tiled"
     android:paddingStart="32dp"
     android:paddingTop="28dp"
     android:paddingEnd="32dp"
     android:paddingBottom="20dp"
     tools:context=".StartFragment">
-
-    <!-- Negative margins cancel out the root's own padding so this still paints edge-to-edge
-         (a raw bitmap set via android:background stretches to fill non-uniformly and looked
-         distorted; centerCrop via ImageView scales uniformly instead). -->
-    <ImageView
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginStart="-32dp"
-        android:layout_marginTop="-28dp"
-        android:layout_marginEnd="-32dp"
-        android:layout_marginBottom="-20dp"
-        android:scaleType="centerCrop"
-        android:src="@drawable/white_papers"
-        android:importantForAccessibility="no"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
 
     <EditText
         android:id="@+id/enterName"
