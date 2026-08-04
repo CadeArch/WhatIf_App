@@ -16,7 +16,67 @@ for stack/build/roadmap; this file is the "what changed and why" log.
 
 ## Current Session Changes
 
-- Start new branch/session notes here.
+- Deleted 4 unrenamed template test files (`ExampleUnitTest`/`ExampleInstrumentedTest` in both
+  modules, one still in package `com.mynewpackage.api` — clearly never renamed from the Android
+  Studio template).
+- Simplified `ReadSentenceFrag.mutateString(...)` — it was a one-line pass-through to
+  `GameLogic.mutateVoiceText(...)`; inlined the call and removed the wrapper.
+- Added CLAUDE.md Part 2: Java engineering guidance (readability, reliability, scalability,
+  encapsulation, reusability), grounded in a real audit of this codebase (fat `ReadSentenceFrag`/
+  `MainActivity`, `User.java`'s public-fields-plus-redundant-getters, 3 independently duplicated
+  `ChildEventListener` shapes, `RoomViewModel`'s fake-repository test seam vs. `UserViewModel`'s
+  lack of one, the flat `phoneapp` package). Each rule cites the file/pattern, not generic advice.
+- Set up the Firebase Emulator Suite for local dev/testing (`firebase.json`, `.firebaserc` under a
+  `demo-` project id so no `firebase login` is required, `database.rules.json` intentionally
+  wide-open for local-only use). Added an opt-in `-PuseFirebaseEmulator=true` Gradle flag →
+  `BuildConfig.USE_FIREBASE_EMULATOR` → new `WhatIfApplication` → `FirebaseEmulatorConfig`
+  (API module) that points `FirebaseDatabase`/`FirebaseAuth` at the local emulator before any
+  other Firebase call. Defaults off; ordinary builds are unaffected. Motivation: manual testing
+  this session (and likely before) was writing directly to the live production `mixedupgame`
+  database — this makes not doing that the easy path instead of the only path.
+- Bumped `androidx.test.ext:junit` (1.1.2→1.2.1) and `androidx.test.espresso:espresso-core`
+  (3.3.0→3.6.1) in both modules — the 2020-era versions' bundled instrumentation helper-activity
+  manifests fail to merge once targeting API 36 (missing `android:exported`, required since API 31).
+- Added `MixedUp/src/androidTest/.../NavigationFlowTest.java`: 6 real Espresso tests covering the
+  solo-reachable flows (launch, Free Play → Start navigation, empty-name validation on both
+  Create/Join, name-entry display swap, and an Activity-recreate/rotation regression test). Compiles
+  and is structurally correct but could not be executed in this session's sandbox — both configured
+  AVDs run a preview API level (37) ahead of what the installed Espresso release supports,
+  failing instrumented test startup with `NoSuchMethodException: InputManager.getInstance`
+  (Espresso/OS-preview compatibility gap, not a bug in the tests). Needs a stable API 34-36
+  emulator or a standard CI runner to get a real pass/fail signal.
+
+### Two-device multiplayer harness — design notes (not yet built)
+
+The actual hard-to-test edge cases (host disconnect mid-round, replay loop with 2+ real clients,
+late joins, stale room cleanup) all require two Firebase clients interacting live — something
+none of the tests above cover. Two tiers, in order of what to build first:
+
+**Tier A — two simulated players in one JVM test process (build this first).** Firebase's Android
+SDK needs a real or Robolectric-simulated `Context` to initialize (`FirebaseApp.initializeApp`),
+but does **not** need a real device/emulator UI — the actual multiplayer logic lives in
+`RoomViewModel`/`UserViewModel`, plain classes with no view dependencies. Add Robolectric
+(`testImplementation 'org.robolectric:robolectric:...'`) to the `API` module, then in a single
+fast JVM test: construct two independent `RoomViewModel`+`UserViewModel` pairs (simulating "host"
+and "guest"), point both at the Firebase Emulator Suite set up this session
+(`FirebaseEmulatorConfig.configureIfEnabled(true)` before either is constructed), and drive real
+scenarios deterministically — host creates a room, guest joins, host goes silent (assert the
+guest's client-side heartbeat/grace-timer logic fires correctly), guest leaves mid-round, a second
+guest joins between replay rounds, etc. This is real multi-client Firebase behavior under test,
+runs in seconds, needs no emulator/device, and directly covers the "late joins, player leaves,
+stale room data" gap flagged in this file's roadmap — just not the actual UI layer.
+
+**Tier B — true two-device end-to-end (do later, real infra work).** Two real
+emulators/devices, each running the full app UI via Espresso/UiAutomator, both pointed at the
+Firebase Emulator Suite, orchestrated externally: start both emulators, install the app with
+`-PuseFirebaseEmulator=true` on both, run scripted UI interactions against each via
+`adb -s <serial>` in parallel (e.g. two `connectedDebugAndroidTest` invocations against different
+device serials), synchronizing between them on the room code the host's test process generates
+(write it somewhere the guest's test process can read — a temp file, a fixed deterministic seed,
+or a small coordination signal). This is the only tier that would have caught this branch's actual
+UI bugs (the portrait header overlap, the background seam) since it exercises real layouts, but
+the multi-device orchestration and timing coordination is real infrastructure work — worth doing,
+but only after Tier A is in place and proves out the Firebase-emulator-based approach.
 
 ## Archived Session: feature/portrait-landscape-ui-refresh
 
