@@ -25,6 +25,14 @@ android {
         buildConfig true
     }
 
+    testOptions {
+        unitTests {
+            // Robolectric needs the merged manifest/resources to see Firebase's component
+            // auto-discovery metadata (ComponentDiscoveryService) - see MultiplayerEmulatorTest.
+            includeAndroidResources = true
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -60,6 +68,12 @@ dependencies {
     implementation 'com.google.android.material:material:1.3.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
     testImplementation 'junit:junit:4.+'
+    // Robolectric multiplayer harness (see CHANGELOG.md "Tier A" design notes) lives here, not in
+    // :API, because Firebase's component auto-discovery (ComponentDiscoveryService) only ends up
+    // in the fully-merged manifest of an application module, not a library module's test variant.
+    testImplementation 'org.robolectric:robolectric:4.13'
+    testImplementation 'androidx.test:core:1.6.1'
+    testImplementation 'com.google.firebase:firebase-database'
     // Bumped from 1.1.2/3.3.0 (2020): those versions' bundled helper-activity manifests predate
     // the API 31+ requirement for explicit android:exported, which fails manifest merging once
     // targeting API 36.

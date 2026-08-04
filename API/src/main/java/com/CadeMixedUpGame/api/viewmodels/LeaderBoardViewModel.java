@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.ChildEventListenerAdapter;
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.models.User;
 import com.google.firebase.database.ChildEventListener;
@@ -73,34 +74,15 @@ public class LeaderBoardViewModel extends ViewModel {
         if (leaderBoardListener != null || db == null) {
             return;
         }
-        leaderBoardListener = new ChildEventListener() {
+        leaderBoardListener = new ChildEventListenerAdapter(AppLog.FIREBASE, "Leaderboard listener cancelled") {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-//                System.out.println(snapshot);
-//                System.out.println(snapshot.getValue());
-
                 addLeaderBoardItem(snapshot);
-
-            }
-
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
             }
 
             @Override
             public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                AppLog.e(AppLog.FIREBASE, "Leaderboard listener cancelled: " + error.getMessage());
+                removeLeaderBoardItemLocally(snapshot);
             }
         };
         db.child("leaderBoard").addChildEventListener(leaderBoardListener);
@@ -116,6 +98,15 @@ public class LeaderBoardViewModel extends ViewModel {
         AppLog.d(AppLog.VOTE, "Loaded leaderboard item id=" + lbItem.getId() + ", total=" + leaderBoard.size());
     }
 
+    private void removeLeaderBoardItemLocally(@NonNull DataSnapshot snapshot) {
+        LeaderBoardItem removed = snapshot.getValue(LeaderBoardItem.class);
+        if (leaderBoard == null || removed == null || removed.getId() == null) {
+            return;
+        }
+        leaderBoard.removeIf(item -> removed.getId().equals(item.getId()));
+        AppLog.d(AppLog.VOTE, "Removed leaderboard item id=" + removed.getId() + ", total=" + leaderBoard.size());
+    }
+
     public void loadVotingItems(MutableLiveData<User> user) {
         if (user == null || user.getValue() == null || user.getValue().gameRoom == null) {
             AppLog.w(AppLog.VOTE, "loadVotingItems skipped: missing user or room");
@@ -129,30 +120,10 @@ public class LeaderBoardViewModel extends ViewModel {
         removeVotingItemsListener();
         AppLog.i(AppLog.FIREBASE, "Attaching voting items listener room=" + room);
         votingItemsListenerRoom = room;
-        votingItemsListener = new ChildEventListener() {
+        votingItemsListener = new ChildEventListenerAdapter(AppLog.FIREBASE, "Voting items listener cancelled") {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                 addVotingItem(snapshot);
-            }
-
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-            }
-
-            @Override
-            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                AppLog.e(AppLog.FIREBASE, "Voting items listener cancelled: " + error.getMessage());
             }
         };
         db.child("rooms").child(room).child("votingItems").addChildEventListener(votingItemsListener);
@@ -224,7 +195,7 @@ public class LeaderBoardViewModel extends ViewModel {
         }
         AppLog.i(AppLog.FIREBASE, "Attaching votes listener room=" + gameroom);
         votesListenerRoom = gameroom;
-        votesListener = new ChildEventListener() {
+        votesListener = new ChildEventListenerAdapter(AppLog.FIREBASE, "Votes listener cancelled") {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                 String vote = snapshot.getValue(String.class);
@@ -232,26 +203,6 @@ public class LeaderBoardViewModel extends ViewModel {
                     castvotes.add(vote);
                     AppLog.d(AppLog.VOTE, "Vote received room=" + gameroom + ", total=" + castvotes.size());
                 }
-            }
-
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-            }
-
-            @Override
-            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                AppLog.e(AppLog.FIREBASE, "Votes listener cancelled: " + error.getMessage());
             }
         };
 

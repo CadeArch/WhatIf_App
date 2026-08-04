@@ -78,6 +78,176 @@ UI bugs (the portrait header overlap, the background seam) since it exercises re
 the multi-device orchestration and timing coordination is real infrastructure work — worth doing,
 but only after Tier A is in place and proves out the Firebase-emulator-based approach.
 
+### Continued this session: Tier A actually built, Espresso verified on a stable emulator, code-quality fixes
+
+- **Deduplicated all 5 `ChildEventListener` instances** (`RoomViewModel.loadRooms`,
+  `UserViewModel`'s player listener, `LeaderBoardViewModel`'s 3 listeners) onto a new
+  `ChildEventListenerAdapter` (API module) — a standard no-op-default adapter (mirrors
+  `MouseAdapter`-style Java conventions) so each listener overrides only the callbacks it actually
+  uses instead of repeating empty method bodies. No behavior change (verified: all ~75 existing
+  JVM tests still pass) — pure duplication removal, applying CLAUDE.md §7 (reusability) to the
+  exact 3 sites it names.
+- **Got a real pass/fail signal on the Espresso tests**, not just "compiles": installed Android
+  `cmdline-tools`/`sdkmanager`, a stable API 35 system image, and a new `Test_API35` AVD (the dev
+  machine's existing AVDs both run a preview API level Espresso doesn't support yet). Found and
+  fixed one genuine test bug in the process — `enteringNameShowsDisplayNameInsteadOfEditText`
+  wrongly assumed Free Play mode shows the read-only `displayName` view; it only does in account
+  mode. Renamed to `freePlayKeepsNameEditableAfterTyping` and asserts the correct behavior instead.
+  All 6 tests pass on the stable emulator.
+- **Built Tier A** (`MixedUp/src/test/.../MultiplayerEmulatorTest.java`): two simulated players
+  (independent `RoomViewModel`+`UserViewModel` pairs on separate named `FirebaseApp` instances)
+  against the local Firebase Emulator Suite, covering the "late joins" and "player leaves" gaps
+  from the roadmap. Real, working, passing test — not just designed. Getting there required
+  tracking down three separate environment issues, worth recording since they'll recur for anyone
+  extending this harness:
+  1. **Firebase component discovery**: `FirebaseDatabase.getInstance(app)` threw
+     `NullPointerException: Firebase Database component is not present` when the test lived in the
+     `:API` library module. Library-module manifest merging doesn't pull in dependencies'
+     `ComponentDiscoveryService` metadata the way an application module's does — moved the test to
+     `:MixedUp` and added `testOptions.unitTests.includeAndroidResources = true` (Robolectric needs
+     the merged manifest for this).
+  2. **Robolectric doesn't support this project's compileSdk/targetSdk (36) yet** — pinned
+     `@Config(sdk = 34)`.
+  3. **The real one**: calling `FirebaseDatabase.getInstance(app).getReference()` a *second* time
+     for the same `FirebaseApp` produces a `DatabaseReference` whose writes never deliver their
+     completion callback in this Robolectric/JVM environment (confirmed via several isolated
+     throwaway repro tests, down to raw `DatabaseReference` calls with zero ViewModel/Auth
+     involvement — not a serialization, transaction, nested-path, or FirebaseAuth issue; purely
+     about calling `.getReference()` twice). Not reproducible on a real device — a
+     Robolectric-environment quirk, not a Firebase SDK bug. Fix: obtain the reference **once per
+     app** and share it between `RoomViewModel`'s repository and `UserViewModel`'s constructor,
+     matching how the real app already does it (both go through the same default `FirebaseApp`).
+     Added a small additive `RoomViewModel`/`FirebaseGameRepository` constructor overload and a
+     `RoomViewModel.pushRoom(id, onSuccess)` overload (matching the existing optional-`Runnable`
+     convention throughout the class) to support this from test code.
+- **Cleaned up `User.java`'s encapsulation**: it had 16 public fields *and* redundant getters/setters
+  for a subset of them. Grepped every one of those accessors across the entire codebase (including
+  test directories, which I missed on the first pass and had to fix `UserTest.java` for) — only
+  `getUid()` and 5 setters were ever actually called; deleted the other ~18 as genuinely dead API
+  surface. `LeaderBoardItem.java`/`Unlockable.java` already show the correct pattern (package-private
+  fields + real, used getters/setters) — documented as the template for new models in CLAUDE.md §6.
+- Updated `CLAUDE.md` Part 2 §6/§7 to reflect both fixes above (no longer "here's the problem," now
+  "here's what changed and the pattern to follow going forward").
+
+### Continued this session: automated test plan for the 2x-replay and host-leave bugs
+
+- **Extracted `HostDisconnectScheduler`** (new `API` class) out of `MainActivity`'s inlined
+  grace-timer/heartbeat-expiry `Handler.postDelayed` logic (`scheduleHostDisconnect`,
+  `scheduleHostHeartbeatExpiration`, `expireHostDisconnectedRoom`) — pure "when should the room be
+  considered expired given a disconnect/heartbeat timestamp" decision-making behind an injectable
+  `DelayedRunner` interface, so the ~20-24s timing math is unit-testable with a fake clock instead
+  of needing real wall-clock waits. `MainActivity` keeps every side effect (Firebase writes,
+  navigation, the connection banner) unchanged; behavior-preserving, including one existing quirk
+  (the heartbeat path's second delay stage can no longer be cancelled once the first fires) kept
+  intentionally rather than "fixed" as part of the extraction. `HostDisconnectSchedulerTest`: 8
+  pure-JVM tests, no emulator needed.
+- **Found and fixed the real cause of the reported "2 players play, then Play Again twice in a
+  row causes crashes / guest stuck on the wrong screen" bug**: `UserViewModel.handleRemovedHost`
+  fired `hostDisconnectedMessage` — which `MainActivity` reacts to by *instantly* sending the
+  player home, with no grace period — on **any** removal of the host's player-list node. That
+  includes the legitimate `nurfAllUsers()` wipe done every time a room resets for "Play Again."
+  `EndFrag.onViewCreated` is what detaches a client's own players-list listener, so a guest who
+  hasn't yet reached `EndFrag` when the host (on a separate, possibly faster device) taps "Again"
+  still has that listener live, and gets falsely told the host disconnected mid-reset. The two
+  legitimate host-departure paths (`replayState="no"` explicit leave, and the
+  `hostConnection`/heartbeat `HostDisconnectScheduler` flow) were already correct and
+  grace-period-protected; this was a third, unguarded, instant-firing signal layered on top of
+  them. Fix: `handleRemovedHost` no longer sets `hostDisconnectedMessage` at all — real departures
+  are still fully covered by the other two paths. Caught by
+  `ReplayLoopEmulatorTest.hostReplayResetDoesNotFalselyDisconnectAGuestWhoseListenerIsStillAttached`,
+  written first and confirmed failing on the pre-fix code for this exact reason before the fix was
+  applied.
+- Added `MixedUp/src/test/.../HostLeaveEmulatorTest.java` (2 tests): explicit host leave
+  (`replayState="no"` + room delete, observed via `listenToReplayState`) and host connection drop
+  (simulated `hostConnection` write → guest's `UserViewModel` observes it → `markRoomExpired`
+  tombstone → room delete) — traced and confirmed as two genuinely different paths with different
+  messages/destinations, not to be conflated.
+- Added `MixedUp/src/test/.../ReplayLoopEmulatorTest.java` (2 tests): a `playOneReplayCycle()`
+  helper mirroring `EndFrag.java`'s real host/guest "Again" call sequence exactly, run twice in a
+  row (the reported symptom's literal trigger), plus the false-disconnect race test above.
+- Confirmed via direct code reading (not assumption) that `UserViewModel.removeCurrentPlayerFromRoom`
+  has no empty-room cleanup when the last non-host player leaves — a real gap Cade suspected might
+  already be handled and was surprised to find wasn't; fix + test still pending (next up).
+- Documented a Robolectric-only gotcha in `CLAUDE.md` §8 after repeating it twice this session:
+  calling `FirebaseDatabase.getInstance(app).getReference()` more than once for the same
+  `FirebaseApp` silently breaks that second reference's write completion callbacks in this
+  JVM/Robolectric environment specifically (not reproducible on a real device) — always obtain one
+  reference per app and share it.
+- **Fixed the confirmed empty-room-cleanup gap**: `UserViewModel.removeCurrentPlayerFromRoom`
+  (only ever called for a non-host player voluntarily leaving — the host has its own explicit
+  `deleteRoom` path in `EndFrag`/`CreateGameFrag`/`MainActivity`) now deletes the room if that was
+  the last remaining player, via a new `deleteRoomIfPlayersEmpty` helper. Added
+  `RoomCleanupEmulatorTest.roomIsDeletedAfterTheLastNonHostPlayerLeaves` — first version of this
+  test was a false positive (it passed even with the fix reverted, because it never wrote a real
+  `Room` object, so `rooms/{id}` only ever had a `players` child and Firebase RTDB's own
+  empty-node auto-pruning deleted it regardless of any app logic); fixed by creating the room via
+  `RoomViewModel.pushRoom` first (giving it `roomID`/`gameInProgress` fields that don't
+  auto-prune), then re-confirmed the test fails on the reverted code and passes with the fix.
+- Added `RoomCleanupEmulatorTest.duplicateDisplayNamesJoinAndAreTrackedAsDistinctPlayers`,
+  documenting confirmed-intentional behavior: two players with the same display name get distinct
+  random `userID`s from `pushPerson` and are tracked as separate room entries — not a bug.
+
+### Continued this session: broad Tier A coverage across the remaining game-flow inventory
+
+- **`LeaderBoardEmulatorTest`** (4 tests): full voting round trip (push items → cast votes →
+  `findBestSentence` auto-fires → winner reaches the leaderboard with correct `percentLoved`), a
+  1-1 tie's deterministic resolution, a player who never votes correctly blocking auto-advance,
+  and full-leaderboard (20-item) replacement only evicting the weakest entry. Found and fixed a
+  real bug in the process: `LeaderBoardViewModel`'s `leaderBoard` listener only ever handled
+  `onChildAdded` — after a replacement, Firebase correctly ended up with 20 entries but the local
+  in-memory list (what any bound UI would actually show) silently grew to 21, since removals were
+  never reflected locally. Added the missing `onChildRemoved` handling; confirmed the new test
+  fails without it and passes with it. Also found the leaderboard node is a global (not
+  room-scoped) top-level path shared across every test/room, and the local emulator's data
+  persists across separate test runs within a session — the first version of this test file
+  intermittently failed from cross-test pollution until each test explicitly wipes
+  `leaderBoard` in `@Before`.
+- **`RoomJoinValidationEmulatorTest`** (5 tests): all four `RoomJoinState` outcomes
+  (`DOES_NOT_EXIST` for both an empty id and a never-created room, `AVAILABLE`, `IN_PROGRESS`) plus
+  `ERROR` via a fake `GameRepository` pointed at a path the rules intentionally deny. Getting the
+  `ERROR` case to actually reproduce required tightening `database.rules.json` itself: it was
+  previously wide-open (`.read`/`.write`: `true` at the root), and Firebase RTDB security rules
+  cascade as "OR" — a `true` grant at an ancestor can never be revoked by a more specific `false`
+  further down, so a naive "lock one subpath" attempt silently no-opped. Restructured the rules to
+  default-deny at the root with explicit allow-lists for the app's real top-level paths
+  (`rooms`, `leaderBoard`, `AccountPlayers`, `expiredRooms`, `phoneAppVerified`,
+  `watchAppVerified`) — functionally identical for the real app (which only ever touches those
+  paths) but now able to produce a genuine permission-denied/cancelled-listener error for testing,
+  and incidentally better local-dev hygiene than a fully open database.
+- **`ReadingTurnEmulatorTest`** (4 tests): `setActiveReaderIndex`'s Firebase round trip resolving
+  `activeReaderKey` from `readOrder` by index, `completeReadingAfterFinalPass` marking the round
+  complete, and — not previously exercised through the real listener, only the pure
+  `GameLogic.isCurrentRound` comparison in isolation — both `listenToActiveReader` and
+  `listenToReadingComplete` correctly ignoring a late-arriving update stamped with a stale
+  (previous) round id instead of corrupting the current round's state.
+- **`RoundAssignmentEmulatorTest`** (2 tests): `createRoundAssignments`' full Firebase write/
+  read-back round trip — no player ever assigned their own If/Then, `buildHostFirstReadOrder`
+  (previously zero coverage, pure or otherwise) actually putting the host first in the written
+  `readOrder`, each assignment's `readOrderIndex` matching its player's real position — plus the
+  fewer-than-2-players guard leaving the room completely untouched in Firebase.
+- **`RoomExpiryCleanupEmulatorTest`** (2 tests): a reconnecting host clearing its own
+  `expiredRooms` tombstone via `deleteExpiredRoomMarker`, and `cleanupOldExpiredRoomMarkers`
+  deleting only markers older than its cutoff while leaving recent ones alone — previously only
+  the pure TTL constant (`GameFlowPolicy.EXPIRED_ROOM_TOMBSTONE_TTL_MS`) had coverage, not the
+  actual conditional-delete-on-read logic.
+- **`CollectingPhaseEmulatorTest`** (3 tests): `GameFlowPolicy.allPlayersFinishedIfs`'s
+  connected-gate against a real Firebase-loaded player list — a player who finished but is now
+  marked `connected=false` still blocks auto-advance — and a late-joining player being picked up
+  by an already-attached players listener and correctly reopening the gate as blocked until they
+  finish too.
+- **`AccountPlayBranchingEmulatorTest`** (2 tests): confirms `GameFlowPolicy.allPlayersHaveAccounts`
+  and `EndFrag.onViewCreated`'s independent local loop agree for real, Firebase-round-tripped
+  player lists (both all-account and mixed free-play/account rooms). Documented, not fixed, a
+  genuine edge-case divergence found while writing this: for an *empty* player list the two are
+  NOT equivalent — `GameFlowPolicy.allPlayersHaveAccounts` returns `false`, while `EndFrag`'s
+  `counter == total` loop is vacuously `true` (0 == 0). Left alone because `EndFrag` is only ever
+  reached with players already in the room (solo play isn't allowed), so the case is unreachable
+  in practice, and reworking `EndFrag`'s inline loop into a shared helper is out of scope for a
+  test-coverage pass.
+- Final full regression: 11 emulator test classes / 30 tests total, all genuinely executed (none
+  skipped, confirmed via each class's JUnit XML report) and green, plus `API:testDebugUnitTest`,
+  `MixedUp:testDebugUnitTest`, `MixedUp:assembleDebug`, `MixedUp:compileDebugAndroidTestJavaWithJavac`.
+
 ## Archived Session: feature/portrait-landscape-ui-refresh
 
 - Fixed blurry/oversized paper-texture backgrounds: `white_papers.png` (1197x376) and

@@ -12,6 +12,13 @@ public class FirebaseGameRepository implements GameRepository {
         db = FirebaseDatabase.getInstance().getReference();
     }
 
+    /** Points at a specific FirebaseDatabase instance's root instead of the default app's — used
+     * to run two independent simulated clients (e.g. against separate named FirebaseApp
+     * instances in a Robolectric test) in the same process. */
+    public FirebaseGameRepository(DatabaseReference root) {
+        db = root;
+    }
+
     @Override
     public DatabaseReference root() {
         return db;
