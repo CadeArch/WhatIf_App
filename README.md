@@ -17,7 +17,7 @@ MixedUp is an Android party game built with Java, Fragments, and Firebase Realti
 - Build: Android Gradle Plugin 9.2.1, Gradle 9.4.1, JDK 17+
 - Compile SDK: 36
 - Minimum SDK: 25
-- Target SDK: 35
+- Target SDK: 36
 
 ## Build And Test
 
@@ -150,6 +150,7 @@ Useful Logcat filters:
 ### Publishing And Policy
 
 - [x] Target Android 15 / API 35 for Google Play policy compliance.
+- [x] Target Android 16 / API 36 ahead of the Aug 31, 2026 Google Play requirement; migrated the global back-button block from `onBackPressed()` to `OnBackPressedCallback` since Android 16 no longer dispatches `onBackPressed()`/`KEYCODE_BACK` (predictive back).
 - [x] Add an in-app account deletion option from the Profile screen.
 - [x] Add a public account deletion support page for Google Play Data safety review.
 - [ ] Update the Google Play Data safety form with the account deletion declaration before resubmitting.
@@ -176,6 +177,22 @@ Useful Logcat filters:
 
 - [x] Choose a room-code font that makes mixed-case letters and numbers easier to distinguish.
 - [x] Hook up Enter/Done on the keyboard to press the affirmative button on room join, If, and Then entry screens.
+
+### Automated Testing
+
+Manual reverification of multiplayer edge cases (disconnects, replay, stale rooms, late joins)
+after every branch is expensive. Options considered, in order of increasing cost/coverage — take
+these on next, starting from the top:
+
+- [ ] Logic-level tests: expand JVM/unit tests around `GameFlowPolicy`, replay/reconnect logic,
+  and validation. Fast, no emulator needed, likely covers most of the edge cases hit across recent
+  branches without simulating two real UIs.
+- [ ] Single-player Espresso UI tests: instrumented on-device tests for navigation, input
+  validation, and orientation-change persistence on flows a lone player can trigger (Start/Create/Join
+  screens, form validation). Doesn't cover true multiplayer sync since the game disallows solo play.
+- [ ] Two-device multiplayer harness: drive two emulators (or two app processes) through a full
+  room create/join/play loop via UI Automator, or point both at the Firebase Emulator Suite
+  locally. Closest to real coverage of the multiplayer edge cases, but real infrastructure work.
 
 ### Architecture And Maintainability
 
@@ -212,7 +229,7 @@ Useful Logcat filters:
 ### UI And Accessibility
 
 - [x] Lock gameplay to landscape orientation for now so unsupported portrait layouts are not shown during Play Store rollout.
-- Improve portrait mode support later if the app needs portrait play.
+- [x] Improve portrait mode support: unlocked orientation, reworked all 21 layouts to be responsive in both orientations, added a shared spacing/type/button-hierarchy design system, and added edge-to-edge inset handling (see `CLAUDE.md` and `CHANGELOG.md`).
 - Add player-controlled sound settings for turn alerts and other game cues, including mute/vibrate options.
 - Add a simple white/black background option.
 - Add a mode or button to show the real original prompt instead of only randomized results.
@@ -233,42 +250,8 @@ Useful Logcat filters:
 - Shaggy voice idea: add "like" in different places.
 - Jokester voice idea: add "haha, jk" at the end, or other creative things
 
-## Branch Session Notes
+## Changelog
 
-Use this section as the running record for the current branch/session. When work is completed, add short bullets here in addition to checking off roadmap items. Keep bullets concrete enough to become a commit message or PR description later.
-
-### Current Session Changes
-
-- Start new branch/session notes here.
-
-### Archived Session: feature/AI-round-5
-
-- Added robust connection-state tracking so temporary network drops mark players disconnected instead of immediately removing them from the room.
-- Added a host disconnect grace timer before clients are sent home, with a countdown banner on the host device.
-- Moved host disconnect detection to a room-level `hostConnection` signal so it works even when screen-specific player listeners are not active.
-- Added a room-level host heartbeat timestamp so non-host clients can expire the room about 20 seconds after the host app is killed, without waiting for Firebase `onDisconnect()` latency.
-- Added an activity-level presence pulse so host heartbeat starts reliably after a user becomes host, even if Android/Firebase connection state did not change at that exact moment.
-- Tightened host heartbeat/presence updates from 5 seconds to 1 second so host-disconnect expiration aligns more closely with the visible grace countdown.
-- Tuned the client send-home delay after host heartbeat expiration to 4 seconds so non-host phones visually leave closer to the host countdown reaching 0 on real devices.
-- Disabled autofill/password-manager suggestions on the join-game room-code field.
-- Cleaned up stale rooms when the host remains disconnected past the grace window.
-- Added an `expiredRooms` tombstone so a host that reconnects after clients have already left can detect the disrupted room and return home instead of recreating partial room data.
-- Added expired-room tombstone cleanup: reconnecting hosts remove their room marker, and app startup sweeps markers older than 24 hours.
-- Gated host-side disrupted-room navigation behind the host phone's own expired connection countdown, and clear local room identity after disruption so returned clients stop re-firing stale room messages.
-- Send disrupted/corrupted-room recovery to the landing screen instead of Start so freeplay/account state is rebuilt cleanly.
-- Added shared UI message observer helpers and used them on writing screens.
-- Refactored Start screen account/freeplay UI mode into a named helper with safer default XML visibility.
-- Reused shared fragment navigation helpers in writing screens.
-- Added focused tests around host heartbeat and client send-home timing constants.
-- Tightened host disconnect expiration so a late host reconnect after the grace deadline cannot resume the expired game.
-- Blocked automatic If/Then phase advancement while any player is marked disconnected.
-- Added tests for connection-stability game-flow rules.
-- Updated roadmap items for connection resilience and future disconnected-player host controls.
-
-### Session Summary Rules
-
-- Put implementation details here when a task is finished, not only in the roadmap.
-- Keep roadmap items focused on status; keep this section focused on what changed.
-- When a branch/session is finished, use these bullets plus checked roadmap items to generate the commit message and PR description.
-- When Cade says he is ready to commit, archive the current bullets under `Archived Session: <branch-name>` and start a fresh `Current Session Changes` section for the next branch.
-- Do not delete archived session notes unless Cade explicitly asks for cleanup.
+Session/branch change history (what changed and why, per session) now lives in `CHANGELOG.md`,
+including the rules for maintaining it. Keep roadmap checkboxes above focused on status; put
+implementation detail bullets in that file instead.

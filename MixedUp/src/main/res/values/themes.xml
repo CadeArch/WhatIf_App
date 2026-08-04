@@ -39,4 +39,53 @@
         <item name="android:letterSpacing">0.08</item>
         <item name="android:autoHandwritingEnabled" tools:targetApi="tiramisu">false</item>
     </style>
+
+    <!-- Button hierarchy: exactly one Primary (the screen's main action) per screen, everything
+         else Secondary. See CLAUDE.md and the portrait/landscape design-system plan. -->
+    <style name="Widget.WhatIf.Button.Primary" parent="AppMaterialButton">
+        <item name="backgroundTint">@color/orange_deep</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">@dimen/radius_button</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="Widget.WhatIf.Button.Secondary" parent="AppMaterialButton">
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="android:textColor">@color/orange</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">@dimen/radius_button</item>
+        <item name="strokeColor">@color/orange</item>
+        <item name="strokeWidth">2dp</item>
+        <item name="rippleColor">@color/light_orange</item>
+    </style>
+
+    <!-- Type scale: five intentional steps instead of one-off textSize values.
+         Explicit parent= on each avoids AAPT's implicit-parent inference (which would otherwise
+         look for a literal "TextAppearance.WhatIf" style from the dotted name). -->
+    <style name="TextAppearance.WhatIf.Display" parent="@android:style/TextAppearance">
+        <item name="android:textSize">40sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.WhatIf.Headline" parent="@android:style/TextAppearance">
+        <item name="android:textSize">28sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.WhatIf.Title" parent="@android:style/TextAppearance">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <style name="TextAppearance.WhatIf.Body" parent="@android:style/TextAppearance">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <style name="TextAppearance.WhatIf.Label" parent="@android:style/TextAppearance">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:textColor">@color/grey</item>
+    </style>
 </resources>

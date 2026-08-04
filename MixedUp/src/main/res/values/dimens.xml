@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 8dp-grid spacing scale. Use these instead of one-off margin/padding literals. -->
+    <dimen name="space_4">4dp</dimen>
+    <dimen name="space_8">8dp</dimen>
+    <dimen name="space_16">16dp</dimen>
+    <dimen name="space_24">24dp</dimen>
+    <dimen name="space_32">32dp</dimen>
+    <dimen name="space_48">48dp</dimen>
+    <dimen name="space_64">64dp</dimen>
+
+    <!-- Shared button shape/size tokens. -->
+    <dimen name="radius_button">16dp</dimen>
+    <dimen name="button_height_standard">56dp</dimen>
+    <dimen name="button_height_hero">72dp</dimen>
+</resources>

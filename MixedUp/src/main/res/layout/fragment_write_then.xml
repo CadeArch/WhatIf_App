@@ -5,21 +5,37 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".WriteIfFrag"
-    android:background="@drawable/white_papers"
     android:id="@+id/layout">
+
+    <ImageView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/white_papers"
+        android:importantForAccessibility="no"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/write_then_title_top"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.12" />
 
     <TextView
         android:id="@+id/instructions"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="56dp"
         android:gravity="center_horizontal"
         android:text="Finish the response"
-        android:textSize="25sp"
+        android:textAppearance="@style/TextAppearance.WhatIf.Headline"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.496"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/layout"
+        app:layout_constraintTop_toTopOf="@+id/write_then_title_top"
         app:layout_constraintWidth_max="600dp"
         app:layout_constraintWidth_percent="0.9" />
 
@@ -54,7 +70,7 @@
         android:layout_height="wrap_content"
         android:text="then"
         android:textColor="@color/black"
-        android:textSize="24sp"
+        android:textAppearance="@style/TextAppearance.WhatIf.Title"
         app:layout_constraintBaseline_toBaselineOf="@+id/thenAnswer"
         app:layout_constraintEnd_toStartOf="@+id/thenAnswer"
         app:layout_constraintHorizontal_chainStyle="packed"
@@ -64,7 +80,7 @@
         android:id="@+id/thenAnswer"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="@dimen/space_16"
         android:gravity="center"
         android:hint="your response"
         android:imeOptions="actionDone"
@@ -77,23 +93,20 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/thenPrefix"
         app:layout_constraintTop_toBottomOf="@+id/scroller"
-        app:layout_constraintVertical_bias="0.0"
+        app:layout_constraintVertical_bias="0.4"
         app:layout_constraintWidth_max="380dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/writeThen_submit"
+        style="@style/Widget.WhatIf.Button.Primary"
         android:layout_width="115dp"
-        android:layout_height="75dp"
-        android:layout_marginBottom="64dp"
+        android:layout_height="@dimen/button_height_hero"
+        android:layout_marginBottom="@dimen/space_48"
         android:text="Submit"
         android:textSize="16sp"
-        android:textStyle="bold"
-        app:cornerRadius="15dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="@+id/layout"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp" />
+        app:layout_constraintStart_toStartOf="@+id/layout" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

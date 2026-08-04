@@ -1,8 +1,12 @@
 package com.CadeMixedUpGame.phoneapp;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.content.Context;
@@ -49,6 +53,51 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Edge-to-edge is mandatory (can't opt out) once targeting API 36, so real content must
+        // consume system-bar insets itself instead of relying on the system to reserve space.
+        // Padding is applied to each *fragment's own root view* (not fragment_container) so that
+        // view's own paper-texture background still paints full-bleed under the status/nav bars
+        // (a View's background is never clipped by its own padding, only its children are) --
+        // padding fragment_container itself left a visible seam where its neighboring sibling
+        // decorative background (a different paper texture) showed through the inset strip.
+        View connectionBannerView = findViewById(R.id.connection_banner);
+        int bannerPaddingTop = connectionBannerView.getPaddingTop();
+        androidx.core.graphics.Insets[] latestSystemBarInsets = {androidx.core.graphics.Insets.NONE};
+        getSupportFragmentManager().registerFragmentLifecycleCallbacks(
+                new androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+                    @Override
+                    public void onFragmentViewCreated(@NonNull androidx.fragment.app.FragmentManager fm,
+                                                       @NonNull Fragment f, @NonNull View v, Bundle savedInstanceState) {
+                        androidx.core.graphics.Insets insets = latestSystemBarInsets[0];
+                        v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+                    }
+                }, false);
+        View rootView = findViewById(R.id.main_root);
+        ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
+            // WindowInsetsCompat reports physical left/right (not start/end), so pad with setPadding.
+            androidx.core.graphics.Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            latestSystemBarInsets[0] = systemBars;
+            Fragment current = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
+            if (current != null && current.getView() != null) {
+                current.getView().setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            }
+            connectionBannerView.setPadding(
+                    connectionBannerView.getPaddingLeft(),
+                    bannerPaddingTop + systemBars.top,
+                    connectionBannerView.getPaddingRight(),
+                    connectionBannerView.getPaddingBottom());
+            return insets;
+        });
+
+        // Intentionally disabling back navigation (including the predictive back gesture)
+        // for all fragments so players cannot back out mid-game and corrupt room state.
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                // no-op
+            }
+        });
 
         // assure nightmode wont work in app
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
@@ -453,13 +502,6 @@ public class MainActivity extends AppCompatActivity {
 //        // FCM registration token to your app server.
 //        sendRegistrationToServer(token);
 //    }
-
-    @Override
-    public void onBackPressed() {
-        // by not calling the below i am disabling the phones back button for all fragments
-//        super.onBackPressed();
-
-    }
 
     @Override
     protected void onDestroy() {

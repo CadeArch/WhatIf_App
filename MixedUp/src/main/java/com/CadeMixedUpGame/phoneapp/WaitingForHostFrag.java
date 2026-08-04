@@ -76,7 +76,7 @@ public class WaitingForHostFrag extends Fragment {
         }
         // set up the RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
-        recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
+        recyclerView.setLayoutManager(new GridLayoutManager(getContext(), Utils.computeSpanCount(getContext())));
         MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getContext(), userViewModel.getUsers());
         recyclerView.setAdapter(adapter);
 

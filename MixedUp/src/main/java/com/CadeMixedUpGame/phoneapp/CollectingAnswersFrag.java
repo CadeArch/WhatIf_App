@@ -49,7 +49,7 @@ public class CollectingAnswersFrag extends Fragment {
         onCollectingAnswers = true;
         // set up the RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewCollectA);
-        recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
+        recyclerView.setLayoutManager(new GridLayoutManager(getContext(), Utils.computeSpanCount(getContext())));
         MyRecyclerViewAdapter adapter = new MyRecyclerViewAdapter(getActivity(), whoSubmittedThen);
 
         // seeing who has submitted

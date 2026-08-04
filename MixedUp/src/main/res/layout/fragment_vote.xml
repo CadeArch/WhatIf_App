@@ -23,12 +23,12 @@
         android:id="@+id/textView9"
         android:layout_width="0dp"
         android:textStyle="bold"
-        android:layout_marginStart="92dp"
-        android:layout_marginEnd="35dp"
+        android:layout_marginStart="@dimen/space_32"
+        android:layout_marginEnd="@dimen/space_32"
         android:layout_height="wrap_content"
         android:text="Select your favorite sentence and vote for leaderboards."
-        android:textSize="30sp"
-        android:paddingTop="28dp"
+        android:textAppearance="@style/TextAppearance.WhatIf.Title"
+        android:paddingTop="@dimen/space_24"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/message_banner" />
@@ -38,43 +38,35 @@
         android:id="@+id/vote_scroll"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginEnd="140dp"
-        android:paddingTop="8dp"
+        android:paddingTop="@dimen/space_8"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/vote_submit"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="@+id/textView9"
         app:layout_constraintTop_toBottomOf="@+id/textView9">
 
         <LinearLayout
             android:id="@+id/potential_lbiList"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.498"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintVertical_bias="0.492" />
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
 
     </androidx.core.widget.NestedScrollView>
 
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/vote_submit"
-        android:layout_width="100dp"
-        android:layout_height="75dp"
-        android:layout_marginEnd="48dp"
-        android:layout_marginBottom="24dp"
+        style="@style/Widget.WhatIf.Button.Primary"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/button_height_hero"
+        android:layout_marginBottom="@dimen/space_24"
+        app:layout_constraintWidth_max="220dp"
+        app:layout_constraintWidth_percent="0.5"
         android:text="vote"
         android:textSize="16sp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/vote_scroll"
-        app:layout_constraintVertical_bias="0.85"
-        app:cornerRadius="15dp"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp"
-        android:textStyle="bold"/>
+        app:layout_constraintEnd_toEndOf="@+id/vote_scroll"
+        app:layout_constraintStart_toStartOf="@+id/vote_scroll" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

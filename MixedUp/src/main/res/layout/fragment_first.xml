@@ -11,6 +11,7 @@
         android:id="@+id/imageView"
         android:layout_width="0dp"
         android:layout_height="120dp"
+        android:contentDescription="@string/app_name"
         android:src="@drawable/what_if_full_logo"
         app:layout_constraintBottom_toTopOf="@+id/accountPlay"
         app:layout_constraintEnd_toEndOf="parent"
@@ -22,38 +23,32 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/accountPlay"
+        style="@style/Widget.WhatIf.Button.Primary"
         android:layout_width="0dp"
-        android:layout_height="72dp"
-        android:layout_marginTop="16dp"
+        android:layout_height="@dimen/button_height_hero"
+        android:layout_marginTop="@dimen/space_16"
         android:text="Account Play"
         android:textSize="25sp"
-        android:textStyle="bold"
-        app:cornerRadius="15dp"
         app:layout_constraintBottom_toTopOf="@+id/freePlay"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/imageView"
         app:layout_constraintWidth_max="350dp"
-        app:layout_constraintWidth_percent="0.56"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp" />
+        app:layout_constraintWidth_percent="0.56" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/freePlay"
+        style="@style/Widget.WhatIf.Button.Primary"
         android:layout_width="0dp"
-        android:layout_height="72dp"
-        android:layout_marginTop="12dp"
+        android:layout_height="@dimen/button_height_hero"
+        android:layout_marginTop="@dimen/space_16"
         android:text="Free Play"
         android:textSize="25sp"
-        android:textStyle="bold"
-        app:cornerRadius="15dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/accountPlay"
         app:layout_constraintWidth_max="350dp"
-        app:layout_constraintWidth_percent="0.56"
-        app:strokeColor="@color/orange"
-        app:strokeWidth="6dp" />
+        app:layout_constraintWidth_percent="0.56" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

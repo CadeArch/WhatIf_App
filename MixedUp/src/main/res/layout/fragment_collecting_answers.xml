@@ -5,8 +5,18 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".CollectingAnswersFrag"
-    android:background="@drawable/white_papers"
     android:id="@+id/layout">
+
+    <ImageView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/white_papers"
+        android:importantForAccessibility="no"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -20,8 +30,9 @@
             android:id="@+id/recyclerViewCollectA"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingStart="75dp"
-            app:spanCount="2" />
+            android:paddingStart="@dimen/space_24"
+            android:paddingEnd="@dimen/space_16"
+            android:clipToPadding="false" />
     </FrameLayout>
 
     <TextView
@@ -29,9 +40,9 @@
         android:id="@+id/textView3"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="@dimen/space_16"
         android:text="Collecting Answers"
-        android:textSize="40sp"
+        android:textAppearance="@style/TextAppearance.WhatIf.Display"
         android:gravity="center_horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -44,7 +55,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="Players Submitted"
-        android:textSize="30sp"
+        android:textAppearance="@style/TextAppearance.WhatIf.Title"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textView3"
