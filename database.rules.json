@@ -1,6 +1,30 @@
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      ".read": true,
+      ".write": true
+    },
+    "leaderBoard": {
+      ".read": true,
+      ".write": true
+    },
+    "AccountPlayers": {
+      ".read": true,
+      ".write": true
+    },
+    "expiredRooms": {
+      ".read": true,
+      ".write": true
+    },
+    "phoneAppVerified": {
+      ".read": true,
+      ".write": true
+    },
+    "watchAppVerified": {
+      ".read": true,
+      ".write": true
+    }
   }
 }

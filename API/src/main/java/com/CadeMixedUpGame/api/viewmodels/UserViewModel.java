@@ -6,6 +6,7 @@ import androidx.databinding.ObservableArrayList;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.ChildEventListenerAdapter;
 import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
@@ -319,7 +320,7 @@ public class UserViewModel extends ViewModel {
         removeListenerOnDB();
         listenerRoom = gameRoom;
         AppLog.i(AppLog.FIREBASE, "Attaching players listener for room=" + gameRoom);
-        listener = new ChildEventListener() {
+        listener = new ChildEventListenerAdapter(AppLog.FIREBASE, "Players listener cancelled") {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                 addUsersFromSnapshot(snapshot, "added");
@@ -338,11 +339,6 @@ public class UserViewModel extends ViewModel {
                     AppLog.d(AppLog.ROOM, "Player removed: total=" + users.size());
                     handleRemovedHost(removedUser);
                 }
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
             }
 
             @Override
@@ -411,11 +407,16 @@ public class UserViewModel extends ViewModel {
             return;
         }
         host.setValue(null);
-        User currentUser = user.getValue();
         AppLog.w(AppLog.ROOM, "Host removed from room=" + removedUser.gameRoom + ", host=" + removedUser.userName);
-        if (currentUser != null && !currentUser.host) {
-            hostDisconnectedMessage.setValue("Sorry! Host disconnected - create a new game!");
-        }
+        // Deliberately does NOT set hostDisconnectedMessage here. This listener fires on any
+        // removal of the host's player node, including the legitimate nurfAllUsers() wipe done as
+        // part of resetting a room for "Play Again" - a guest whose players listener is still
+        // attached from a previous screen (EndFrag.onViewCreated is what detaches it, and a guest
+        // who hasn't reached EndFrag yet still has it live) would otherwise be falsely sent home
+        // mid-replay. Real host departures are already covered by two purpose-built, correctly
+        // timed paths: the explicit-leave replayState="no" flow, and the hostConnection/heartbeat
+        // flow driving HostDisconnectScheduler - both grace-period-protected, unlike this instant
+        // player-list-removal signal.
     }
 
     public void clearHostDisconnectedMessage() {
@@ -505,13 +506,29 @@ public class UserViewModel extends ViewModel {
                 .addOnSuccessListener(unused -> {
                     AppLog.i(AppLog.FIREBASE, "Current player removed room=" + room + ", playerKey=" + playerKey);
                     cancelOnDisconnectCleanup();
-                    if (onComplete != null) {
-                        onComplete.run();
-                    }
+                    deleteRoomIfPlayersEmpty(room, onComplete);
                 })
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not leave the room cleanly. Check your connection.");
                     AppLog.e(AppLog.FIREBASE, "Failed removing current player room=" + room + ", playerKey=" + playerKey, e);
+                });
+    }
+
+    /** Called only after a non-host player removes themself (the host leaving already goes
+     * through its own explicit deleteRoom() path in EndFrag/CreateGameFrag/MainActivity) - if
+     * that was the last remaining player, the room would otherwise sit around forever with no
+     * one left to clean it up. */
+    private void deleteRoomIfPlayersEmpty(String room, Runnable onComplete) {
+        db.child("rooms").child(room).child("players").get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null && !task.getResult().exists()) {
+                        AppLog.i(AppLog.ROOM, "Room empty after player left, deleting room=" + room);
+                        db.child("rooms").child(room).removeValue()
+                                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting emptied room=" + room, e));
+                    }
+                    if (onComplete != null) {
+                        onComplete.run();
+                    }
                 });
     }
 

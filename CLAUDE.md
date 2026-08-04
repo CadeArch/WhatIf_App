@@ -183,31 +183,44 @@ next to what's already there.
 ## 6. Encapsulation — match Firebase's actual requirement, not "everything public"
 
 Firebase Realtime Database's POJO mapper needs a no-arg constructor plus **either** public fields
-**or** public getter/setter pairs — it does not require public fields. `API/.../models/User.java`
-has both at once: 16 `public` mutable fields (`userID`, `email`, `host`, `connected`, ...) *and*
-redundant getters/setters for a subset of the same fields (`getHostPlayedAgain()`,
-`setConnected(...)`, etc. starting around line 70) — so callers can bypass the setters entirely and
-mutate fields directly, and it's not obvious from the class which path is the "real" one. `Room.java`
-and `RoundAssignment.java` have the same public-field pattern.
+**or** public getter/setter pairs — it does not require public fields.
 
-- **New model classes**: private fields + public getters/setters only. This is fully
-  Firebase-compatible and means every mutation is a method call you could add validation/logging to
-  later if needed.
-- **Existing models**: don't do a mass field-privatization pass unprompted — every direct field
-  access (`user.userID`, `player.connected`, etc.) across every Fragment/ViewModel would need to
-  become a method call, which is a large, high-risk, mechanical change with no behavior benefit on
-  its own. Only tighten a specific field's encapsulation when you're already changing how it's used.
+`API/.../models/LeaderBoardItem.java` and `Unlockable.java` already do this correctly: package-private
+fields, real getter/setter pairs, and (verified by grep) every one of those accessors is actually
+called somewhere in the app — this is the pattern to follow for new model classes.
+
+`API/.../models/User.java` used to have both public fields *and* redundant getters/setters for a
+subset of the same fields — grepped every getter/setter for real call sites and found only
+`getUid()` plus 5 setters (`setHostPlayedAgain`, `setIfFinished`, `setIfSentence`, `setThenFinished`,
+`setThenSentence`) were ever actually called; the other ~18 were dead API surface nobody used
+(callers always mutated the public fields directly instead). Deleted the unused ones — kept the 6
+real accessors, `User.java`'s fields stay public. `Room.java`/`RoundAssignment.java` are plain
+public-field POJOs with no getters/setters at all, so they don't have this "two competing paths"
+problem in the first place.
+
+- **New model classes**: private/package-private fields + public getters/setters only, matching
+  `LeaderBoardItem`/`Unlockable` — fully Firebase-compatible, and every mutation is a method call
+  you could add validation/logging to later.
+- **Existing public-field models** (`User`, `Room`, `RoundAssignment`): don't do a mass
+  field-privatization pass unprompted — every direct field access across every Fragment/ViewModel
+  would need to become a method call, a large, high-risk, mechanical change with no behavior
+  benefit on its own. Do the cheap, safe part opportunistically instead: if you add a getter/setter
+  to one of these classes, grep for real callers before assuming it needs to stay — as `User.java`
+  showed, "someone might call this" often isn't true here, only unit tests exercising the accessor
+  in isolation, which don't need it to exist for the app to work (rewrite the test to use the field
+  directly, as `UserTest.java` now does).
 
 ## 7. Reusability — look for the shared shape before writing another one-off
 
-`API/src/main` has three independently hand-rolled `ChildEventListener` anonymous classes with the
-same shape (`onChildAdded`/`onChildChanged`/`onChildRemoved` mapping a `DataSnapshot` to a model
-and updating an `ObservableArrayList`) — `RoomViewModel.loadRooms()`, `UserViewModel`'s player
-listener, and one more in `LeaderBoardViewModel` — with no shared helper between them despite the
-repeated structure. If you're adding a fourth one, that's the signal to extract a small generic
-helper (e.g. a `SnapshotListListener<T>` that takes a mapper function) instead of writing a fifth
-copy later. Don't extract it preemptively for the three that already exist unless you're touching
-one of them anyway.
+`API/src/main` used to have five independently hand-rolled `ChildEventListener` anonymous classes
+with the same shape — `RoomViewModel.loadRooms()`, `UserViewModel`'s player listener, and three in
+`LeaderBoardViewModel` — each repeating empty `onChildChanged`/`onChildRemoved`/`onChildMoved`
+overrides and near-identical `onCancelled` logging. Extracted `API/.../ChildEventListenerAdapter.java`:
+a no-op-default base (the standard `MouseAdapter`-style Java convention) that bakes in the
+"cancelled" log line and lets each listener override only the callback(s) it actually uses. Applied
+to all 5 existing sites with zero behavior change (verified against the full existing test suite
+before/after). **Use this base for any new `ChildEventListener`** instead of implementing the raw
+interface — see any of the 5 sites above for the pattern.
 
 ## 8. Testability seam: depend on `GameRepository`, not `DatabaseReference`, for anything you want to unit test
 
@@ -225,6 +238,14 @@ For anything that genuinely needs a real Firebase connection to test (listener a
 behavior, multi-client scenarios), use the local Firebase Emulator Suite (`firebase.json`,
 `.firebaserc`, README's "Local Firebase Emulator" section) rather than the live project — manual
 runs and tests against production have already polluted real room/leaderboard data at least once.
+
+**Call `FirebaseDatabase.getInstance(app).getReference()` exactly once per `FirebaseApp` in these
+tests, and reuse that one `DatabaseReference`.** A second `.getReference()` call for the same app
+produces a reference whose writes silently never deliver their completion callback in this
+Robolectric/JVM environment (confirmed multiple times this session, including once by writing this
+same bug into a second test file after already having found and documented it in the first — not a
+real-device issue, purely this test harness). Store the reference from `setUp()` in a field and
+pass it around instead of re-deriving it inline anywhere in the test.
 
 ## 9. Package structure — flat today, tracked on the roadmap
 

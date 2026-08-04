@@ -66,93 +66,20 @@ public class User implements Comparable<User>{
 
     public User() {}
 
-
-    public String getHostPlayedAgain() {
-        return hostPlayedAgain;
-    }
-
-    public Boolean getConnected() {
-        return connected;
-    }
-
-    public Long getDisconnectedAt() {
-        return disconnectedAt;
-    }
-
-    public Boolean getAccountPlay() {
-        return accountPlay;
-    }
-
-    public Boolean getIfFinished() {
-        return ifFinished;
-    }
-
-    public Boolean getThenFinished() {
-        return thenFinished;
-    }
-
-    public int getUserID() {
-        return userID;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public String getGameRoom() {
-        return gameRoom;
-    }
-
-    public String getIfSentence() {
-        return ifSentence;
-    }
-
-    public String getThenSentence() {
-        return thenSentence;
-    }
+    // Only the accessors actually called anywhere in the app are kept below - grep confirmed
+    // every other getter/setter that used to live here had zero callers (all real code reads/
+    // writes the public fields above directly), so they were dead API surface rather than the
+    // real encapsulation boundary. See CLAUDE.md Part 2 §6 for the guidance this follows: new
+    // model classes should use private fields + getters/setters only, but a repo-wide
+    // privatization pass on existing models is a separate, deliberate, higher-risk change (every
+    // direct field access site would need to change), not bundled into a dead-code cleanup.
 
     public String getUid() {
         return uid;
     }
 
-    public String getUserName() {
-        return userName;
-    }
-
-    public boolean getHost() {
-        return host;
-    }
-
-    public boolean isPlayAgain() {
-        return playAgain;
-    }
-
-    public void setAccountPlay(Boolean accountPlay) {
-        this.accountPlay = accountPlay;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public void setGameRoom(String gameRoom) {
-        this.gameRoom = gameRoom;
-    }
-
-    public void setHost(boolean host) {
-        this.host = host;
-    }
-
     public void setHostPlayedAgain(String hostPlayedAgain) {
         this.hostPlayedAgain = hostPlayedAgain;
-    }
-
-    public void setConnected(Boolean connected) {
-        this.connected = connected;
-    }
-
-    public void setDisconnectedAt(Long disconnectedAt) {
-        this.disconnectedAt = disconnectedAt;
     }
 
     public void setIfFinished(Boolean ifFinished) {
@@ -171,23 +98,6 @@ public class User implements Comparable<User>{
         this.thenSentence = thenSentence;
     }
 
-    public void setUid(String uid) {
-        this.uid = uid;
-    }
-
-    public void setUserID(int userID) {
-        this.userID = userID;
-    }
-
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
-
-    public void setPlayAgain(boolean playAgain) {
-        this.playAgain = playAgain;
-    }
-
-
     @Override
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof User) {
@@ -199,7 +109,7 @@ public class User implements Comparable<User>{
 
     @Override
     public int compareTo(User user) {
-        return this.userName.compareTo(String.valueOf(user.getUserID()));
+        return this.userName.compareTo(String.valueOf(user.userID));
     }
 
 }

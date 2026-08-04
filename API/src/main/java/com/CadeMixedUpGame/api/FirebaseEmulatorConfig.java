@@ -1,5 +1,6 @@
 package com.CadeMixedUpGame.api;
 
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.FirebaseDatabase;
 
@@ -9,7 +10,10 @@ import com.google.firebase.database.FirebaseDatabase;
  * USE_FIREBASE_EMULATOR flag. Must be called before any other Firebase Database/Auth usage.
  */
 public final class FirebaseEmulatorConfig {
-    private static final String EMULATOR_HOST = "10.0.2.2"; // host loopback, as seen from an Android emulator
+    // Real device/emulator: 10.0.2.2 is the special host-loopback alias. Robolectric JVM tests
+    // run directly on the host machine (no virtual device network layer), so "localhost" is
+    // correct there instead - see configureIfEnabled(FirebaseApp, String, boolean).
+    private static final String EMULATOR_HOST = "10.0.2.2";
     private static final int DATABASE_EMULATOR_PORT = 9000;
     private static final int AUTH_EMULATOR_PORT = 9099;
 
@@ -20,9 +24,20 @@ public final class FirebaseEmulatorConfig {
         if (!enabled) {
             return;
         }
-        FirebaseDatabase.getInstance().useEmulator(EMULATOR_HOST, DATABASE_EMULATOR_PORT);
-        FirebaseAuth.getInstance().useEmulator(EMULATOR_HOST, AUTH_EMULATOR_PORT);
-        AppLog.i(AppLog.FIREBASE, "Using local Firebase Emulator Suite at " + EMULATOR_HOST
-                + " (database:" + DATABASE_EMULATOR_PORT + ", auth:" + AUTH_EMULATOR_PORT + ")");
+        configureIfEnabled(FirebaseApp.getInstance(), EMULATOR_HOST, true);
+    }
+
+    /** For tests driving a specific (possibly non-default, e.g. named per simulated player)
+     * FirebaseApp instance directly, where "host" is also caller-controlled (Robolectric JVM
+     * tests use "localhost"; a real device/emulator uses the 10.0.2.2 loopback alias). */
+    public static void configureIfEnabled(FirebaseApp app, String host, boolean enabled) {
+        if (!enabled) {
+            return;
+        }
+        FirebaseDatabase.getInstance(app).useEmulator(host, DATABASE_EMULATOR_PORT);
+        FirebaseAuth.getInstance(app).useEmulator(host, AUTH_EMULATOR_PORT);
+        AppLog.i(AppLog.FIREBASE, "Using local Firebase Emulator Suite at " + host
+                + " (database:" + DATABASE_EMULATOR_PORT + ", auth:" + AUTH_EMULATOR_PORT
+                + ", app:" + app.getName() + ")");
     }
 }

@@ -220,18 +220,21 @@ after every branch is expensive. Options considered, in order of increasing cost
   template `ExampleUnitTest`/`ExampleInstrumentedTest` files. See `CLAUDE.md` Part 2 for how to
   keep adding to this (put new game-flow logic in a pure static policy class, not a Fragment).
 - [x] Single-player Espresso UI tests: `MixedUp/src/androidTest/.../NavigationFlowTest.java` —
-  launch/navigation, empty-name validation, and an Activity-recreate (rotation) regression test.
-  Bumped `androidx.test.ext:junit`/`espresso-core` (were 2020-era 1.1.2/3.3.0, failed manifest
-  merge once targeting API 36 — see `CLAUDE.md`-style versioned-dependency notes above).
-  - [ ] **Needs a stable-API (34-36) emulator/AVD to actually execute** — both AVDs configured
-    on the dev machine as of this session run a preview API level (37) ahead of what the
-    installed Espresso release supports, which fails instrumented test startup with
-    `NoSuchMethodException: InputManager.getInstance` (an Espresso/OS-preview compatibility gap,
-    not a bug in the tests). Install a stable API 34-36 system image + AVD (or run these in CI on
-    a standard runner) to get a real pass/fail signal.
-- [ ] Two-device multiplayer harness — two tiers, see `CHANGELOG.md` design notes for this branch:
-  - [ ] **Tier A** (build first): two simulated players in one Robolectric JVM test process, both
-    against the Firebase Emulator Suite — real multi-client behavior, no emulator/device needed.
+  launch/navigation, empty-name validation, free-play name-entry behavior, and an
+  Activity-recreate (rotation) regression test. Bumped `androidx.test.ext:junit`/`espresso-core`
+  (were 2020-era 1.1.2/3.3.0, failed manifest merge once targeting API 36). Verified actually
+  passing (not just compiling) on a stable API 35 AVD (`Test_API35`) via
+  `.\gradlew.bat :MixedUp:connectedDebugAndroidTest` — the dev machine's other AVDs run a preview
+  API level (37) ahead of what Espresso currently supports and fail instrumented test startup
+  with `NoSuchMethodException: InputManager.getInstance`; use a stable API 34-36 emulator (or a
+  standard CI runner) to run these, not a bleeding-edge preview AVD.
+- [ ] Two-device multiplayer harness — two tiers, see `CHANGELOG.md` design/implementation notes:
+  - [x] **Tier A**: `MixedUp/src/test/.../MultiplayerEmulatorTest.java` — two simulated players
+    (separate `RoomViewModel`+`UserViewModel` pairs on separate `FirebaseApp` instances) against
+    the local Firebase Emulator Suite, in one Robolectric JVM test process. Covers late joins and
+    player leaves. Run it with the emulator suite already running (see above):
+    `.\gradlew.bat :MixedUp:testDebugUnitTest --tests "com.CadeMixedUpGame.phoneapp.MultiplayerEmulatorTest"`.
+    Skips (doesn't fail) if the emulator isn't running.
   - [ ] **Tier B** (later): true two-emulator end-to-end via Espresso/UiAutomator, the only tier
     that catches real UI bugs like this branch's portrait header overlap and background seam.
 

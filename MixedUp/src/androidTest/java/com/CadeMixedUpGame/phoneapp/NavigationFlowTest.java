@@ -9,6 +9,7 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.hasErrorText;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static org.hamcrest.Matchers.not;
 
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -23,10 +24,10 @@ import org.junit.runner.RunWith;
  * views on a real Activity, so these exercise actual navigation code (Utils.navigateToFragment
  * and friends), not fakes.
  *
- * Needs a device/emulator on a *stable* Android release (API 34-36) to actually run — a preview
- * API level ahead of the installed Espresso release will fail with
- * "NoSuchMethodException: InputManager.getInstance" during event injection setup, which is an
- * Espresso/OS-preview compatibility gap, not a bug in these tests or the app.
+ * Needs a device/emulator on a *stable* Android release (API 34-36) — a preview API level ahead
+ * of the installed Espresso release fails instrumented test startup with
+ * "NoSuchMethodException: InputManager.getInstance" (an Espresso/OS-preview compatibility gap,
+ * confirmed by running this same suite on a preview API 37 emulator vs. a stable API 35 one).
  */
 @RunWith(AndroidJUnit4.class)
 public class NavigationFlowTest {
@@ -68,12 +69,18 @@ public class NavigationFlowTest {
         }
     }
 
+    /**
+     * Free Play mode always keeps the name editable (StartFragment.applyUserMode only swaps to
+     * the read-only displayName TextView for account-mode users) — this asserts that stays true
+     * rather than asserting displayName appears, which only happens in account mode.
+     */
     @Test
-    public void enteringNameShowsDisplayNameInsteadOfEditText() {
+    public void freePlayKeepsNameEditableAfterTyping() {
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             onView(withId(R.id.freePlay)).perform(click());
             onView(withId(R.id.enterName)).perform(typeText("Tester"), closeSoftKeyboard());
-            onView(withId(R.id.displayName)).check(matches(isDisplayed()));
+            onView(withId(R.id.enterName)).check(matches(isDisplayed()));
+            onView(withId(R.id.displayName)).check(matches(not(isDisplayed())));
         }
     }
 

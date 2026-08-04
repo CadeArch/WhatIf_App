@@ -12,60 +12,60 @@ public class UserTest {
     public void freePlayConstructorSetsExpectedDefaults() {
         User user = new User("Cade");
 
-        assertEquals(0, user.getUserID());
-        assertEquals("", user.getUid());
-        assertEquals("", user.getEmail());
-        assertEquals("Cade", user.getUserName());
-        assertEquals("", user.getGameRoom());
-        assertFalse(user.getIfFinished());
-        assertFalse(user.getThenFinished());
-        assertFalse(user.getAccountPlay());
-        assertEquals("", user.getIfSentence());
-        assertEquals("", user.getThenSentence());
-        assertFalse(user.getHost());
-        assertFalse(user.isPlayAgain());
-        assertEquals("", user.getHostPlayedAgain());
-        assertTrue(user.getConnected());
-        assertEquals(Long.valueOf(0L), user.getDisconnectedAt());
+        assertEquals(0, user.userID);
+        assertEquals("", user.uid);
+        assertEquals("", user.email);
+        assertEquals("Cade", user.userName);
+        assertEquals("", user.gameRoom);
+        assertFalse(user.ifFinished);
+        assertFalse(user.thenFinished);
+        assertFalse(user.accountPlay);
+        assertEquals("", user.ifSentence);
+        assertEquals("", user.thenSentence);
+        assertFalse(user.host);
+        assertFalse(user.playAgain);
+        assertEquals("", user.hostPlayedAgain);
+        assertTrue(user.connected);
+        assertEquals(Long.valueOf(0L), user.disconnectedAt);
         assertFalse(user.madeLeaderBoard);
         assertFalse(user.perfectLeaderBoard);
     }
 
     @Test
-    public void settersUpdateUserState() {
+    public void fieldsAreDirectlyMutable() {
         User user = new User("Cade");
 
-        user.setUserID(42);
-        user.setUid("uid-1");
-        user.setEmail("cade@example.com");
-        user.setUserName("New Name");
-        user.setGameRoom("ROOM");
-        user.setIfFinished(true);
-        user.setThenFinished(true);
-        user.setAccountPlay(true);
-        user.setIfSentence("if this");
-        user.setThenSentence("then that");
-        user.setHost(true);
-        user.setPlayAgain(true);
-        user.setHostPlayedAgain("yes");
-        user.setConnected(false);
-        user.setDisconnectedAt(1234L);
+        user.userID = 42;
+        user.uid = "uid-1";
+        user.email = "cade@example.com";
+        user.userName = "New Name";
+        user.gameRoom = "ROOM";
+        user.ifFinished = true;
+        user.thenFinished = true;
+        user.accountPlay = true;
+        user.ifSentence = "if this";
+        user.thenSentence = "then that";
+        user.host = true;
+        user.playAgain = true;
+        user.hostPlayedAgain = "yes";
+        user.connected = false;
+        user.disconnectedAt = 1234L;
 
-        assertEquals(42, user.getUserID());
+        assertEquals(42, user.userID);
         assertEquals("uid-1", user.getUid());
-        assertEquals("cade@example.com", user.getEmail());
-        assertEquals("New Name", user.getUserName());
-        assertEquals("ROOM", user.getGameRoom());
-        assertTrue(user.getIfFinished());
-        assertTrue(user.getThenFinished());
-        assertTrue(user.getAccountPlay());
-        assertEquals("if this", user.getIfSentence());
-        assertEquals("then that", user.getThenSentence());
-        assertTrue(user.getHost());
-        assertTrue(user.isPlayAgain());
-        assertEquals("yes", user.getHostPlayedAgain());
-        assertFalse(user.getConnected());
-        assertEquals(Long.valueOf(1234L), user.getDisconnectedAt());
+        assertEquals("cade@example.com", user.email);
+        assertEquals("New Name", user.userName);
+        assertEquals("ROOM", user.gameRoom);
+        assertTrue(user.ifFinished);
+        assertTrue(user.thenFinished);
+        assertTrue(user.accountPlay);
+        assertEquals("if this", user.ifSentence);
+        assertEquals("then that", user.thenSentence);
+        assertTrue(user.host);
+        assertTrue(user.playAgain);
+        assertEquals("yes", user.hostPlayedAgain);
+        assertFalse(user.connected);
+        assertEquals(Long.valueOf(1234L), user.disconnectedAt);
     }
 
     @Test
@@ -74,9 +74,9 @@ public class UserTest {
         User sameId = new User("Second");
         User differentId = new User("Third");
 
-        first.setUserID(7);
-        sameId.setUserID(7);
-        differentId.setUserID(8);
+        first.userID = 7;
+        sameId.userID = 7;
+        differentId.userID = 8;
 
         assertEquals(first, sameId);
         assertNotEquals(first, differentId);
@@ -87,7 +87,7 @@ public class UserTest {
     public void compareToUsesUserNameComparedToOtherUserIdString() {
         User user = new User("20");
         User other = new User("ignored");
-        other.setUserID(3);
+        other.userID = 3;
 
         assertTrue(user.compareTo(other) < 0);
     }

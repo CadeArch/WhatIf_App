@@ -22,6 +22,7 @@ import android.widget.TextView;
 
 import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.GameFlowPolicy;
+import com.CadeMixedUpGame.api.HostDisconnectScheduler;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 import com.CadeMixedUpGame.api.models.User;
@@ -40,12 +41,22 @@ public class MainActivity extends AppCompatActivity {
     private boolean deviceNetworkAvailable = true;
     private boolean handlingHostDisconnect = false;
     private final Handler connectionHandler = new Handler(Looper.getMainLooper());
-    private Runnable hostDisconnectRunnable;
+    private final HostDisconnectScheduler hostDisconnectScheduler = new HostDisconnectScheduler(
+            new HostDisconnectScheduler.DelayedRunner() {
+                @Override
+                public void postDelayed(Runnable runnable, long delayMs) {
+                    connectionHandler.postDelayed(runnable, delayMs);
+                }
+
+                @Override
+                public void cancel(Runnable runnable) {
+                    connectionHandler.removeCallbacks(runnable);
+                }
+            },
+            reason -> expireHostDisconnectedRoom(reason));
     private Runnable hostConnectionCountdownRunnable;
     private Runnable hostHeartbeatRunnable;
     private Runnable presencePulseRunnable;
-    private long pendingHostDisconnectDeadlineMs = 0L;
-    private boolean hostDisconnectExpired = false;
     private boolean hostLocalGraceExpired = false;
     private String pendingExpiredRoomMessage = "";
 
@@ -227,12 +238,10 @@ public class MainActivity extends AppCompatActivity {
         userViewModel.reset();
         userViewModel.clearLocalRoomIdentity();
         stopHostHeartbeat();
-        cancelPendingHostDisconnect();
+        hostDisconnectScheduler.reset();
         Utils.navigateLandingReplacingCurrent(this);
         UiMessenger.showSnackbar(findViewById(R.id.fragment_container), message);
         roomViewModel.expiredRoomMessage.setValue("");
-        pendingHostDisconnectDeadlineMs = 0L;
-        hostDisconnectExpired = false;
         hostLocalGraceExpired = false;
         pendingExpiredRoomMessage = "";
         handlingHostDisconnect = false;
@@ -249,14 +258,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void scheduleHostDisconnect(long disconnectedAt) {
-        cancelPendingHostDisconnect();
-        long elapsedMs = Math.max(0L, System.currentTimeMillis() - disconnectedAt);
+        long now = System.currentTimeMillis();
+        long elapsedMs = Math.max(0L, now - disconnectedAt);
         long remainingMs = Math.max(0L, GameFlowPolicy.CONNECTION_GRACE_MS - elapsedMs);
-        pendingHostDisconnectDeadlineMs = System.currentTimeMillis() + remainingMs;
-        hostDisconnectExpired = false;
         AppLog.w(AppLog.ROOM, "Host disconnected grace timer started remainingMs=" + remainingMs);
-        hostDisconnectRunnable = () -> expireHostDisconnectedRoom("timer expired");
-        connectionHandler.postDelayed(hostDisconnectRunnable, remainingMs);
+        hostDisconnectScheduler.scheduleForDisconnectTimestamp(disconnectedAt, now);
     }
 
     private void scheduleHostHeartbeatExpiration(long lastSeenAt) {
@@ -264,38 +270,30 @@ public class MainActivity extends AppCompatActivity {
         if (currentUser == null || currentUser.host) {
             return;
         }
-        cancelPendingHostDisconnect();
-        long remainingMs = GameFlowPolicy.millisUntilHostHeartbeatExpires(System.currentTimeMillis(), lastSeenAt);
-        pendingHostDisconnectDeadlineMs = System.currentTimeMillis() + remainingMs;
-        hostDisconnectExpired = false;
-        AppLog.w(AppLog.ROOM, "Host heartbeat deadline scheduled remainingMs=" + remainingMs);
-        hostDisconnectRunnable = () ->
-                connectionHandler.postDelayed(
-                        () -> expireHostDisconnectedRoom("host heartbeat expired"),
-                        GameFlowPolicy.CLIENT_HOME_AFTER_HOST_EXPIRE_DELAY_MS);
-        connectionHandler.postDelayed(hostDisconnectRunnable, remainingMs);
+        long now = System.currentTimeMillis();
+        AppLog.w(AppLog.ROOM, "Host heartbeat deadline scheduled remainingMs="
+                + GameFlowPolicy.millisUntilHostHeartbeatExpires(now, lastSeenAt));
+        hostDisconnectScheduler.scheduleForHeartbeat(lastSeenAt, now);
     }
 
     private void handleHostConnectionRecovered(boolean cancelHeartbeatTimer) {
-        if (hostDisconnectExpired) {
+        if (hostDisconnectScheduler.isExpired()) {
             expireHostDisconnectedRoom("host recovered after expiration");
             return;
         }
-        if (pendingHostDisconnectDeadlineMs > 0L && System.currentTimeMillis() >= pendingHostDisconnectDeadlineMs) {
+        if (hostDisconnectScheduler.isPastDeadline(System.currentTimeMillis())) {
             expireHostDisconnectedRoom("host recovered after deadline");
             return;
         }
         if (cancelHeartbeatTimer) {
-            cancelPendingHostDisconnect();
-            pendingHostDisconnectDeadlineMs = 0L;
+            hostDisconnectScheduler.cancel();
         }
     }
 
     private void expireHostDisconnectedRoom(String reason) {
-        if (handlingHostDisconnect || hostDisconnectExpired) {
+        if (handlingHostDisconnect || hostDisconnectScheduler.isExpired()) {
             return;
         }
-        hostDisconnectExpired = true;
         AppLog.w(AppLog.ROOM, "Expiring room after host disconnect: " + reason);
         User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
         String room = currentUser == null ? "" : currentUser.gameRoom;
@@ -305,14 +303,6 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         roomViewModel.markRoomExpired(room, message, () -> sendPlayerHomeAfterHostDisconnect(message));
-    }
-
-    private void cancelPendingHostDisconnect() {
-        if (hostDisconnectRunnable != null) {
-            connectionHandler.removeCallbacks(hostDisconnectRunnable);
-            hostDisconnectRunnable = null;
-            AppLog.i(AppLog.ROOM, "Host disconnect grace timer cancelled");
-        }
     }
 
     private void setupDeviceNetworkMonitor() {

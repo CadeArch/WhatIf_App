@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.ChildEventListenerAdapter;
 import com.CadeMixedUpGame.api.GameLogic;
 import com.CadeMixedUpGame.api.RoomCreationPolicy;
 import com.CadeMixedUpGame.api.models.RoundAssignment;
@@ -135,7 +136,7 @@ public class RoomViewModel extends ViewModel {
 
 
     public ArrayList<String> loadRooms() {
-        db.child("rooms").addChildEventListener(new ChildEventListener() {
+        db.child("rooms").addChildEventListener(new ChildEventListenerAdapter(AppLog.FIREBASE, "Rooms listener cancelled") {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                 rooms.add(new Room(snapshot.getKey()));
@@ -144,24 +145,9 @@ public class RoomViewModel extends ViewModel {
             }
 
             @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-            }
-
-            @Override
             public void onChildRemoved(@NonNull DataSnapshot snapshot) {
                 Room room = new Room(snapshot.getKey());
                 rooms.remove(room);
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                AppLog.e(AppLog.FIREBASE, "Rooms listener cancelled: " + error.getMessage());
             }
         });
         return roomNames;
@@ -301,10 +287,19 @@ public class RoomViewModel extends ViewModel {
     }
 
     public void pushRoom(String id) {
+        pushRoom(id, null);
+    }
+
+    public void pushRoom(String id, Runnable onSuccess) {
         room = new Room(id);
         AppLog.i(AppLog.ROOM, "Creating room=" + room.roomID);
         db.child("rooms").child(room.roomID).setValue(room)
-                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Room created id=" + room.roomID))
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.FIREBASE, "Room created id=" + room.roomID);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
                 .addOnFailureListener(e -> {
                     databaseMessage.setValue("Could not create room. Check your connection and try again.");
                     AppLog.e(AppLog.FIREBASE, "Failed creating room=" + room.roomID, e);
