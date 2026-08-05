@@ -16,6 +16,16 @@ for stack/build/roadmap; this file is the "what changed and why" log.
 
 ## Current Session Changes
 
+- Replaced the 4-character random-letters-and-digits (case-sensitive) room join code with two
+  random, distinct, lowercase 4-letter dictionary words joined by a dash (e.g. `wolf-lake`) —
+  easier to read aloud and type on a phone keyboard, and no longer ambiguous about letter case.
+  Added `GameLogic.randomRoomCode(Random)` (a 600-word curated list, pure/testable per this
+  repo's usual pattern) and pointed `RoomViewModel.makeRoomID()` at it; removed the now-dead
+  `allChars`/`usableCharacter` fields. No UI/layout changes needed — the join `EditText` has no
+  `maxLength`, and the host's `gameCode` display `TextView` is already full-width `0dp`.
+
+## Archived Session: feature/stable-testing-and-refactors
+
 - Deleted 4 unrenamed template test files (`ExampleUnitTest`/`ExampleInstrumentedTest` in both
   modules, one still in package `com.mynewpackage.api` — clearly never renamed from the Android
   Studio template).

@@ -78,6 +78,81 @@ public class GameLogic {
         return "round-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
+    // Simple, common, unambiguous 4-letter words - easy to read aloud and type on a phone
+    // keyboard, unlike the old random-letters-and-digits room code it replaced.
+    private static final String[] ROOM_CODE_WORDS = {
+            "able", "acid", "acre", "aged", "arch", "area", "army", "atom", "away", "axis",
+            "baby", "back", "bake", "ball", "band", "bank", "bark", "barn", "base", "bean",
+            "bear", "beat", "beef", "beer", "bell", "belt", "bend", "best", "bike", "bird",
+            "blue", "boat", "body", "bold", "bolt", "bond", "bone", "book", "boot", "born",
+            "boss", "both", "bowl", "boys", "brew", "brow", "buck", "bulb", "bulk", "bull",
+            "burn", "bush", "cafe", "cake", "calm", "camp", "card", "care", "carp", "cart",
+            "case", "cash", "cast", "cave", "cell", "chef", "chip", "city", "clay", "clip",
+            "club", "coal", "coat", "code", "coin", "cold", "colt", "cook", "cool", "cord",
+            "core", "cork", "corn", "cost", "crab", "crew", "crop", "cube", "cure", "curl",
+            "cute", "dark", "dash", "dawn", "dead", "deal", "dear", "deck", "deer", "desk",
+            "dial", "dice", "dish", "dive", "dock", "does", "doll", "done", "door", "dose",
+            "down", "draw", "drop", "drum", "duck", "dust", "duty", "each", "earn", "east",
+            "easy", "echo", "edge", "epic", "even", "exit", "face", "fact", "fair", "fall",
+            "farm", "fast", "fate", "fear", "feed", "feet", "fern", "file", "fill", "film",
+            "find", "fine", "fire", "fish", "fist", "flag", "flat", "flow", "foam", "fold",
+            "folk", "food", "fool", "foot", "fork", "form", "fort", "four", "free", "frog",
+            "fuel", "full", "fund", "fury", "gain", "gala", "game", "gate", "gaze", "gear",
+            "gift", "girl", "give", "glad", "glow", "goal", "goat", "gold", "golf", "good",
+            "grey", "grid", "grow", "gulf", "gust", "hair", "half", "hall", "hand", "hard",
+            "hare", "harp", "hawk", "haze", "head", "heal", "heap", "heat", "help", "herb",
+            "here", "hero", "hide", "high", "hike", "hill", "hint", "hive", "hold", "hole",
+            "home", "hood", "hook", "hope", "horn", "host", "hour", "huge", "hush", "icon",
+            "idea", "inch", "iris", "iron", "isle", "jade", "jazz", "jeep", "join", "joke",
+            "jolt", "jump", "june", "jury", "just", "keen", "keep", "kept", "kick", "kind",
+            "king", "kite", "kiwi", "knee", "knit", "knot", "lace", "lake", "lamb", "lamp",
+            "land", "lane", "leaf", "lean", "leap", "left", "lens", "lift", "like", "lily",
+            "lime", "line", "link", "lion", "list", "live", "load", "loaf", "loan", "lock",
+            "loft", "long", "look", "loop", "lord", "lose", "loud", "love", "luck", "lump",
+            "lung", "lynx", "mail", "main", "make", "male", "mall", "many", "mark", "mask",
+            "mast", "meal", "meat", "meet", "melt", "menu", "mesh", "mild", "mile", "milk",
+            "mill", "mind", "mine", "mint", "miss", "mist", "mode", "mold", "mole", "monk",
+            "moon", "moss", "moth", "move", "much", "mule", "must", "myth", "name", "navy",
+            "near", "neat", "neck", "need", "nest", "news", "next", "nice", "node", "noon",
+            "nose", "note", "oath", "oats", "obey", "oboe", "oval", "oven", "over", "pace",
+            "pack", "page", "paid", "pail", "pain", "pair", "palm", "park", "part", "pass",
+            "past", "path", "peak", "pear", "peel", "peer", "pest", "pick", "pier", "pike",
+            "pile", "pine", "pint", "pipe", "plan", "play", "plot", "plow", "plum", "plus",
+            "poem", "poet", "pole", "polo", "pond", "pony", "pool", "poor", "pork", "port",
+            "pose", "post", "pour", "pray", "prep", "prop", "pull", "pulp", "pump", "pure",
+            "push", "quiz", "race", "rack", "rail", "rain", "rank", "rare", "rash", "rate",
+            "read", "real", "reef", "rely", "rent", "rest", "rice", "rich", "ride", "ring",
+            "rise", "risk", "road", "roar", "rock", "role", "roll", "roof", "room", "root",
+            "rope", "rose", "rows", "rude", "ruby", "rule", "rush", "rust", "sack", "safe",
+            "sage", "sail", "salt", "same", "sand", "sane", "save", "seal", "seat", "seed",
+            "seek", "seem", "self", "sell", "send", "ship", "shoe", "shop", "shot", "show",
+            "shut", "sift", "sign", "silk", "sing", "sink", "site", "size", "skin", "skip",
+            "slap", "sled", "slot", "slow", "snap", "snow", "soap", "sock", "soda", "sofa",
+            "soft", "soil", "sold", "sole", "some", "song", "soon", "sort", "soul", "soup",
+            "spin", "spot", "star", "stay", "stem", "step", "stir", "stop", "such", "suit",
+            "sunk", "sure", "swan", "swim", "tail", "take", "tale", "talk", "tall", "tame",
+            "tank", "tape", "task", "team", "tell", "tent", "term", "test", "text", "than",
+            "that", "thin", "this", "tide", "tidy", "tile", "time", "tiny", "tire", "toad",
+            "tone", "tool", "tore", "torn", "tour", "town", "trap", "tray", "tree", "trim",
+            "trip", "true", "tube", "tune", "turf", "turn", "twig", "twin", "type", "ugly",
+            "unit", "upon", "urge", "used", "user", "vast", "veil", "vein", "verb", "very",
+            "vest", "view", "vine", "visa", "void", "vote", "wade", "wage", "wait", "wake",
+            "walk", "wall", "want", "warm", "warn", "wash", "wasp", "wave", "weak", "wear",
+            "week", "well", "west", "what", "when", "whip", "wide", "wife", "wild", "will",
+            "wind", "wine", "wing", "wire", "wise", "wish", "wolf", "wood", "wool", "word",
+            "wore", "work", "yard", "yarn", "yawn", "year", "zest", "zinc", "zone", "zoom",
+    };
+
+    public static String randomRoomCode(Random random) {
+        Random source = random == null ? new Random() : random;
+        String first = ROOM_CODE_WORDS[source.nextInt(ROOM_CODE_WORDS.length)];
+        String second;
+        do {
+            second = ROOM_CODE_WORDS[source.nextInt(ROOM_CODE_WORDS.length)];
+        } while (second.equals(first));
+        return first + "-" + second;
+    }
+
     public static boolean isCurrentRound(String currentRoundId, String eventRoundId) {
         return currentRoundId != null
                 && currentRoundId.length() > 0

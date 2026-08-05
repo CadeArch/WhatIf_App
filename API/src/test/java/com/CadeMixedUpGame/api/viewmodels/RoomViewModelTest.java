@@ -33,25 +33,18 @@ public class RoomViewModelTest {
     }
 
     @Test
-    public void makeRoomIDReturnsFourUsableCharacters() {
+    public void makeRoomIDReturnsTwoDistinctFourLetterWordsJoinedByADash() {
         RoomViewModel viewModel = new RoomViewModel(new FakeGameRepository());
 
         String roomID = viewModel.makeRoomID();
 
-        assertEquals(4, roomID.length());
-        for (int index = 0; index < roomID.length(); index++) {
-            assertTrue(viewModel.allChars.contains(String.valueOf(roomID.charAt(index))));
-        }
-    }
-
-    @Test
-    public void makeRoomIDCanReturnMixedCaseLettersAndDigits() {
-        RoomViewModel viewModel = new RoomViewModel(new FakeGameRepository());
-
-        assertTrue(viewModel.allChars.contains("a"));
-        assertTrue(viewModel.allChars.contains("Z"));
-        assertTrue(viewModel.allChars.contains("0"));
-        assertTrue(viewModel.allChars.contains("1"));
+        String[] parts = roomID.split("-");
+        assertEquals(2, parts.length);
+        assertEquals(4, parts[0].length());
+        assertEquals(4, parts[1].length());
+        assertFalse("the two words must not be the same", parts[0].equals(parts[1]));
+        assertTrue("room codes must be lowercase (case-sensitive input is what this replaced)",
+                roomID.equals(roomID.toLowerCase()));
     }
 
     @Test

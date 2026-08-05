@@ -247,6 +247,33 @@ same bug into a second test file after already having found and documented it in
 real-device issue, purely this test harness). Store the reference from `setUp()` in a field and
 pass it around instead of re-deriving it inline anywhere in the test.
 
+**Firebase RTDB security rules cascade as "OR", not "most specific wins."** Once an ancestor path
+grants `.read`/`.write: true`, no descendant rule can revoke it with `.read: false` — the read/write
+still succeeds. Learned the hard way trying to produce a permission-denied `ERROR` state for
+`RoomJoinValidationEmulatorTest`: nesting `.read: false` under a `.read: true` root did nothing. If
+you need `database.rules.json` to actually deny something, the root itself must default-deny
+(`.read`/`.write: false`) with explicit allow-listed subpaths for the app's real top-level roots
+(`rooms`, `leaderBoard`, `AccountPlayers`, `expiredRooms`, `phoneAppVerified`, `watchAppVerified` —
+grep `db.child("` in `API/src/main/java` if a new top-level root gets added, since that list needs
+to stay in sync or real writes will start failing).
+
+**`leaderBoard` is a single global, non-room-scoped top-level Firebase node**, and the local
+emulator's data persists across separate test *methods* and separate `./gradlew` invocations within
+a session (it's a running process, not reset per test). Any test that seeds or asserts against
+`leaderBoard` needs to explicitly wipe it in `@Before` (`db.child("leaderBoard").removeValue()`,
+awaited) — otherwise an earlier test's leftover entries silently corrupt later assertions like
+`isLeaderBoardFull()`'s `size() < 20` check. Room-scoped data (`rooms/{roomId}/...`) doesn't have
+this problem since each test already generates a fresh unique room id.
+
+**When a Tier A test is meant to catch a specific suspected bug, don't trust a first-try pass.**
+Twice this session a test passed immediately not because the bug didn't exist, but because the test
+didn't actually reproduce the race/condition that triggers it (see `ReplayLoopEmulatorTest`'s two
+methods — the "clean sequential" version passed trivially by waiting for each step to fully
+complete, which is the opposite of a race; the version that actually reproduced the reported bug
+required *not* detaching a listener the way the real losing client wouldn't have). Before accepting
+a passing "regression test," check whether it was actually possible for it to fail — temporarily
+revert the fix and confirm the test fails for the diagnosed reason, not just that it's green.
+
 ## 9. Package structure — flat today, tracked on the roadmap
 
 All 25 Java files in `MixedUp/src/main/java` sit directly in one package

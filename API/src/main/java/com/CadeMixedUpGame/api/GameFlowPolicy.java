@@ -86,7 +86,21 @@ public final class GameFlowPolicy {
         return millisUntilHostHeartbeatExpires(nowMs, lastSeenAtMs) == 0L;
     }
 
+    /** Room codes are two 4-letter words joined by a dash (see GameLogic.randomRoomCode) - the
+     * dash is purely cosmetic for readability, so a joiner shouldn't have to type it exactly.
+     * Strips everything but letters, lowercases, and reinserts the canonical dash once there are
+     * exactly 8 letters ("wolflake", "WOLF LAKE", "wolf_lake" all resolve to "wolf-lake", matching
+     * whatever the room was actually created/stored as). Anything else (wrong letter count, empty)
+     * is passed through lowercased/trimmed and left to fail the room lookup naturally. */
     public static String normalizeRoomCodeInput(String roomCode) {
-        return roomCode == null ? "" : roomCode.trim();
+        if (roomCode == null) {
+            return "";
+        }
+        String lower = roomCode.trim().toLowerCase();
+        String lettersOnly = lower.replaceAll("[^a-z]", "");
+        if (lettersOnly.length() == 8) {
+            return lettersOnly.substring(0, 4) + "-" + lettersOnly.substring(4);
+        }
+        return lower;
     }
 }
