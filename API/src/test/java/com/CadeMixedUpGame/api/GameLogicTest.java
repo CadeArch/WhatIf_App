@@ -132,6 +132,31 @@ public class GameLogicTest {
     }
 
     @Test
+    public void randomRoomCode_returnsTwoDistinctFourLetterLowercaseWordsJoinedByADash() {
+        String code = GameLogic.randomRoomCode(new java.util.Random(42));
+
+        String[] parts = code.split("-");
+        assertEquals(2, parts.length);
+        assertEquals(4, parts[0].length());
+        assertEquals(4, parts[1].length());
+        assertFalse(parts[0].equals(parts[1]));
+        assertEquals(code, code.toLowerCase());
+    }
+
+    @Test
+    public void randomRoomCode_isDeterministicForAFixedSeed() {
+        assertEquals(GameLogic.randomRoomCode(new java.util.Random(7)),
+                GameLogic.randomRoomCode(new java.util.Random(7)));
+    }
+
+    @Test
+    public void randomRoomCode_nullRandomFallsBackToANewSource() {
+        String code = GameLogic.randomRoomCode(null);
+
+        assertEquals(2, code.split("-").length);
+    }
+
+    @Test
     public void playerKeyUsesUserNameAndId() {
         com.CadeMixedUpGame.api.models.User user = new com.CadeMixedUpGame.api.models.User("guest-Cade");
         user.userID = 42;

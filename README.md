@@ -241,6 +241,7 @@ after every branch is expensive. Options considered, in order of increasing cost
 ### Architecture And Maintainability
 
 - [x] Look for duplicate code that can be abstracted into shared helpers or `Utils` methods for reuse across fragments.
+- [ ] build an auto error log DB table that is able to see code flows taken on any LIVE match that is being played and log both the code flow and the exception to the table so periodically we can take the items in the error log table to make automation tests for and to fix easily without wondering what happened or how to recreate. reuse any pre-existing debug info that may already exist in the repo i thought i tried to get something in to help me manually debug in the past
 - [ ] After the Play Console release is approved, audit and upgrade the local build toolchain intentionally: Android Gradle Plugin, Gradle wrapper, supported Gradle JVM, and Android Studio sync settings.
 - [ ] Reorganize `src/main/java` into human-readable folders/sub-folders by features/screens of the app, such as account, lobby, writing, reading, voting, leaderboard, messaging, and devtools. This is worthwhile, but should be handled as a focused branch because it is higher-churn than small safety refactors.
 - [ ] Group each fragment with its helper classes/adapters where practical so it is clear which files support each game screen.

@@ -39,9 +39,6 @@ public class RoomViewModel extends ViewModel {
     public ArrayList<String> roomNames = new ArrayList<>();
     public DatabaseReference db;
     private final GameRepository repository;
-    // removed capitol I and lowercase l because they were ambiguous with the font i am using
-    String allChars = "a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9";
-    String[] usableCharacter;
     public MutableLiveData<Boolean> inProgress = new MutableLiveData<Boolean>();
     public MutableLiveData<RoomJoinState> roomJoinState = new MutableLiveData<RoomJoinState>(RoomJoinState.IDLE);
     public MutableLiveData<String> databaseMessage = new MutableLiveData<String>();
@@ -96,7 +93,6 @@ public class RoomViewModel extends ViewModel {
         }
         this.repository = repository;
         db = repository.root();
-        usableCharacter = allChars.split(" ");
         if (rooms == null) {
             rooms = new ObservableArrayList<Room>();
             if (loadRoomsOnCreate) {
@@ -154,14 +150,7 @@ public class RoomViewModel extends ViewModel {
     }
 
     public String makeRoomID() {
-        Random rand = new Random();
-        String sequence = "";
-        for (int x = 0; x < 4; x++ ) {
-            int randNum = rand.nextInt(usableCharacter.length);
-            sequence += usableCharacter[randNum];
-
-        }
-        return sequence;
+        return GameLogic.randomRoomCode(new Random());
     }
 
     public ObservableArrayList<Room> getRooms() {
