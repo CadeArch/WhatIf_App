@@ -129,9 +129,25 @@ public class GameFlowPolicyTest {
     }
 
     @Test
-    public void normalizeRoomCodeInputTrimsButPreservesCase() {
+    public void normalizeRoomCodeInputHandlesNullAndTrims() {
         assertEquals("", GameFlowPolicy.normalizeRoomCodeInput(null));
-        assertEquals("aB01", GameFlowPolicy.normalizeRoomCodeInput("  aB01  "));
+        assertEquals("wolf-lake", GameFlowPolicy.normalizeRoomCodeInput("  wolf-lake  "));
+    }
+
+    @Test
+    public void normalizeRoomCodeInputLowercasesAndReinsertsTheDashRegardlessOfHowItWasTyped() {
+        assertEquals("wolf-lake", GameFlowPolicy.normalizeRoomCodeInput("WOLF-LAKE"));
+        assertEquals("wolf-lake", GameFlowPolicy.normalizeRoomCodeInput("wolflake"));
+        assertEquals("wolf-lake", GameFlowPolicy.normalizeRoomCodeInput("WolfLake"));
+        assertEquals("wolf-lake", GameFlowPolicy.normalizeRoomCodeInput("wolf lake"));
+        assertEquals("wolf-lake", GameFlowPolicy.normalizeRoomCodeInput("wolf_lake"));
+    }
+
+    @Test
+    public void normalizeRoomCodeInputLeavesTheWrongLetterCountUnchangedForANaturalNotFound() {
+        assertEquals("abc", GameFlowPolicy.normalizeRoomCodeInput("abc"));
+        assertEquals("way too long of a room code",
+                GameFlowPolicy.normalizeRoomCodeInput("way too long of a room code"));
     }
 
     private User player(String name, boolean ifFinished, boolean thenFinished, boolean accountPlay) {
