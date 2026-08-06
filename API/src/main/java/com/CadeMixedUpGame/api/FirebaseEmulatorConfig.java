@@ -24,7 +24,16 @@ public final class FirebaseEmulatorConfig {
         if (!enabled) {
             return;
         }
-        configureIfEnabled(FirebaseApp.getInstance(), EMULATOR_HOST, true);
+        // Robolectric bootstraps this Application class for every test in the module, including
+        // ones that never initialize a default FirebaseApp themselves - FirebaseApp.getInstance()
+        // throws IllegalStateException in that case. Must not take the whole test down with it
+        // (matches WhatIfApplication.tryGetDefaultDatabaseReference()'s guard for the same reason).
+        try {
+            configureIfEnabled(FirebaseApp.getInstance(), EMULATOR_HOST, true);
+        }
+        catch (IllegalStateException e) {
+            AppLog.w(AppLog.FIREBASE, "Default FirebaseApp not ready; skipping emulator config for this session");
+        }
     }
 
     /** For tests driving a specific (possibly non-default, e.g. named per simulated player)

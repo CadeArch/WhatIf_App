@@ -134,10 +134,13 @@ public class UiMessenger {
         int color;
         switch (type) {
             case SUCCESS:
-                color = Color.rgb(50, 130, 86);
+                // Darkened from rgb(50,130,86) - that only cleared 4.5:1 by a hair (~4.7:1).
+                color = Color.rgb(28, 108, 66);
                 break;
             case WARNING:
-                color = Color.rgb(196, 121, 29);
+                // Was rgb(196,121,29) - the same "orange" flagged elsewhere for failing 4.5:1
+                // against white text (~3.4:1 actual). Matches orange_deep, ~5.6:1.
+                color = Color.rgb(147, 91, 22);
                 break;
             case ERROR:
                 color = Color.rgb(166, 57, 57);

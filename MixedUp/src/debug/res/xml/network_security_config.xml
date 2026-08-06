@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Debug-only: lets the Firebase Auth REST client reach the local Firebase Emulator Suite
+         (see FirebaseEmulatorConfig.java, firebase.json) over plain HTTP. Realtime Database's
+         emulator connection uses a WebSocket and isn't affected by this policy, but Auth's
+         emulator client is REST-based and was being blocked by the app-wide
+         usesCleartextTraffic="false" in the main manifest. Never merged into release builds -
+         this file only exists in the debug source set. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

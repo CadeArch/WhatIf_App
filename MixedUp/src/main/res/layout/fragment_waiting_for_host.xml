@@ -47,7 +47,7 @@
         android:id="@+id/textView"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/space_16"
+        android:layout_marginTop="@dimen/space_32"
         android:gravity="center_horizontal"
         android:text="Players Joining"
         android:textAppearance="@style/TextAppearance.WhatIf.Display"
@@ -56,7 +56,6 @@
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/layout"
-        app:layout_constraintVertical_chainStyle="packed"
         app:layout_constraintWidth_max="420dp" />
 
     <TextView
@@ -64,26 +63,31 @@
         style="@style/RoomCodeText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_8"
         android:gravity="center"
         android:text=""
         android:textSize="24sp"
         app:layout_constraintBottom_toTopOf="@+id/textView2"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView" />
+        app:layout_constraintTop_toBottomOf="@+id/textView"
+        app:layout_constraintWidth_max="480dp"
+        app:layout_constraintWidth_percent="0.86" />
 
     <TextView
         android:id="@+id/textView2"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/space_8"
+        android:layout_marginTop="@dimen/space_16"
+        android:layout_marginBottom="@dimen/space_16"
         android:gravity="center_horizontal"
         android:text="Waiting For Host..."
         android:textAppearance="@style/TextAppearance.WhatIf.Title"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/gameCode" />
+        app:layout_constraintTop_toBottomOf="@+id/gameCode"
+        app:layout_constraintWidth_max="600dp"
+        app:layout_constraintWidth_percent="0.86" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

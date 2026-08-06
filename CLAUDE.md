@@ -18,9 +18,29 @@ The sections below are how to use it correctly, not a suggestion to switch frame
 `layout_width`/`layout_height="0dp"` plus start/end (or top/bottom) constraints instead — this is
 "match constraint" mode, the ConstraintLayout equivalent of `match_parent` that still respects
 sibling constraints, margins, and percent/max-width modifiers. `activity_main.xml`'s
-`fragment_container` does this correctly (`0dp` + four constraints). Where you see `match_parent`
-inside a ConstraintLayout in this repo (e.g. `textView2` in `fragment_waiting_for_host.xml`), treat
-it as legacy, not a pattern to copy — it ignores width percent/max constraints entirely.
+`fragment_container` does this correctly (`0dp` + four constraints).
+
+**Never let a view touch the physical screen edge — every constraint straight to a `parent` edge
+needs a non-zero inset.** This is a real, repeatedly-hit bug class in this repo, not a style
+preference: `fragment_waiting_for_host.xml`'s `textView2` used raw `android:layout_width=
+"match_parent"` with zero padding, so its programmatic status text ("Waiting for host. Players can
+still join.") rendered flush against both screen edges; a `Widget.WhatIf.Button.Secondary`
+"Sign Out" button pinned `top_toTopOf="parent"` / `end_toEndOf="parent"` with no margin at all sat
+literally in the pixel corner. Both shipped before being caught live. The rule, concretely:
+- **0dp-width views bounded by `parent` on a side**: give that side real inset — either
+  `layout_constraintWidth_percent`/`_max` (the established pattern for headline text and primary
+  buttons throughout this repo — the percent gap *is* the inset, no extra margin needed), or an
+  explicit `paddingStart`/`paddingEnd`/margin if the view must stay full-bleed width for other
+  reasons (`fragment_leaderboard.xml`'s title needs `paddingStart="@dimen/space_16"` for exactly
+  this reason — it's 0dp + `start_toStartOf="parent"` with no percent constraint).
+- **Fixed-size views pinned to a `parent` corner/edge** (utility buttons like "back", "Sign Out",
+  "start"): always carry `layout_marginTop`/`marginEnd`/etc. on every side touching `parent` —
+  `@dimen/space_16` is the minimum before you should even consider a value; see `back_account` in
+  `fragment_account.xml` or `waitingForHost_start` in `fragment_waiting_for_host.xml` for the
+  established pattern to copy.
+- This does **not** apply to a view bounded by a guideline or a sibling (e.g. the read-sentence
+  controls row bounded by `paper_text_start`/`paper_text_end` guidelines) — those are already inset
+  by construction. It only applies where the constraint target is literally `parent`.
 
 **Every view needs a constraint on each axis it's not `wrap_content`-sized on.** A view with no
 vertical constraint collapses to the top-left (0,0) or renders ambiguously depending on the editor.
@@ -58,6 +78,24 @@ over duplicating a magic-number margin on 3+ sibling views.
 largest of several referenced views — use this instead of a fixed guideline/margin whenever text
 length is variable (player names, dynamic room state text, localized strings later). This repo
 doesn't use barriers yet; reach for one before hardcoding a margin next to variable-length text.
+
+**Background assets that depict a real-world layout convention must have their foreground content
+actually respect that convention, and tiled assets must never duplicate a one-off design element.**
+Caught live: `lined_paper_read.png` (used by `ReadSentenceFrag`) draws a single red notebook-margin
+line baked into the image at a fixed position (~35% of a portrait phone's width) — but the
+screen's own content guideline (`paper_text_start`) was independently set to 13%, so text started
+well to the *left* of the margin line, floating across it instead of beginning at it the way real
+handwriting starts right at a notebook's red line. Fixed by measuring the line's actual on-screen
+position and setting the guideline to match. **Rule**: when a background is a recognizable
+real-world object with an implied layout (ruled paper, a form, a ticket stub), don't pick content
+guideline positions independently of the asset — measure where the asset's own feature actually
+sits and align to it.
+Separately, that same drawable was tiling with plain `android:tileMode="repeat"`, which repeats on
+*both* axes — on a wide/landscape viewport wider than the source image, that would draw the red
+line a second time, which a real single sheet of paper never does. **Rule**: any tiled background
+with a distinctive one-off feature (a margin line, a logo mark, anything that shouldn't visually
+repeat) must set `tileModeX`/`tileModeY` independently and disable tiling on whichever axis would
+duplicate that feature — never leave a bare `tileMode="repeat"` on an asset like this unexamined.
 
 **`wrap_content` + `layout_constraintWidth_max`/`_min` without `0dp`** does not behave like you'd
 expect — `wrap_content` sizes to content first, and the max/min only clamp after that. If you want
@@ -273,6 +311,59 @@ complete, which is the opposite of a race; the version that actually reproduced 
 required *not* detaching a listener the way the real losing client wouldn't have). Before accepting
 a passing "regression test," check whether it was actually possible for it to fail — temporarily
 revert the fix and confirm the test fails for the diagnosed reason, not just that it's green.
+
+**Tier B: real two-device Espresso end-to-end.** `scripts/run-tier-b.ps1` orchestrates two real
+emulators (`Test_API35` host, `Test_API35_B` guest — both stable API 35; the other two AVDs,
+`Pixel_9`/`Pixel_9_3`, run a preview API level Espresso can't start instrumented tests on) each
+running the actual app UI, both pointed at the local Firebase Emulator Suite. The script boots
+both emulators itself if they aren't already up, **headless by default** (`-no-window`, for
+routine speed) with a `-Visible` switch for when you want to watch a run or a failure is proving
+hard to diagnose from `errorLogs/`/logcat alone. Room codes are randomly-generated word pairs with
+no way to force a fixed code through the real create-room UI, so the host's generated code has to
+cross process boundaries to the guest — this goes through `E2ERoomCodeSignal`, a small Firebase
+location keyed by a per-run correlation ID (`e2eSignals/<correlationId>/roomCode`), not a logcat
+signal the orchestration script has to capture first. That means **both roles launch
+simultaneously** and each runs its own independent local navigation (app launch, name entry,
+navigate to create/join) in real parallel — the guest only blocks on the signal at the last
+possible step (typing the code in), not on the host's process finishing first. Both test classes
+(`TwoDeviceMultiplayerTest`, `TwoDeviceFullGameLoopTest`) are one shared class each, branching on a
+`role` (`host`/`guest`) instrumentation argument rather than two separate classes, to avoid
+duplicating Espresso setup. `EspressoWaitUtils.waitFor(...)` is a sleep-poll retry helper for real
+async Firebase state Espresso's own idling mechanism doesn't wait for (`NavigationFlowTest`'s
+purely-synchronous-navigation tests never needed this) — it must catch `Throwable`, not just
+`RuntimeException`: Espresso's `matches(...)` assertion failures are `AssertionError`-derived, and
+a narrower catch silently stops retrying them (found live when a guest's reading-turn wait threw
+immediately with no retry while the host's identical wait happened to pass on the first try).
+Confirmed this harness can genuinely fail, not just always pass, by running the guest role with a
+deliberately wrong room code and confirming a real `NoMatchingViewException` timeout — same
+discipline as the Tier A "confirm it can actually fail" rule above.
+
+**Tier B policy**: only run Tier B when explicitly asked (it's slow and uses real emulators) —
+don't auto-run it after every change the way Tier A/Robolectric tests should be. Tier A tests
+should still run routinely to catch regressions fast.
+
+**Error-log-driven diagnosis and flow discovery** — the auto error-log table (`AppLog`'s breadcrumb
+trail + `ErrorReporter` hook, `errorLogs/` in Firebase) exists specifically to make this workflow
+possible, not just to exist:
+- **When a Tier B (or any manual) run surfaces a real bug**, check `errorLogs/` first — Emulator UI
+  at `http://localhost:4000`, or `curl http://localhost:9000/errorLogs.json?ns=<namespace>` — before
+  digging through raw logcat. Every entry already has the exception, stack trace, app version, and
+  the 40-line breadcrumb trail (including screen transitions) leading up to it.
+- **`<namespace>` depends on which client wrote the data — get this wrong and you'll conclude data
+  is missing when it's just elsewhere.** Tier A/Robolectric tests explicitly construct a
+  `FirebaseOptions` with `.setProjectId("demo-mixedupgame")`, a fake project that only exists for
+  testing — use `ns=demo-mixedupgame-default-rtdb` for anything they write. Any *real* app build
+  (Tier B included) uses `FirebaseApp.getInstance()`, configured from `MixedUp/google-services.json`,
+  whose actual `project_id` is `mixedupgame` (no `demo-` prefix) — use `ns=mixedupgame-default-rtdb`
+  for that. Both namespaces coexist in the same local emulator process; querying the wrong one
+  silently returns `null` with no error, which reads exactly like "the data doesn't exist." Learned
+  this the hard way chasing what looked like a room-deletion bug after Tier B's first real run — it
+  wasn't one; the room was sitting under the other namespace the whole time (confirmed via
+  `adb logcat` showing normal writes/teardown and the response's own `X-Firebase-Project-Id` header).
+- **For deciding what to cover next**, periodically review accumulated `errorLogs/` entries
+  (group by `tag`/`exceptionClass`) — including ones from ordinary manual play, not just automated
+  runs — for recurring or novel patterns without dedicated regression coverage yet, and turn those
+  into new Tier A or Tier B tests.
 
 ## 9. Package structure — flat today, tracked on the roadmap
 
