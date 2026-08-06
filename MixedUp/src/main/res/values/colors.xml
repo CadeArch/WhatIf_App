@@ -18,5 +18,13 @@
     <color name="instruction_text">#FF2F2924</color>
     <color name="turn_instruction_text">#FF8A4600</color>
 
+    <!-- Secondary-button surface: a near-opaque warm-white "card" fill so outlined buttons read
+         clearly against the busy paper-texture backgrounds instead of disappearing into them
+         (a fully transparent fill was the "hard to see" button Cade flagged). -->
+    <color name="secondary_button_surface">#F2FFFCF7</color>
+    <color name="secondary_button_surface_disabled">#FFE3DFD8</color>
+    <!-- ~5.4:1 against secondary_button_surface_disabled; readable without implying "active". -->
+    <color name="secondary_button_text_disabled">#FF5C554C</color>
+    <color name="secondary_button_stroke_disabled">#FFB8B0A3</color>
 
 </resources>

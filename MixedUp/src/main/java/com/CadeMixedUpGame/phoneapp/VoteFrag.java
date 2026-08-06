@@ -82,7 +82,7 @@ public class VoteFrag extends Fragment {
             @Override
             public void onItemRangeInserted(ObservableList<LeaderBoardItem> sender, int positionStart, int itemCount) {
                 LeaderBoardItem leaderBoardItem = leaderBoardViewModel.getPotentialLeaderBoardItems().get(positionStart);
-                View voteItem = createVoteItem(leaderBoardItem);
+                View voteItem = createVoteItem(leaderBoardItem, potentialLBIlist);
                 potentialLBIlist.addView(voteItem);
                 AppLog.d(AppLog.VOTE, "Voting item added to UI id=" + leaderBoardItem.getId());
             }
@@ -97,8 +97,11 @@ public class VoteFrag extends Fragment {
         });
     }
 
-    private View createVoteItem(LeaderBoardItem leaderBoardItem) {
-        View voteItem = LayoutInflater.from(getContext()).inflate(R.layout.lb_vote_item, null);
+    private View createVoteItem(LeaderBoardItem leaderBoardItem, LinearLayout parent) {
+        // inflate(..., parent, false) - not inflate(..., null) - so the item's own
+        // match_parent width actually resolves against the real container instead of being
+        // dropped, which was leaving the vote-selection highlight short of the screen edge.
+        View voteItem = LayoutInflater.from(getContext()).inflate(R.layout.lb_vote_item, parent, false);
         TextView ifPart = voteItem.findViewById(R.id.if_part);
         TextView thenPart = voteItem.findViewById(R.id.then_part);
         TextView sentID = voteItem.findViewById(R.id.sentence_id);

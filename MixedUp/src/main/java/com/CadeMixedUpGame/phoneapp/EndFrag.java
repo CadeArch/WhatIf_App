@@ -1,6 +1,5 @@
 package com.CadeMixedUpGame.phoneapp;
 
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import androidx.annotation.NonNull;
@@ -88,8 +87,8 @@ public class EndFrag extends Fragment {
         againButton = view.findViewById(R.id.again_ending);
         // only host can say to play again
         if (!userViewModel.getUser().getValue().host) {
-            // may not need the background color change with set enabled
-            againButton.setBackgroundColor(Color.GRAY);
+            // Widget.WhatIf.Button.Secondary's disabled/enabled color state list handles the
+            // visual difference; no manual background color needed here.
             againButton.setEnabled(false);
             setAgainButtonText("waiting");
 
@@ -100,7 +99,6 @@ public class EndFrag extends Fragment {
                     if ("yes".equals(state)) {
                         // if host hits again button will be clickable for rest of players
                         againButton.setEnabled(true);
-                        againButton.setBackgroundColor(Color.parseColor("#FFEDA6EC"));
                         setAgainButtonText("again!");
 
                     }

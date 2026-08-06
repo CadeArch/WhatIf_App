@@ -42,6 +42,7 @@ public class ReadSentenceFrag extends Fragment {
     View readButton;
     View doneButton;
     View nextButton;
+    View spinnerObject;
     TextView ifQuestionText;
     TextView thenAnswerText;
     Typeface ifQuestionDefaultTypeface;
@@ -270,6 +271,7 @@ public class ReadSentenceFrag extends Fragment {
             thenAnswerText.setText("");
             ActionButtonState.setEnabled(nextButton, false);
             setNextButtonText("show");
+            updateSpinnerVisibility(false);
             return;
         }
         if (!sentenceRevealed || !currentReaderTurn) {
@@ -285,6 +287,7 @@ public class ReadSentenceFrag extends Fragment {
                 ActionButtonState.setEnabled(nextButton, false);
             }
             setNextButtonText("show");
+            updateSpinnerVisibility(false);
             return;
         }
         applySentenceTextStyle();
@@ -293,7 +296,18 @@ public class ReadSentenceFrag extends Fragment {
         boolean canPass = currentReaderTurn && !readTurnPassed && !readingActionInProgress;
         ActionButtonState.setSaving(nextButton, readingActionInProgress, canPass);
         setNextButtonText("pass");
+        updateSpinnerVisibility(true);
         updateDoneButtonVisibility();
+    }
+
+    /** Voice picker only makes sense once the active reader can actually see the revealed
+     * sentence - showing it earlier (while still deciding whose turn it is) has nothing to apply
+     * to yet. No-op for free-play users, whose spinner stays permanently gone. */
+    private void updateSpinnerVisibility(boolean visible) {
+        if (spinnerObject == null || !currentUserHasAccount()) {
+            return;
+        }
+        spinnerObject.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
     private void applyInstructionTextStyle(boolean activeReaderPrompt) {
@@ -378,13 +392,17 @@ public class ReadSentenceFrag extends Fragment {
     }
 
     private void setupVoiceSpinner(View view) {
+        spinnerObject = view.findViewById(R.id.spinnerObject);
         if (!currentUserHasAccount()) {
-            view.findViewById(R.id.spinnerObject).setVisibility(View.GONE);
+            spinnerObject.setVisibility(View.GONE);
             return;
         }
+        // Hidden until the active reader taps "show" - picking a voice only makes sense once the
+        // sentence is actually visible, not while still deciding whether it's your turn.
+        spinnerObject.setVisibility(View.GONE);
         ArrayList<DiffGoogleVoice> voicesUnlocked = buildVoiceList();
         loadUnlockedVoicesForAccountPlayers();
-        Spinner spinner = view.findViewById(R.id.spinnerObject);
+        Spinner spinner = (Spinner) spinnerObject;
         Resources res = getResources();
         SpinnerAdapter adapter = new SpinnerAdapter(getContext(), R.layout.read_method_item, voicesUnlocked, res);
         spinner.setAdapter(adapter);

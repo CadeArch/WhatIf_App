@@ -25,6 +25,10 @@
     "watchAppVerified": {
       ".read": true,
       ".write": true
+    },
+    "errorLogs": {
+      ".read": true,
+      ".write": true
     }
   }
 }

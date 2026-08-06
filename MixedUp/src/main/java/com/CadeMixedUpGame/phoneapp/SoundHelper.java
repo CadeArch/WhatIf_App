@@ -40,7 +40,7 @@ public class SoundHelper {
             handler.postDelayed(this::releaseActiveTrack, 900);
         }
         catch (RuntimeException ex) {
-            AppLog.w(AppLog.TTS, "Could not play turn alert: " + ex.getMessage());
+            AppLog.e(AppLog.TTS, "Could not play turn alert", ex);
         }
     }
 

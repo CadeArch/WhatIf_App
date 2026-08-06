@@ -59,6 +59,10 @@ dependencies {
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'com.google.firebase:firebase-analytics'
+    // WhatIfApplication talks to Firebase Database directly (error-log reporter wiring) -
+    // previously only reached transitively through :API, which doesn't expose it (implementation,
+    // not api, dependency there).
+    implementation 'com.google.firebase:firebase-database'
 
     implementation 'androidx.annotation:annotation:1.1.0'
     implementation 'androidx.appcompat:appcompat:1.2.0'

@@ -13,7 +13,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.12" />
+        app:layout_constraintGuide_percent="0.14" />
 
     <TextView
 
@@ -29,50 +29,58 @@
         app:layout_constraintWidth_max="600dp"
         app:layout_constraintWidth_percent="0.9" />
 
-    <TextView
-        android:id="@+id/whatIfPrefix"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="What if"
-        android:textColor="@color/black"
-        android:textAppearance="@style/TextAppearance.WhatIf.Title"
-        app:layout_constraintBaseline_toBaselineOf="@+id/ifQuestion"
-        app:layout_constraintEnd_toStartOf="@+id/ifQuestion"
-        app:layout_constraintHorizontal_chainStyle="packed"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <EditText
-        android:id="@+id/ifQuestion"
+    <LinearLayout
+        android:id="@+id/question_row"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/space_16"
-        android:gravity="center"
-        android:hint="your question"
-        android:imeOptions="actionDone"
-        android:inputType="textCapSentences"
-        android:maxLines="1"
-        android:singleLine="true"
-
-        android:textColorHint="@color/black"
-        android:textSize="20sp"
-        app:layout_constraintBottom_toTopOf="@+id/writeIf_submit"
+        android:baselineAligned="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:layout_marginTop="@dimen/space_48"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/whatIfPrefix"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textView13"
-        app:layout_constraintVertical_bias="0.4"
-        app:layout_constraintWidth_max="380dp" />
+        app:layout_constraintWidth_max="600dp"
+        app:layout_constraintWidth_percent="0.9">
+
+        <TextView
+            android:id="@+id/whatIfPrefix"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="What if"
+            android:textColor="@color/black"
+            android:textAppearance="@style/TextAppearance.WhatIf.Title" />
+
+        <EditText
+            android:id="@+id/ifQuestion"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/space_16"
+            android:gravity="center"
+            android:hint="your question"
+            android:imeOptions="actionDone"
+            android:inputType="textCapSentences"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:textColorHint="@color/black"
+            android:textSize="20sp" />
+
+    </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/writeIf_submit"
         style="@style/Widget.WhatIf.Button.Primary"
-        android:layout_width="115dp"
+        android:layout_width="0dp"
         android:layout_height="@dimen/button_height_hero"
-        android:layout_marginBottom="@dimen/space_48"
+        android:layout_marginTop="@dimen/space_32"
         android:text="Submit"
         android:textSize="16sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="@+id/layout" />
+        app:layout_constraintEnd_toEndOf="@+id/question_row"
+        app:layout_constraintStart_toStartOf="@+id/question_row"
+        app:layout_constraintTop_toBottomOf="@+id/question_row"
+        app:layout_constraintWidth_max="280dp"
+        app:layout_constraintWidth_percent="0.5" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -37,3 +37,7 @@ firebase-debug.*.log
 database-debug.log
 ui-debug.log
 /emulator-data/
+
+# Real production Firebase Auth test accounts (see CLAUDE.md's Tier B account-play section) -
+# credentials only, never committed.
+/local-test-accounts.md

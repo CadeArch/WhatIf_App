@@ -60,6 +60,17 @@ public class MainActivity extends AppCompatActivity {
     private boolean hostLocalGraceExpired = false;
     private String pendingExpiredRoomMessage = "";
 
+    // Firebase's .info/connected briefly reports false on every fresh launch, before the initial
+    // WebSocket handshake completes - not a real disconnect. Debounce showing the banner so that
+    // ordinary startup (and other sub-second blips) never flashes it; a genuine disconnect still
+    // shows it, just ~1s later than before.
+    private static final long CONNECTION_BANNER_SHOW_DELAY_MS = 1200L;
+    private final Runnable showConnectionBannerRunnable = () -> {
+        if (connectionBanner != null) {
+            connectionBanner.setVisibility(View.VISIBLE);
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -82,6 +93,10 @@ public class MainActivity extends AppCompatActivity {
                                                        @NonNull Fragment f, @NonNull View v, Bundle savedInstanceState) {
                         androidx.core.graphics.Insets insets = latestSystemBarInsets[0];
                         v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+                        // Screen-transition breadcrumb for the auto error-log table (README
+                        // roadmap) - covers every screen change regardless of how it's triggered,
+                        // not just calls through Utils.navigateToFragment.
+                        AppLog.i(AppLog.UI, "Screen shown: " + f.getClass().getSimpleName());
                     }
                 }, false);
         View rootView = findViewById(R.id.main_root);
@@ -355,8 +370,9 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         boolean connected = firebaseConnected && deviceNetworkAvailable;
-        connectionBanner.setVisibility(connected ? View.GONE : View.VISIBLE);
+        connectionHandler.removeCallbacks(showConnectionBannerRunnable);
         if (connected) {
+            connectionBanner.setVisibility(View.GONE);
             if (hostLocalGraceExpired && pendingExpiredRoomMessage.length() > 0) {
                 sendPlayerHomeAfterHostDisconnect(pendingExpiredRoomMessage);
                 return;
@@ -367,7 +383,10 @@ public class MainActivity extends AppCompatActivity {
         else {
             stopHostHeartbeat();
             updateDisconnectedBannerText();
-            AppLog.w(AppLog.FIREBASE, "Showing offline connection banner");
+            // Debounced, not immediate - see CONNECTION_BANNER_SHOW_DELAY_MS. Cancelled above if
+            // connectivity recovers before it fires, so a brief blip never shows anything.
+            connectionHandler.postDelayed(showConnectionBannerRunnable, CONNECTION_BANNER_SHOW_DELAY_MS);
+            AppLog.w(AppLog.FIREBASE, "Connection lost; banner will show in " + CONNECTION_BANNER_SHOW_DELAY_MS + "ms if it doesn't recover");
         }
     }
 

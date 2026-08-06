@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- lined_paper_read.png is a low-resolution (1180x554) landscape-shaped source image; see
      white_papers_tiled.xml for why tiling at native resolution beats a single scaled-up copy. -->
+<!-- tileModeX is deliberately "disabled", not "repeat": the source image has a single red
+     notebook-margin line baked into its pixels. Repeating on X would draw that line more than
+     once across a wide/landscape viewport, which doesn't happen on a real notebook page. Only Y
+     repeats, to cover tall/scrolling content. -->
 <bitmap xmlns:android="http://schemas.android.com/apk/res/android"
     android:src="@drawable/lined_paper_read"
-    android:tileMode="repeat" />
+    android:tileModeX="disabled"
+    android:tileModeY="repeat"
+    android:gravity="left|fill_vertical" />

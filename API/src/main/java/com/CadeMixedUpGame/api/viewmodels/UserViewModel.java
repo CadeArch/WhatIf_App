@@ -12,8 +12,10 @@ import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.FirebaseNetworkException;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.database.ChildEventListener;
@@ -140,7 +142,6 @@ public class UserViewModel extends ViewModel {
                     }
                     buildUser(fBuser, userName, false);
 
-//                    System.out.println(" -----------------------------\n " + "email: " + email + "\npassword: " + password + "\nusername: " + userName);
                     // setting username in Firebase account
                     UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
                             .setDisplayName(userName).build();
@@ -148,7 +149,6 @@ public class UserViewModel extends ViewModel {
                     fBuser.updateProfile(profileUpdates).addOnCompleteListener(new OnCompleteListener<Void>() {
                         @Override
                         public void onComplete(@NonNull Task<Void> task) {
-//                            System.out.println("DISPLAY NAME ----------------" + fBuser.getDisplayName());
                             // assuring their username is set when they create an account
                             getUser().getValue().userName = fBuser.getDisplayName();
                             getUser().getValue().perfectLeaderBoard = false;
@@ -161,7 +161,6 @@ public class UserViewModel extends ViewModel {
                 }
                 else {
                     // If sign in fails, display a message to the user.
-//                    System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
                     String message = task.getException() == null ? "" : task.getException().getMessage();
                     if (message.equals("The email address is badly formatted.")) {
                         signInMessage.setValue("Email Badly Formatted");
@@ -198,12 +197,10 @@ public class UserViewModel extends ViewModel {
                     localName = fbUser.getDisplayName();
                     buildUser(fbUser, localName, true);
                     getGamesPlayed(user, false);
-//                    System.out.println("UPON SIGN IN - user has played " + user.getValue().gamesPlayed + " matches");
                     signInMessage.setValue("Sign in Complete");
 
                 } else {
                     // If sign in fails, display a message to the user.
-//                    System.out.println("EXEPTION----------------------- " + task.getException().getMessage());
                     String message = task.getException() == null ? "" : task.getException().getMessage();
                     if (message.equals("The password is invalid or the user does not have a password.")) {
                         signInMessage.setValue("Invalid Password");
@@ -218,9 +215,20 @@ public class UserViewModel extends ViewModel {
                         signInMessage.setValue("Email Badly Formatted");
                         AppLog.w(AppLog.AUTH, "Sign in failed: badly formatted email");
                     }
-                    else {
+                    else if (task.getException() instanceof FirebaseNetworkException) {
+                        // A transient connectivity blip, not an account problem - must not be
+                        // reported as "User Disabled", which falsely alarms a real player.
+                        signInMessage.setValue("Network Error");
+                        AppLog.w(AppLog.AUTH, "Sign in failed: network error");
+                    }
+                    else if (task.getException() instanceof FirebaseAuthInvalidUserException
+                            && "ERROR_USER_DISABLED".equals(((FirebaseAuthInvalidUserException) task.getException()).getErrorCode())) {
                         signInMessage.setValue("User Disabled");
-                        AppLog.w(AppLog.AUTH, "Sign in failed: user disabled or unknown auth error");
+                        AppLog.w(AppLog.AUTH, "Sign in failed: user disabled");
+                    }
+                    else {
+                        signInMessage.setValue("Sign In Failed");
+                        AppLog.w(AppLog.AUTH, "Sign in failed: unknown auth error - " + message);
                     }
                 }
             }

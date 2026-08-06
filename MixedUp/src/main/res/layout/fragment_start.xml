@@ -12,6 +12,37 @@
     android:paddingBottom="20dp"
     tools:context=".StartFragment">
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/signOut"
+        style="@style/Widget.WhatIf.Button.Secondary"
+        android:layout_width="100dp"
+        android:layout_height="50dp"
+        android:text="Sign Out"
+        android:textSize="13sp"
+        android:visibility="gone"
+        android:layout_marginTop="@dimen/space_16"
+        android:layout_marginEnd="@dimen/space_16"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="visible" />
+
+    <ImageView
+        android:id="@+id/start_logo"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:contentDescription="@string/app_name"
+        android:src="@drawable/what_if_full_logo"
+        app:layout_constraintBottom_toTopOf="@id/enterName"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_max="170dp"
+        app:layout_constraintHeight_percent="0.17"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.42"
+        app:layout_constraintVertical_chainStyle="packed"
+        app:layout_constraintWidth_max="320dp"
+        app:layout_constraintWidth_percent="0.52" />
+
     <EditText
         android:id="@+id/enterName"
         android:layout_width="0dp"
@@ -23,12 +54,11 @@
         android:textColor="@color/black"
         android:textColorHint="@color/black"
         android:textSize="20sp"
+        android:layout_marginTop="@dimen/space_32"
         app:layout_constraintBottom_toTopOf="@id/create_game"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.48"
-        app:layout_constraintVertical_chainStyle="packed"
+        app:layout_constraintTop_toBottomOf="@id/start_logo"
         app:layout_constraintWidth_max="480dp"
         app:layout_constraintWidth_percent="0.72" />
 
@@ -42,9 +72,11 @@
         android:textStyle="bold"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@id/enterName"
-        app:layout_constraintEnd_toEndOf="@id/enterName"
-        app:layout_constraintStart_toStartOf="@id/enterName"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@id/enterName"
+        app:layout_constraintWidth_max="480dp"
+        app:layout_constraintWidth_percent="0.72"
         tools:text="Player Name"
         tools:visibility="visible" />
 
@@ -57,16 +89,18 @@
         android:text="Create Game"
         android:textSize="16sp"
         app:layout_constraintBottom_toTopOf="@id/joinGame"
-        app:layout_constraintEnd_toEndOf="@id/enterName"
-        app:layout_constraintStart_toStartOf="@id/enterName"
-        app:layout_constraintTop_toBottomOf="@id/enterName" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/enterName"
+        app:layout_constraintWidth_max="480dp"
+        app:layout_constraintWidth_percent="0.72" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/joinGame"
         style="@style/Widget.WhatIf.Button.Secondary"
         android:layout_width="0dp"
         android:layout_height="@dimen/button_height_standard"
-        android:layout_marginTop="@dimen/space_8"
+        android:layout_marginTop="@dimen/space_16"
         android:text="Join Game"
         android:textSize="16sp"
         app:layout_constraintBottom_toTopOf="@id/secondary_actions"
@@ -89,27 +123,32 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/leaderboards_button"
             style="@style/Widget.WhatIf.Button.Secondary"
-            android:layout_width="112dp"
+            android:layout_width="0dp"
             android:layout_height="64dp"
+            android:layout_marginEnd="@dimen/space_16"
             android:includeFontPadding="false"
             android:maxLines="2"
             android:singleLine="false"
             android:text="Leader\nBoards"
             android:textSize="12sp"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/profile_button"
+            app:layout_constraintHorizontal_chainStyle="spread"
+            app:layout_constraintHorizontal_weight="1"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/profile_button"
             style="@style/Widget.WhatIf.Button.Secondary"
-            android:layout_width="112dp"
+            android:layout_width="0dp"
             android:layout_height="64dp"
             android:text="Profile"
             android:textSize="13sp"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/signOut"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_weight="1"
             app:layout_constraintStart_toEndOf="@id/leaderboards_button"
             app:layout_constraintTop_toTopOf="parent"
             tools:visibility="visible" />
@@ -117,26 +156,15 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/back"
             style="@style/Widget.WhatIf.Button.Secondary"
-            android:layout_width="112dp"
+            android:layout_width="0dp"
             android:layout_height="64dp"
             android:text="Back"
             android:textSize="13sp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_weight="1"
+            app:layout_constraintStart_toEndOf="@id/leaderboards_button"
             app:layout_constraintTop_toTopOf="parent" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/signOut"
-            style="@style/Widget.WhatIf.Button.Secondary"
-            android:layout_width="112dp"
-            android:layout_height="64dp"
-            android:text="Sign Out"
-            android:textSize="13sp"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:visibility="visible" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

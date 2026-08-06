@@ -235,13 +235,19 @@ after every branch is expensive. Options considered, in order of increasing cost
     player leaves. Run it with the emulator suite already running (see above):
     `.\gradlew.bat :MixedUp:testDebugUnitTest --tests "com.CadeMixedUpGame.phoneapp.MultiplayerEmulatorTest"`.
     Skips (doesn't fail) if the emulator isn't running.
-  - [ ] **Tier B** (later): true two-emulator end-to-end via Espresso/UiAutomator, the only tier
-    that catches real UI bugs like this branch's portrait header overlap and background seam.
+  - [x] **Tier B**: true two-emulator end-to-end via Espresso, the only tier that catches real UI
+    bugs like this branch's portrait header overlap and background seam. `scripts/run-tier-b.ps1`
+    orchestrates two real emulators (`Test_API35` host, `Test_API35_B` guest) running the actual
+    app UI against the local Firebase Emulator Suite, with the host's real generated room code
+    handed to the guest via a logcat signal. First scenario (`TwoDeviceMultiplayerTest`) is
+    deliberately minimal — host creates, guest joins, both see 2 players — proving the harness
+    before building more scenarios on top of it. See `CLAUDE.md`'s testing section for the full
+    mechanism and the error-log-driven diagnosis/discovery workflow that goes with it.
 
 ### Architecture And Maintainability
 
 - [x] Look for duplicate code that can be abstracted into shared helpers or `Utils` methods for reuse across fragments.
-- [ ] build an auto error log DB table that is able to see code flows taken on any LIVE match that is being played and log both the code flow and the exception to the table so periodically we can take the items in the error log table to make automation tests for and to fix easily without wondering what happened or how to recreate. reuse any pre-existing debug info that may already exist in the repo i thought i tried to get something in to help me manually debug in the past
+- [x] build an auto error log DB table that is able to see code flows taken on any LIVE match that is being played and log both the code flow and the exception to the table so periodically we can take the items in the error log table to make automation tests for and to fix easily without wondering what happened or how to recreate. reuse any pre-existing debug info that may already exist in the repo i thought i tried to get something in to help me manually debug in the past — done via `AppLog`'s new breadcrumb trail + `ErrorReporter` hook, `FirebaseErrorReporter` (non-fatal) and `PendingCrashReportStore` (fatal, store-and-forward), writing to a new `errorLogs/` Firebase node. See `CHANGELOG.md`.
 - [ ] After the Play Console release is approved, audit and upgrade the local build toolchain intentionally: Android Gradle Plugin, Gradle wrapper, supported Gradle JVM, and Android Studio sync settings.
 - [ ] Reorganize `src/main/java` into human-readable folders/sub-folders by features/screens of the app, such as account, lobby, writing, reading, voting, leaderboard, messaging, and devtools. This is worthwhile, but should be handled as a focused branch because it is higher-churn than small safety refactors.
 - [ ] Group each fragment with its helper classes/adapters where practical so it is clear which files support each game screen.

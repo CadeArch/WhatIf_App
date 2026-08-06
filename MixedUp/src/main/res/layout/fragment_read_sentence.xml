@@ -8,12 +8,16 @@
     android:background="@drawable/lined_paper_read_tiled"
     android:id="@+id/layout">
 
+    <!-- Aligned to sit just right of the red margin line baked into lined_paper_read.png (the
+         source PNG was cropped this session to halve its distance from the left edge - measured
+         at ~19% of a portrait phone's width post-crop) - content should start at the margin like
+         real notebook writing does, not float to its left. -->
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/paper_text_start"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.13" />
+        app:layout_constraintGuide_percent="0.21" />
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/paper_text_end"
@@ -99,38 +103,35 @@
             android:textSize="28sp" />
     </ScrollView>
 
-    <!-- 0dp-width + weight on the flexible controls (spinner/pass/next) so this row compresses to
-         fit portrait's narrower width instead of overflowing four fixed dp widths; the FAB keeps
-         its natural circular size. -->
+    <!-- Voice spinner gets its own full-width row instead of squeezing into the button row - voice
+         names like "Regular google voice" have no room to be legible sharing a row with the mic FAB
+         and pass/next buttons (was wrapping into 4 stacked lines, then truncating to "Reg…" once
+         ellipsized - neither is usable). -->
     <Spinner
         android:id="@+id/spinnerObject"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:paddingTop="@dimen/space_16"
-        android:paddingStart="@dimen/space_16"
-        app:layout_constraintHorizontal_chainStyle="spread"
-        app:layout_constraintHorizontal_weight="1"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/readSentence"
+        app:layout_constraintEnd_toEndOf="@id/paper_text_end"
         app:layout_constraintStart_toStartOf="@id/paper_text_start"
-        app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
-        app:layout_constraintVertical_bias="0.45" />
+        app:layout_constraintTop_toBottomOf="@+id/read_controls_start" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/readSentence"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/space_8"
+        android:layout_marginTop="@dimen/space_16"
         android:layout_marginEnd="@dimen/space_8"
         android:contentDescription="@string/mic_content_description"
         app:fabCustomSize="64dp"
+        app:srcCompat="@drawable/ic_baseline_mic_24"
+        app:tint="@color/black"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/pass_reading_turn"
-        app:layout_constraintStart_toEndOf="@+id/spinnerObject"
-        app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
-        app:layout_constraintVertical_bias="0.45"
-        app:srcCompat="@drawable/ic_baseline_mic_24" />
+        app:layout_constraintStart_toStartOf="@id/paper_text_start"
+        app:layout_constraintTop_toBottomOf="@+id/spinnerObject"
+        app:layout_constraintVertical_bias="0.5" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/pass_reading_turn"
@@ -140,11 +141,10 @@
         android:text="done"
         android:textSize="16sp"
         app:layout_constraintHorizontal_weight="1"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toBottomOf="@id/readSentence"
         app:layout_constraintEnd_toStartOf="@+id/next_frag"
         app:layout_constraintStart_toEndOf="@+id/readSentence"
-        app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
-        app:layout_constraintVertical_bias="0.45" />
+        app:layout_constraintTop_toTopOf="@id/readSentence" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/next_frag"
@@ -155,11 +155,10 @@
         android:textSize="16sp"
         android:text="next"
         app:layout_constraintHorizontal_weight="1"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/paper_text_end"
+        app:layout_constraintBottom_toBottomOf="@id/readSentence"
+        app:layout_constraintEnd_toEndOf="@id/paper_text_end"
         app:layout_constraintStart_toEndOf="@+id/pass_reading_turn"
-        app:layout_constraintTop_toBottomOf="@+id/read_controls_start"
-        app:layout_constraintVertical_bias="0.45" />
+        app:layout_constraintTop_toTopOf="@id/readSentence" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

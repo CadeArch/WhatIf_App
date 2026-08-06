@@ -47,7 +47,7 @@ public class LeaderBoardFrag extends Fragment {
             @Override
             public void onItemRangeInserted(ObservableList<LeaderBoardItem> sender, int positionStart, int itemCount) {
                 LeaderBoardItem leaderBoardItem = leaderBoardViewModel.getLeaderBoard().get(positionStart);
-                View lbi = LayoutInflater.from(getContext()).inflate(R.layout.lb_item, null);
+                View lbi = LayoutInflater.from(getContext()).inflate(R.layout.lb_item, listOfLeaderBoards, false);
                 TextView ifThen = lbi.findViewById(R.id.if_then);
 //                TextView thenPart = lbi.findViewById(R.id.then_part_lbi);
 //                TextView ifContrib = lbi.findViewById(R.id.if_contributor_lbi);
