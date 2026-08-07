@@ -1,6 +1,8 @@
 package com.CadeMixedUpGame.phoneapp;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -8,6 +10,7 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.GameFlowPolicy;
 import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.LeaderBoardViewModel;
@@ -23,6 +26,7 @@ public class EndFrag extends Fragment {
     private View homeButton;
     private View againButton;
     private boolean endActionInProgress = false;
+    private final Handler endActionHandler = new Handler(Looper.getMainLooper());
 
     public EndFrag() {
         super(R.layout.fragment_end);
@@ -120,23 +124,28 @@ public class EndFrag extends Fragment {
                 return;
             }
 
-            if (hasPendingRequiredVotes()) {
-                AppLog.w(AppLog.VOTE, "Home blocked: not all votes are in");
-                UiMessenger.showBanner(view, "Not all votes are in yet.", UiMessenger.MessageType.WARNING);
-            } else {
-                UiMessenger.hideBanner(view);
-                User currentUser = userViewModel.getUser().getValue();
-                if (currentUser != null && currentUser.host) {
-                    setEndActionSaving(true);
-                    roomViewModel.setReplayState(currentUser.gameRoom, "no", () -> {
-                        leaderBoardViewModel.removeCastVotesListener(userViewModel.myRoom);
-                        userViewModel.deleteRoom(currentUser, () -> finishHomeNavigation("host home deleted room"));
-                    });
-                }
-                else {
-                    setEndActionSaving(true);
-                    userViewModel.removeCurrentPlayerFromRoom(() -> finishHomeNavigation("guest home removed self"));
-                }
+            // No vote check here any more: CollectingVotesFrag doesn't let anyone reach this screen
+            // until every vote is in, so the round is always complete by now. This used to silently
+            // refuse to do anything when a vote was still outstanding.
+            UiMessenger.hideBanner(view);
+            User currentUser = userViewModel.getUser().getValue();
+            if (currentUser != null && currentUser.host) {
+                setEndActionSaving(true);
+                roomViewModel.setReplayState(currentUser.gameRoom, "no", () -> {
+                    leaderBoardViewModel.removeCastVotesListener(userViewModel.myRoom);
+                    // Deliberately NOT deleting the room in this callback. The other players
+                    // leave the end screen by observing replayState=="no"; deleting straight
+                    // away can remove the room before that value reaches them, and they then
+                    // sit on EndFrag forever with nothing to react to. Give the signal time to
+                    // land first - see GameFlowPolicy.HOST_HOME_ROOM_DELETE_DELAY_MS.
+                    endActionHandler.postDelayed(
+                            () -> userViewModel.deleteRoom(currentUser, () -> finishHomeNavigation("host home deleted room")),
+                            GameFlowPolicy.HOST_HOME_ROOM_DELETE_DELAY_MS);
+                });
+            }
+            else {
+                setEndActionSaving(true);
+                userViewModel.removeCurrentPlayerFromRoom(() -> finishHomeNavigation("guest home removed self"));
             }
         });
 
@@ -147,28 +156,23 @@ public class EndFrag extends Fragment {
             }
             AppLog.i(AppLog.GAME_FLOW, "Play again clicked");
 
-            if (hasPendingRequiredVotes()) {
-                AppLog.w(AppLog.VOTE, "Play again blocked: not all votes are in");
-                UiMessenger.showBanner(view, "Not all votes are in yet.", UiMessenger.MessageType.WARNING);
+            // Same as Home: reaching this screen already means every vote is in.
+            UiMessenger.hideBanner(view);
+            setEndActionSaving(true);
+
+            clearLocalStateForReplayOrExit();
+
+            // resetting db gameroom to no one in it, as they play again I will push the person back to it
+            if (userViewModel.getUser().getValue().host) {
+                if (allAccountPlayers) {
+                    userViewModel.deleteVotesAndVotingItems();
+                    leaderBoardViewModel.removeCastVotesListener(userViewModel.myRoom);
+                    AppLog.i(AppLog.VOTE, "Cleared voting data for replay");
+                }
+                resetRoomForReplay();
             }
             else {
-                UiMessenger.hideBanner(view);
-                setEndActionSaving(true);
-
-                clearLocalStateForReplayOrExit();
-
-                // resetting db gameroom to no one in it, as they play again I will push the person back to it
-                if (userViewModel.getUser().getValue().host) {
-                    if (allAccountPlayers) {
-                        userViewModel.deleteVotesAndVotingItems();
-                        leaderBoardViewModel.removeCastVotesListener(userViewModel.myRoom);
-                        AppLog.i(AppLog.VOTE, "Cleared voting data for replay");
-                    }
-                    resetRoomForReplay();
-                }
-                else {
-                    continuePlayAgain();
-                }
+                continuePlayAgain();
             }
         });
 
@@ -236,10 +240,6 @@ public class EndFrag extends Fragment {
         userViewModel.pendingHomeSnackbar = "The host ended the game room.";
     }
 
-    private boolean hasPendingRequiredVotes() {
-        return allAccountPlayers && userViewModel.getUsers().size() != leaderBoardViewModel.getCastvotes().size();
-    }
-
     private void clearLocalStateForReplayOrExit() {
         userViewModel.reset();
         leaderBoardViewModel.reset();
@@ -260,6 +260,14 @@ public class EndFrag extends Fragment {
         userViewModel.host = new MutableLiveData<User>();
         Utils.navigateHomeReplacingCurrent(getActivity());
         AppLog.i(AppLog.GAME_FLOW, "EndFrag -> StartFragment via home reason=" + reason);
+    }
+
+    @Override
+    public void onDestroyView() {
+        // Drops the pending room deletion if this screen goes away first, so it can't run against
+        // a torn-down fragment (matches MainActivity's handling of its own delayed work).
+        endActionHandler.removeCallbacksAndMessages(null);
+        super.onDestroyView();
     }
 
 }

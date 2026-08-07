@@ -16,6 +16,144 @@ for stack/build/roadmap; this file is the "what changed and why" log.
 
 ## Current Session Changes
 
+## Archived Session: feature/vote-collection-and-room-cleanup
+
+- **Tier B was running against PRODUCTION, not the local emulator — root-caused and fixed.** Cade
+  spotted a test room (`sold-full`) in the live Firebase console and asked whether testing had been
+  pointed at a local DB; that observation is what cracked it. `-PuseFirebaseEmulator=true` builds
+  logged "Using local Firebase Emulator Suite" and then wrote every room to the live project.
+  1. **`FirebaseDatabase.useEmulator()` does not stick.** It mutates the instance's `RepoInfo`,
+     which is also the SDK's instance-cache key, stranding the cached entry — the next plain
+     `FirebaseDatabase.getInstance()` misses the cache and builds a fresh instance from the app's
+     unchanged production URL. Proven on-device with identity logging: immediately after the call
+     `getInstance()` returned `http://10.0.2.2:9000`, and 0.7s later (same process, same
+     FirebaseApp, same FirebaseOptions, different `identityHashCode`) `RoomViewModel` received one
+     pointing at production. `FirebaseAuth.useEmulator()` *does* apply, so the app ran split-brain:
+     **Auth on the emulator, Database on production**. Fatal for account play — the locally-minted
+     fake token was rejected by production RTDB (`Provided authentication credentials are invalid`),
+     dropping the connection before the host could create a room. Free play never signs in, so it
+     never presented a token and appeared to work.
+  2. **Fix**: debug builds now remove `FirebaseInitProvider` (`MixedUp/src/debug/AndroidManifest.xml`)
+     and `WhatIfApplication.onCreate()` calls the new
+     `FirebaseEmulatorConfig.initializeDefaultApp(...)`, which creates the default FirebaseApp with
+     the emulator `databaseUrl` already in its `FirebaseOptions`. Nothing is mutated afterwards, so
+     every `getInstance()` in the app resolves to the emulator naturally — **no app call sites
+     changed and no emulator-awareness anywhere in production code**. An earlier attempt that
+     routed `FirebaseGameRepository`/`Verify`/`LeaderBoardViewModel`/`UserViewModel` through a
+     test-aware helper was reverted at Cade's push-back: it dragged test concerns into production
+     classes and was unenforceable, since any newly-added `getInstance()` would silently regress.
+     `FirebaseApp.delete()` + re-init was also tried and rejected — it crashes the process with
+     `IllegalStateException: FirebaseApp was deleted` (Firebase Installations is already using the
+     app on a background thread).
+  3. Added the missing `firebase_url` to `google-services.json` (the RTDB instance postdated the
+     downloaded file, so `databaseUrl` was null and the SDK was falling back to a derived
+     production URL).
+  4. Both Tier B scripts now **build the APKs themselves** with the flag and **hard-fail if the app
+     APK is a production build**, so a routine `assembleDebug` (regression run, Android Studio's Run
+     button) can't silently repoint the suite at production again. Verified end to end: rooms now
+     appear in the local emulator and production stays untouched.
+
+- **Fixed a real end-of-game hang for non-host players** (found because the local DB made it fast
+  enough to hit almost every time). `EndFrag` sends a non-host home only when it observes
+  `replayState == "no"`, but the host wrote that value and then deleted the room in the write's own
+  completion callback — fast enough that the other clients never observed the intermediate value,
+  only the room disappearing. The guest then sat on the end screen indefinitely with nothing left
+  to react to. The host now waits `GameFlowPolicy.HOST_HOME_ROOM_DELETE_DELAY_MS` (1.5s) after
+  writing the signal before deleting the room, with the pending deletion cancelled in
+  `onDestroyView()`. Rarer in production than locally, but the same race exists there.
+
+- **Tier B scripts now run visible by default, with `-Headless` to opt out** (previously headless by
+  default with `-Visible`), per Cade's preference for watching runs. `run-tier-b-account-play.ps1`'s
+  temporary `-Prod` switch was removed — it only existed to work around the split-brain above and is
+  obsolete now that Auth and Database agree.
+
+- **Fixed a last-round race in both Tier B tests.** The guest waited for `again_ending` to be
+  displayed before finishing, but on the final round the host's Home click can send it home first —
+  observed EndFrag at `:21.881` and StartFragment at `:22.152`, a 271ms window — so the wait could
+  never match. The guest now waits only for the home screen, which is the thing actually worth
+  asserting. `TwoDeviceAccountPlayGameLoopTest` also had a wrong final assertion (waited for the
+  sign-in screen; account players stay signed in and land on `StartFragment`).
+
+- **Both Tier B suites now pass against the local emulator**: `TwoDeviceFullGameLoopTest` (~44s) and
+  `TwoDeviceAccountPlayGameLoopTest` (~49s, full 2 rounds including sign-in, voting and
+  host-ends-game), both roles `OK`. Tier A regression still green: `API:testDebugUnitTest` (90
+  tests), `MixedUp:testDebugUnitTest` (38 tests), 0 failures/0 skipped, plus `assembleDebug` and
+  `compileDebugAndroidTestJavaWithJavac`.
+
+- **Abandoned rooms are now actually deleted** — the first thing in the app that ever removes one.
+  Cade asked why rooms never expire "when I thought I had expire logic". The `expiredRooms`
+  tombstones are not, and never were, a room cleaner: they flag "this room is dead" so a
+  reconnecting host stops writing to it (`runIfHostRoomActive`) and other clients know to go home,
+  and their 24h prune only removed those flags. Every path that deletes an actual room
+  (`EndFrag` Home, `CreateGameFrag` back, host-disconnect, `deleteRoomIfPlayersEmpty`) needs a live
+  client to reach it, so a host process that simply dies — crash, force-stop, swipe-away, a killed
+  instrumented test — leaked its room permanently. That is what filled production up.
+  New `RoomViewModel.cleanupAbandonedRooms(now)` runs at app start next to the tombstone prune.
+  Liveness comes from `hostConnection/lastSeenAt` (written every second by the host heartbeat)
+  falling back to a new server-stamped `createdAt`, via pure `GameFlowPolicy.isRoomAbandoned(...)`
+  with a 6h TTL, so a room anyone is still playing in can never be a candidate; rooms carrying
+  neither timestamp pre-date `createdAt` and are swept as leftovers.
+
+  **The first TTL was wrong and Cade caught it**: after a sweep he pointed out that none of the
+  surviving rooms were actually active, so they should all have gone. They survived a six-hour TTL
+  because it had been sized as though a live room might legitimately go hours between signs of life.
+  It can't - the host writes `lastSeenAt` every second, and the app already ends the game after
+  twenty seconds without it, so rooms sitting on 30-100 minute-old heartbeats were finished games
+  that merely looked recent. Retuned to 30 minutes (~90x the app's own give-up threshold, so still
+  far too long to catch anything live), and a room already carrying an `expiredRooms` tombstone is
+  now deleted immediately regardless of age - the app has already declared it dead, which is the one
+  genuinely useful cleanup job those tombstones can do. Re-verified against the real leftovers: 7 of
+  10 rooms deleted, the 3 survivors all being 21-30 minutes old and due on the next sweep.
+  7 new Tier A tests covering the policy.
+
+- **The sweep is claimed once a day globally, not run by every client on every launch** — Cade
+  flagged that a whole-table scan per launch is overkill and would be untenable at real throughput
+  (it is O(users x rooms), with every client racing to delete the same rooms).
+  `RoomViewModel.runDailyMaintenanceIfDue` now runs both housekeeping jobs behind a transaction on a
+  shared `maintenance/lastSweepAt` value, so exactly one device per interval wins - whichever
+  happens to launch first once it falls due - and every other launch does nothing. The transaction
+  is what makes simultaneous launches safe; `GameFlowPolicy.isMaintenanceSweepDue` also treats a
+  future-dated claim as due so one skewed clock can't block sweeping until that date arrives.
+  Verified on real devices: first launch logged "Maintenance claim won", a second launch on the same
+  device skipped, and a **different** device with freshly-cleared app data also skipped - confirming
+  the claim is global rather than per-install. Also verified the sweep itself deletes an 11h-old
+  room while leaving a fresh one and the day's real rooms alone. 2 new Tier A tests; needs the new
+  `maintenance` node in `database.rules.json` deployed before it works against production.
+
+- **`CollectingVotesFrag`: voting now has a collecting phase like If and Then do** (Cade's
+  suggestion, and the right call). Submitting a vote used to drop that player straight onto
+  `EndFrag` while the round was still half-finished, so `EndFrag` defended itself with
+  `hasPendingRequiredVotes()` and silently refused Home/Play Again whenever a vote was outstanding —
+  a screen whose primary buttons just don't respond, with a banner as the only clue and no
+  indication of who was being waited on. Voting now waits on its own screen showing who has voted
+  (`LeaderBoardViewModel` tracks `votedPlayerKeys` from the vote child keys) and moves everyone to
+  `EndFrag` together once `GameFlowPolicy.allVotesCast(...)` is true. Both `EndFrag` guards and the
+  predicate are deleted: the race is structurally impossible now rather than defended against at
+  each consumer. New `GamePhase.COLLECTING_VOTES`.
+
+- **Free play no longer shows account-only controls.** `StartFragment.applyUserMode` toggled
+  Sign Out, Back and Profile but never Leader Boards, so the free-play start screen offered a
+  leaderboard that is fed by the account-only vote round and keyed to accounts — one a guest can
+  neither appear on nor contribute to.
+
+- **Fixed two reading-turn control bugs in account play**, both reported by Cade seeing the mic
+  "sneaking through" while waiting to read:
+  1. The mic was only dimmed to `alpha 0.35` while another player read, never hidden, so it still
+     read as an available control. It is now hidden unless you can actually speak your own revealed
+     sentence, and the "show" button is hidden while it is someone else's turn (the paper text
+     already says you are waiting).
+  2. `revealSentence()` refreshed only the sentence text, not the reading controls — mic visibility
+     is derived in `updateActiveReaderControls()` — so after tapping "show" the mic stayed hidden
+     until some unrelated Firebase update happened to fire. Previously invisible because the mic was
+     always on screen anyway.
+
+- **Tier B now asserts the things that shouldn't be there**, per Cade's request: free play checks
+  that Leader Boards / Profile / Sign Out are not displayed on the start screen (both roles) and
+  that the mic never appears on any reading turn; account play checks the mic is hidden while
+  waiting and visible once revealed — that assertion is what caught bug 2 above.
+
+## Archived Session: feature/account-play-testing-and-observability
+
 - **Accessibility contrast fixes + portrait design polish pass**, prompted by Cade flagging that
   the "0 background" (`Widget.WhatIf.Button.Secondary`) buttons were hard to see, and that portrait
   screens (especially `WriteIfFrag`/`WriteThenFrag`) looked clunky and didn't fill the screen well.

@@ -353,8 +353,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void cleanupOldExpiredRooms() {
-        long cutoff = System.currentTimeMillis() - GameFlowPolicy.EXPIRED_ROOM_TOMBSTONE_TTL_MS;
-        roomViewModel.cleanupOldExpiredRoomMarkers(cutoff);
+        // Claims a shared once-a-day slot rather than sweeping on every launch of every install -
+        // see RoomViewModel.runDailyMaintenanceIfDue. Covers both jobs: dropping rooms nobody is
+        // coming back to, and dropping the stale "this room died" flags.
+        roomViewModel.runDailyMaintenanceIfDue(System.currentTimeMillis());
     }
 
     private boolean hasUsableNetwork() {

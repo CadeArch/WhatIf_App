@@ -17,14 +17,15 @@
 #   5. local-test-accounts.md exists at the repo root with the same "| Role | Email | Password |
 #      Username |" markdown table format this script parses below.
 #
-# Usage: .\scripts\run-tier-b-account-play.ps1 [-Rounds 3] [-Visible]
+# Usage: .\scripts\run-tier-b-account-play.ps1 [-Rounds 3] [-Headless]
 # -TestClass is not exposed as a param here (unlike run-tier-b.ps1) since this script is
 # specifically for TwoDeviceAccountPlayGameLoopTest's role/email/password contract - a different
 # test class would need different credential-role wiring anyway.
 
 param(
     [int]$Rounds = 0,
-    [switch]$Visible
+    [switch]$Headless,
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -75,7 +76,7 @@ $guestCreds = Get-CredentialsByRole "Guest"
 Write-Host "Host credentials: $($hostCreds.Email) (username $($hostCreds.Username))"
 Write-Host "Guest credentials: $($guestCreds.Email) (username $($guestCreds.Username))"
 
-Write-Host "Running $testClass (correlationId=$correlationId, $(if ($Visible) { 'visible' } else { 'headless' }))"
+Write-Host "Running $testClass (correlationId=$correlationId, $(if ($Headless) { 'headless' } else { 'visible' }))"
 Write-Host "Checking Firebase Emulator Suite is reachable on 127.0.0.1:9000..."
 try {
     $tcp = New-Object System.Net.Sockets.TcpClient
@@ -110,9 +111,9 @@ function Ensure-EmulatorRunning([string]$avdName, [string]$expectedSerial) {
     if (!(Test-Path $emulatorExe)) {
         throw "emulator.exe was not found at $emulatorExe, and $expectedSerial isn't already connected."
     }
-    Write-Host "Booting $avdName (expecting it to come up as $expectedSerial, $(if ($Visible) { 'visible' } else { 'headless' }))..."
+    Write-Host "Booting $avdName (expecting it to come up as $expectedSerial, $(if ($Headless) { 'headless' } else { 'visible' }))..."
     $emulatorArgs = @("-avd", $avdName, "-no-snapshot-save")
-    if (-not $Visible) {
+    if ($Headless) {
         $emulatorArgs += "-no-window"
     }
     Start-Process -FilePath $emulatorExe -ArgumentList $emulatorArgs | Out-Null
@@ -133,11 +134,34 @@ function Ensure-EmulatorRunning([string]$avdName, [string]$expectedSerial) {
 Ensure-EmulatorRunning $hostAvd $hostSerial
 Ensure-EmulatorRunning $guestAvd $guestSerial
 
+# See run-tier-b.ps1 for why this builds + verifies instead of trusting the APK already on disk:
+# a flagless `assembleDebug` silently produces a PRODUCTION build, and account play is the worse
+# case - it would sign real accounts in against live Firebase Auth and write real rooms to the
+# live project.
+if (-not $SkipBuild) {
+    Write-Host "Building app + test APKs with -PuseFirebaseEmulator=true..."
+    & (Join-Path $repoRoot "gradlew.bat") "-p" $repoRoot ":MixedUp:assembleDebug" ":MixedUp:assembleDebugAndroidTest" "-PuseFirebaseEmulator=true" "--console=plain"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Gradle build failed - fix the build before running Tier B."
+    }
+}
+
 if (!(Test-Path $apk)) {
     throw "App APK not found at $apk. Build it first with: .\gradlew.bat :MixedUp:assembleDebug -PuseFirebaseEmulator=true"
 }
 if (!(Test-Path $testApk)) {
     throw "Test APK not found at $testApk. Build it first with: .\gradlew.bat :MixedUp:assembleDebugAndroidTest"
+}
+
+$appBuildConfig = Join-Path $repoRoot "MixedUp\build\generated\source\buildConfig\debug\com\CadeMixedUpGame\phoneapp\BuildConfig.java"
+if (!(Test-Path $appBuildConfig)) {
+    throw "Could not find the app module's generated BuildConfig at $appBuildConfig - cannot confirm which Firebase project this APK targets."
+}
+if (-not (Select-String -Path $appBuildConfig -Pattern 'USE_FIREBASE_EMULATOR\s*=\s*true' -Quiet)) {
+    throw "The app APK is a PRODUCTION build (USE_FIREBASE_EMULATOR = false in $appBuildConfig). Refusing to run - this would sign the real test accounts in against live Firebase Auth and write test rooms into the live project. Rebuild with: .\gradlew.bat :MixedUp:assembleDebug :MixedUp:assembleDebugAndroidTest -PuseFirebaseEmulator=true"
+}
+else {
+    Write-Host "Verified the app APK is an emulator build (USE_FIREBASE_EMULATOR = true)."
 }
 
 foreach ($serial in @($hostSerial, $guestSerial)) {
@@ -183,6 +207,6 @@ if ($hostOk -and $guestOk) {
     exit 0
 }
 else {
-    Write-Host "`nTier B account-play run FAILED (host OK=$hostOk, guest OK=$guestOk). Check errorLogs/ in the Firebase Emulator UI (http://localhost:4000) for the breadcrumb trail before digging through raw logcat. Re-run with -Visible if you want to watch it happen."
+    Write-Host "`nTier B account-play run FAILED (host OK=$hostOk, guest OK=$guestOk). Check errorLogs/ in the Firebase Emulator UI (http://localhost:4000) for the breadcrumb trail before digging through raw logcat. Re-run without -Headless if you want to watch it happen."
     exit 1
 }

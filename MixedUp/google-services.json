@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "536223081161",
+    "firebase_url": "https://mixedupgame-default-rtdb.firebaseio.com",
     "project_id": "mixedupgame",
     "storage_bucket": "mixedupgame.appspot.com"
   },

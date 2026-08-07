@@ -19,9 +19,11 @@ public class WhatIfApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        // Must run before any other Firebase Database/Auth call. No-op unless the app was built
-        // with -PuseFirebaseEmulator=true (see MixedUp/build.gradle and firebase.json).
-        FirebaseEmulatorConfig.configureIfEnabled(BuildConfig.USE_FIREBASE_EMULATOR);
+        // Must run before any other Firebase Database/Auth call: debug builds remove
+        // FirebaseInitProvider so this creates the default FirebaseApp itself, which is the only
+        // point at which the RTDB emulator URL can be applied (see the method's javadoc). Points
+        // at production unless built with -PuseFirebaseEmulator=true.
+        FirebaseEmulatorConfig.initializeDefaultApp(this, BuildConfig.USE_FIREBASE_EMULATOR);
 
         // Registered unconditionally - a crashing thread's local write doesn't need Firebase to
         // be ready at all, so this must not depend on the (possibly not-yet-initialized) database

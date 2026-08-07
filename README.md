@@ -153,7 +153,25 @@ Useful Logcat filters:
 - [x] Use clearer user recovery for failed Firebase reads/writes instead of automatic retry for now.
 - [x] Add stronger success/failure handling for important Firebase operations.
 - [x] Keep tracking and removing Firebase/list callbacks explicitly when leaving rooms or ending matches.
-- [x] Confirm the host cannot go home or play again until all required votes are cast.
+- [x] Confirm the host cannot go home or play again until all required votes are cast. (Replaced by
+      a `CollectingVotesFrag` waiting phase, so the end screen is only reachable once every vote is
+      in - the block it used to need is gone.)
+- [x] Delete abandoned rooms at all (`RoomViewModel.cleanupAbandonedRooms`). Nothing previously
+      did: the `expiredRooms` tombstones only flag a dead room for other clients, and every real
+      deletion path needs a live client to reach it, so any host process that just died leaked its
+      room forever.
+- [x] Stop every client sweeping on every launch. A transaction on a shared `maintenance/lastSweepAt`
+      value means exactly one device per day wins the claim - whichever launches first once it falls
+      due - and everyone else does nothing (`RoomViewModel.runDailyMaintenanceIfDue`).
+- [ ] Move the sweep off clients entirely once on the Blaze plan: a scheduled server-side function
+      (Cloud Scheduler + Pub/Sub) running hourly or daily. Even with the once-a-day claim above, the
+      winning client still reads the whole `rooms` node, so the cost grows with the table and lands
+      on a random user's device and data plan. If Blaze stays out of reach, the cheap improvement is
+      to stop scanning everything: query only the stale rooms with
+      `orderByChild("createdAt").endAt(cutoff).limitToFirst(...)` plus an `.indexOn` rule (still
+      catches legacy rooms, since a node missing that child sorts first). Deliberately NOT doing any
+      of this via `onDisconnect`: a host with a brief network blip would have their in-progress room
+      deleted out from under them, which is exactly what the heartbeat/grace design exists to avoid.
 - [x] Store plain Firebase model objects instead of `MutableLiveData` wrappers so room/player/account data has a clean database shape.
 - [x] Store play-again decisions on the room instead of the host player node so replay survives player-list cleanup.
 - [x] Remove a non-host player's room node when they leave from the end screen.
@@ -217,7 +235,7 @@ after every branch is expensive. Options considered, in order of increasing cost
 - [x] Logic-level tests: `GameFlowPolicy`/`GameLogic`/`RoomCreationPolicy` (API module) already
   have ~75 JUnit test methods — connection timing, assignment randomization, vote tallying, replay
   reset via the `FakeGameRepository` pattern in `RoomViewModelTest`. Removed the 4 unrenamed
-  template `ExampleUnitTest`/`ExampleInstrumentedTest` files. See `CLAUDE.md` Part 2 for how to
+  template `ExampleUnitTest`/`ExampleInstrumentedTest` files. See `CLAUDE.md` for how to
   keep adding to this (put new game-flow logic in a pure static policy class, not a Fragment).
 - [x] Single-player Espresso UI tests: `MixedUp/src/androidTest/.../NavigationFlowTest.java` —
   launch/navigation, empty-name validation, free-play name-entry behavior, and an
@@ -241,7 +259,7 @@ after every branch is expensive. Options considered, in order of increasing cost
     app UI against the local Firebase Emulator Suite, with the host's real generated room code
     handed to the guest via a logcat signal. First scenario (`TwoDeviceMultiplayerTest`) is
     deliberately minimal — host creates, guest joins, both see 2 players — proving the harness
-    before building more scenarios on top of it. See `CLAUDE.md`'s testing section for the full
+    before building more scenarios on top of it. See the `whatif-testing` skill for the full
     mechanism and the error-log-driven diagnosis/discovery workflow that goes with it.
 
 ### Architecture And Maintainability
@@ -280,7 +298,7 @@ after every branch is expensive. Options considered, in order of increasing cost
 ### UI And Accessibility
 
 - [x] Lock gameplay to landscape orientation for now so unsupported portrait layouts are not shown during Play Store rollout.
-- [x] Improve portrait mode support: unlocked orientation, reworked all 21 layouts to be responsive in both orientations, added a shared spacing/type/button-hierarchy design system, and added edge-to-edge inset handling (see `CLAUDE.md` and `CHANGELOG.md`).
+- [x] Improve portrait mode support: unlocked orientation, reworked all 21 layouts to be responsive in both orientations, added a shared spacing/type/button-hierarchy design system, and added edge-to-edge inset handling (see the `whatif-android-ui` skill and `CHANGELOG.md`).
 - Add player-controlled sound settings for turn alerts and other game cues, including mute/vibrate options.
 - Add a simple white/black background option.
 - Add a mode or button to show the real original prompt instead of only randomized results.

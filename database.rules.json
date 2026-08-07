@@ -29,6 +29,14 @@
     "errorLogs": {
       ".read": true,
       ".write": true
+    },
+    "e2eSignals": {
+      ".read": true,
+      ".write": true
+    },
+    "maintenance": {
+      ".read": true,
+      ".write": true
     }
   }
 }

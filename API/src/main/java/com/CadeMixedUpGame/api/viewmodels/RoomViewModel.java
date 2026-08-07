@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel;
 
 import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.ChildEventListenerAdapter;
+import com.CadeMixedUpGame.api.GameFlowPolicy;
 import com.CadeMixedUpGame.api.GameLogic;
 import com.CadeMixedUpGame.api.RoomCreationPolicy;
 import com.CadeMixedUpGame.api.models.RoundAssignment;
@@ -28,10 +29,12 @@ import com.google.firebase.database.ValueEventListener;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 public class RoomViewModel extends ViewModel {
     ObservableArrayList<Room> rooms;
@@ -254,6 +257,104 @@ public class RoomViewModel extends ViewModel {
                 .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting expired room marker room=" + roomID, e));
     }
 
+    /** Runs the app's housekeeping at most once per MAINTENANCE_SWEEP_INTERVAL_MS across all
+     * clients - whichever device happens to launch first after it falls due does the work, and
+     * everyone else that day does nothing.
+     *
+     * <p>The claim is a transaction on a single shared value, so simultaneous launches can't all
+     * decide they are the one: exactly one commit wins and the rest abort. Without it every client
+     * swept on every launch, reading the entire rooms node each time - O(users x rooms) and a pile
+     * of clients racing to delete the same rooms, which is fine at small scale and untenable at
+     * real throughput. The proper long-term answer is a scheduled server-side sweep instead of
+     * doing this on clients at all; see README's Reliability roadmap. */
+    public void runDailyMaintenanceIfDue(long nowMs) {
+        db.child("maintenance").child("lastSweepAt").runTransaction(new Transaction.Handler() {
+            @NonNull
+            @Override
+            public Transaction.Result doTransaction(@NonNull MutableData currentData) {
+                Long lastSweepAt = currentData.getValue(Long.class);
+                if (!GameFlowPolicy.isMaintenanceSweepDue(lastSweepAt, nowMs)) {
+                    return Transaction.abort();
+                }
+                currentData.setValue(nowMs);
+                return Transaction.success(currentData);
+            }
+
+            @Override
+            public void onComplete(DatabaseError error, boolean committed, DataSnapshot currentData) {
+                if (error != null) {
+                    AppLog.e(AppLog.FIREBASE, "Maintenance claim failed: " + error.getMessage());
+                    return;
+                }
+                if (!committed) {
+                    AppLog.d(AppLog.ROOM, "Maintenance sweep not due; another client already ran it");
+                    return;
+                }
+                AppLog.i(AppLog.ROOM, "Maintenance claim won; sweeping nowMs=" + nowMs);
+                cleanupAbandonedRooms(nowMs);
+                cleanupOldExpiredRoomMarkers(nowMs - GameFlowPolicy.EXPIRED_ROOM_TOMBSTONE_TTL_MS);
+            }
+        });
+    }
+
+    /** Deletes rooms nobody is coming back to.
+     *
+     * <p>This is the only thing that ever removes an abandoned room. Every other deletion path
+     * ({@code EndFrag} home, {@code CreateGameFrag} back, the host-disconnect handler,
+     * {@code deleteRoomIfPlayersEmpty}) needs a live client to reach it, so a room whose host's
+     * process simply dies - crash, force-stop, swiped away, battery, a killed instrumented test -
+     * used to sit in the database forever. The {@code expiredRooms} tombstones are a different
+     * mechanism and were never a room cleaner: they flag "this room is dead" so a reconnecting
+     * host stops writing to it and other clients know to go home, and their own 24h prune only
+     * ever removed those flags, never the rooms themselves.
+     *
+     * <p>Safe to run from any client on startup: {@link GameFlowPolicy#isRoomAbandoned} keys off
+     * the host heartbeat, so a room with anyone actually playing in it is never a candidate. */
+    public void cleanupAbandonedRooms(long nowMs) {
+        AppLog.i(AppLog.ROOM, "Cleaning abandoned rooms nowMs=" + nowMs);
+        // Tombstones first: a room the app already marked expired is deletable immediately, no
+        // matter how recently its host was seen. Read once here rather than per room.
+        db.child("expiredRooms").get().addOnCompleteListener(markersTask -> {
+            Set<String> expiredRoomIds = new HashSet<String>();
+            if (markersTask.isSuccessful() && markersTask.getResult() != null) {
+                for (DataSnapshot marker : markersTask.getResult().getChildren()) {
+                    if (marker.getKey() != null) {
+                        expiredRoomIds.add(marker.getKey());
+                    }
+                }
+            }
+            deleteAbandonedRooms(nowMs, expiredRoomIds);
+        });
+    }
+
+    private void deleteAbandonedRooms(long nowMs, Set<String> expiredRoomIds) {
+        db.child("rooms").get()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful() || task.getResult() == null) {
+                        AppLog.e(AppLog.FIREBASE, "Failed loading rooms for cleanup", task.getException());
+                        return;
+                    }
+                    int deleted = 0;
+                    for (DataSnapshot snapshot : task.getResult().getChildren()) {
+                        Long hostLastSeenAt = snapshot.child("hostConnection").child("lastSeenAt").getValue(Long.class);
+                        Long createdAt = snapshot.child("createdAt").getValue(Long.class);
+                        boolean hasExpiredMarker = expiredRoomIds.contains(snapshot.getKey());
+                        if (!GameFlowPolicy.isRoomAbandoned(hostLastSeenAt, createdAt, hasExpiredMarker, nowMs)) {
+                            continue;
+                        }
+                        String abandonedRoomId = snapshot.getKey();
+                        AppLog.i(AppLog.ROOM, "Deleting abandoned room=" + abandonedRoomId
+                                + ", hostLastSeenAt=" + hostLastSeenAt + ", createdAt=" + createdAt);
+                        snapshot.getRef().removeValue()
+                                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting abandoned room=" + abandonedRoomId, e));
+                        // The room is gone, so its tombstone has nothing left to guard.
+                        db.child("expiredRooms").child(abandonedRoomId).removeValue();
+                        deleted += 1;
+                    }
+                    AppLog.i(AppLog.ROOM, "Abandoned room cleanup queued deleted=" + deleted);
+                });
+    }
+
     public void cleanupOldExpiredRoomMarkers(long cutoffTimeMs) {
         AppLog.i(AppLog.ROOM, "Cleaning old expired room markers cutoff=" + cutoffTimeMs);
         db.child("expiredRooms").get()
@@ -279,12 +380,21 @@ public class RoomViewModel extends ViewModel {
         pushRoom(id, null);
     }
 
+    /** Written as a separate server-timestamped field rather than a Room POJO member so the value
+     * comes from the server clock - cleanupAbandonedRooms compares it against other clients' clocks,
+     * and a device with a skewed clock could otherwise create a room that instantly looks stale. */
+    private void stampCreatedAt(String roomID) {
+        db.child("rooms").child(roomID).child("createdAt").setValue(ServerValue.TIMESTAMP)
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed stamping createdAt room=" + roomID, e));
+    }
+
     public void pushRoom(String id, Runnable onSuccess) {
         room = new Room(id);
         AppLog.i(AppLog.ROOM, "Creating room=" + room.roomID);
         db.child("rooms").child(room.roomID).setValue(room)
                 .addOnSuccessListener(unused -> {
                     AppLog.i(AppLog.FIREBASE, "Room created id=" + room.roomID);
+                    stampCreatedAt(room.roomID);
                     if (onSuccess != null) {
                         onSuccess.run();
                     }
@@ -318,6 +428,7 @@ public class RoomViewModel extends ViewModel {
                 if (error == null && committed) {
                     room = new Room(candidateRoomId);
                     AppLog.i(AppLog.FIREBASE, "Unique room reserved id=" + candidateRoomId + ", attempts=" + (attemptIndex + 1));
+                    stampCreatedAt(candidateRoomId);
                     if (callback != null) {
                         callback.onRoomCreated(candidateRoomId);
                     }

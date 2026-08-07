@@ -257,7 +257,10 @@ public class ReadSentenceFrag extends Fragment {
 
     private void revealSentence() {
         sentenceRevealed = true;
-        updateSentenceVisibility();
+        // Full control refresh, not just the text: whether the mic applies is derived from
+        // sentenceRevealed, and that is computed in updateActiveReaderControls. Refreshing only
+        // the text left the mic hidden until some unrelated Firebase update happened to fire.
+        updateActiveReaderControls();
         AppLog.i(AppLog.GAME_FLOW, "Read sentence revealed for active reader key=" + currentUserPlayerKey);
     }
 
@@ -279,11 +282,17 @@ public class ReadSentenceFrag extends Fragment {
             if (currentReaderTurn) {
                 ifQuestionText.setText("Your turn to read.");
                 thenAnswerText.setText("Tap Show when the group is ready.");
+                nextButton.setVisibility(View.VISIBLE);
                 ActionButtonState.setEnabled(nextButton, true);
             }
             else {
                 ifQuestionText.setText("Waiting for another player to read.");
                 thenAnswerText.setText("Listen until it is your turn.");
+                // Hidden rather than shown-disabled: there is nothing for a waiting player to do
+                // here, and a "show" button on screen while it is someone else's turn invites a
+                // tap and then explains it was the wrong moment. The paper text already says what
+                // is going on.
+                nextButton.setVisibility(View.GONE);
                 ActionButtonState.setEnabled(nextButton, false);
             }
             setNextButtonText("show");
@@ -293,6 +302,7 @@ public class ReadSentenceFrag extends Fragment {
         applySentenceTextStyle();
         ifQuestionText.setText(GameLogic.formatIfSentence(myRandomIf));
         thenAnswerText.setText(GameLogic.formatThenSentence(myRandomThen));
+        nextButton.setVisibility(View.VISIBLE);
         boolean canPass = currentReaderTurn && !readTurnPassed && !readingActionInProgress;
         ActionButtonState.setSaving(nextButton, readingActionInProgress, canPass);
         setNextButtonText("pass");
@@ -520,9 +530,13 @@ public class ReadSentenceFrag extends Fragment {
                 && currentUserReadIndex >= 0;
         currentReaderTurn = isCurrentReader;
         boolean canReadAloud = isCurrentReader && sentenceRevealed;
-        if (readButton.getVisibility() != View.GONE) {
+        // The mic is only meaningful once you can actually speak your own revealed sentence. It
+        // used to merely dim to alpha 0.35 while waiting for someone else to read, which still
+        // reads as an available control sitting on the page. Free-play users never get one at all
+        // (setupReadingControls hides it), so this only applies to account players.
+        if (currentUserHasAccount()) {
+            readButton.setVisibility(canReadAloud ? View.VISIBLE : View.GONE);
             readButton.setEnabled(canReadAloud);
-            readButton.setAlpha(canReadAloud ? 1.0f : 0.35f);
         }
         updateSentenceVisibility();
         if (isCurrentReader && !sentenceRevealed && !turnPromptShown) {

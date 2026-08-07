@@ -8,5 +8,6 @@ public enum GamePhase {
     COLLECTING_THENS,
     READING,
     VOTING,
+    COLLECTING_VOTES,
     ENDED
 }

@@ -9,18 +9,16 @@
 # name-entry/navigation steps genuinely run in parallel instead of the guest's being serialized
 # after the host's.
 #
-# This script also boots both emulators itself if they aren't already running - headless
-# (-no-window) by default for speed, since routine runs don't need to be watched. Pass -Visible to
-# get real windows (e.g. when you want to watch it play, or a run is proving hard to diagnose from
-# logs alone and you want to see the screens directly).
+# This script also boots both emulators itself if they aren't already running, with real windows
+# so you can watch the run. Pass -Headless (-no-window) for an unattended/faster run.
 #
 # Prerequisites (this script checks/fails fast, does not attempt to fix):
 #   1. Firebase Emulator Suite running: firebase emulators:start --only database,auth
-#   2. App built with the emulator flag: .\gradlew.bat :MixedUp:assembleDebug -PuseFirebaseEmulator=true
-#   3. Test APK built: .\gradlew.bat :MixedUp:assembleDebugAndroidTest
+#   2. Nothing else - the script builds both APKs itself with -PuseFirebaseEmulator=true and
+#      refuses to run if the app APK turns out to be a production build.
 #
-# Usage: .\scripts\run-tier-b.ps1 [-TestClass com.CadeMixedUpGame.phoneapp.TwoDeviceFullGameLoopTest] [-Rounds 3] [-Visible]
-# Defaults to the minimal join-only smoke test, headless. Any test class following the same
+# Usage: .\scripts\run-tier-b.ps1 [-TestClass com.CadeMixedUpGame.phoneapp.TwoDeviceFullGameLoopTest] [-Rounds 3] [-Headless]
+# Defaults to the minimal join-only smoke test, visible. Any test class following the same
 # role/correlationId instrumentation-argument convention as TwoDeviceMultiplayerTest works here
 # unchanged. -Rounds is only meaningful for TwoDeviceFullGameLoopTest (its own -e rounds <n>
 # instrumentation argument, defaults to 2 if omitted here) - harmless no-op for tests that don't
@@ -29,7 +27,8 @@
 param(
     [string]$TestClass = "com.CadeMixedUpGame.phoneapp.TwoDeviceMultiplayerTest",
     [int]$Rounds = 0,
-    [switch]$Visible
+    [switch]$Headless,
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -58,7 +57,7 @@ if (!(Test-Path $adb)) {
     throw "adb.exe was not found at $adb"
 }
 
-Write-Host "Running $testClass (correlationId=$correlationId, $(if ($Visible) { 'visible' } else { 'headless' }))"
+Write-Host "Running $testClass (correlationId=$correlationId, $(if ($Headless) { 'headless' } else { 'visible' }))"
 Write-Host "Checking Firebase Emulator Suite is reachable on 127.0.0.1:9000..."
 try {
     $tcp = New-Object System.Net.Sockets.TcpClient
@@ -93,9 +92,9 @@ function Ensure-EmulatorRunning([string]$avdName, [string]$expectedSerial) {
     if (!(Test-Path $emulatorExe)) {
         throw "emulator.exe was not found at $emulatorExe, and $expectedSerial isn't already connected."
     }
-    Write-Host "Booting $avdName (expecting it to come up as $expectedSerial, $(if ($Visible) { 'visible' } else { 'headless' }))..."
+    Write-Host "Booting $avdName (expecting it to come up as $expectedSerial, $(if ($Headless) { 'headless' } else { 'visible' }))..."
     $emulatorArgs = @("-avd", $avdName, "-no-snapshot-save")
-    if (-not $Visible) {
+    if ($Headless) {
         $emulatorArgs += "-no-window"
     }
     Start-Process -FilePath $emulatorExe -ArgumentList $emulatorArgs | Out-Null
@@ -116,6 +115,22 @@ function Ensure-EmulatorRunning([string]$avdName, [string]$expectedSerial) {
 Ensure-EmulatorRunning $hostAvd $hostSerial
 Ensure-EmulatorRunning $guestAvd $guestSerial
 
+# Build the APKs here rather than trusting whatever is already on disk. Any ordinary
+# `./gradlew :MixedUp:assembleDebug` (a regression run, Android Studio's Run button) rebuilds the
+# same file WITHOUT -PuseFirebaseEmulator=true, silently turning it into a PRODUCTION build - and
+# the old "does the APK exist?" check happily installed it. That is how a full Tier B run ended up
+# writing real rooms into the live mixedupgame project instead of the local emulator, and then
+# failing anyway because production's default-deny rules don't allow-list the e2eSignals node the
+# room-code handoff uses. Build + verify every time; never infer the variant from the file's
+# existence. Use -SkipBuild only if you have just built with the flag yourself.
+if (-not $SkipBuild) {
+    Write-Host "Building app + test APKs with -PuseFirebaseEmulator=true..."
+    & (Join-Path $repoRoot "gradlew.bat") "-p" $repoRoot ":MixedUp:assembleDebug" ":MixedUp:assembleDebugAndroidTest" "-PuseFirebaseEmulator=true" "--console=plain"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Gradle build failed - fix the build before running Tier B."
+    }
+}
+
 if (!(Test-Path $apk)) {
     throw "App APK not found at $apk. Build it first with: .\gradlew.bat :MixedUp:assembleDebug -PuseFirebaseEmulator=true"
 }
@@ -123,10 +138,32 @@ if (!(Test-Path $testApk)) {
     throw "Test APK not found at $testApk. Build it first with: .\gradlew.bat :MixedUp:assembleDebugAndroidTest"
 }
 
+# Hard gate: the *app* module's BuildConfig is what WhatIfApplication.onCreate() reads to decide
+# whether to call FirebaseEmulatorConfig. If this is false the run would silently hit production.
+$appBuildConfig = Join-Path $repoRoot "MixedUp\build\generated\source\buildConfig\debug\com\CadeMixedUpGame\phoneapp\BuildConfig.java"
+if (!(Test-Path $appBuildConfig)) {
+    throw "Could not find the app module's generated BuildConfig at $appBuildConfig - cannot confirm this is an emulator build, refusing to run against a possibly-production APK."
+}
+if (-not (Select-String -Path $appBuildConfig -Pattern 'USE_FIREBASE_EMULATOR\s*=\s*true' -Quiet)) {
+    throw "The app APK is a PRODUCTION build (USE_FIREBASE_EMULATOR = false in $appBuildConfig). Refusing to run - this would write test rooms into the live Firebase project. Rebuild with: .\gradlew.bat :MixedUp:assembleDebug :MixedUp:assembleDebugAndroidTest -PuseFirebaseEmulator=true"
+}
+Write-Host "Verified the app APK is an emulator build (USE_FIREBASE_EMULATOR = true)."
+
 foreach ($serial in @($hostSerial, $guestSerial)) {
     Write-Host "Installing app + test APK on $serial..."
     & $adb -s $serial install -r -t $apk
     & $adb -s $serial install -r -t $testApk
+    # MUST clear app data, not just force-stop. `install -r` deliberately preserves app data, so a
+    # persisted Firebase Auth session (shared_prefs/com.google.firebase.auth.api.Store*.xml) left
+    # behind by any earlier account-play run survives reinstalls AND app-version changes. The Auth
+    # emulator is in-memory, so restarting the Emulator Suite deletes the account that session
+    # refers to - the SDK then fails to refresh the token, hands RTDB an unusable credential
+    # ("PersistentConnection: Provided authentication credentials are invalid"), and the RTDB
+    # websocket is never established at all. Every read/write then fails with "Client is offline"
+    # and the app sits on the "Connection lost" banner forever, which reads exactly like a network
+    # bug but is purely stale local auth state. Cost this session ~9 failed runs to diagnose; the
+    # free-play test is just as vulnerable as the account-play one even though it never signs in.
+    & $adb -s $serial shell pm clear $packageName
     & $adb -s $serial shell am force-stop $packageName
 }
 
@@ -161,6 +198,6 @@ if ($hostOk -and $guestOk) {
     exit 0
 }
 else {
-    Write-Host "`nTier B run FAILED (host OK=$hostOk, guest OK=$guestOk). Check errorLogs/ in the Firebase Emulator UI (http://localhost:4000) for the breadcrumb trail before digging through raw logcat. Re-run with -Visible if you want to watch it happen."
+    Write-Host "`nTier B run FAILED (host OK=$hostOk, guest OK=$guestOk). Check errorLogs/ in the Firebase Emulator UI (http://localhost:4000) for the breadcrumb trail before digging through raw logcat. Re-run without -Headless if you want to watch it happen."
     exit 1
 }

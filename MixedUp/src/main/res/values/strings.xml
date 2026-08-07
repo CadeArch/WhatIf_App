@@ -5,4 +5,6 @@
     <string name="default_notification_channel_id">Channel 1</string>
     <string name="mic_content_description">Record your reading aloud</string>
     <string name="dismiss_content_description">Dismiss message</string>
+    <string name="collecting_votes_title">Collecting Votes</string>
+    <string name="collecting_votes_subtitle">Players Voted</string>
 </resources>
