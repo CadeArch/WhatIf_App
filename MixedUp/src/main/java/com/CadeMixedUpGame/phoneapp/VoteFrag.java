@@ -176,11 +176,15 @@ public class VoteFrag extends Fragment {
         return "";
     }
 
+    /** Goes to the collecting-votes waiting screen, not straight to the end screen: submitting your
+     * own vote only means *you* are done, and EndFrag is only meaningful once the whole round is
+     * in. CollectingVotesFrag holds everyone until the last vote lands and then moves the group on
+     * together, the same way the If and Then phases work. */
     private void navigateToEnd() {
-        AppLog.i(AppLog.GAME_FLOW, "VoteFrag -> EndFrag");
-        userViewModel.gamePhase.setValue(GamePhase.ENDED);
+        AppLog.i(AppLog.GAME_FLOW, "VoteFrag -> CollectingVotesFrag");
+        userViewModel.gamePhase.setValue(GamePhase.COLLECTING_VOTES);
         requireActivity().getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragment_container, EndFrag.class, null)
+                .replace(R.id.fragment_container, CollectingVotesFrag.class, null)
                 .setReorderingAllowed(true)
                 .addToBackStack(null)
                 .commit();

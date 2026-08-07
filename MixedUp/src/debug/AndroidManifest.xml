@@ -1,7 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
-        android:networkSecurityConfig="@xml/network_security_config" />
+        android:networkSecurityConfig="@xml/network_security_config">
+
+        <!-- Debug builds initialize the default FirebaseApp themselves in
+             WhatIfApplication.onCreate() (see FirebaseEmulatorConfig.initializeDefaultApp) so the
+             RTDB databaseUrl can point at the local emulator from the moment the app is created.
+             It CANNOT be changed afterwards: FirebaseDatabase.useEmulator() silently fails to stick
+             (a later getInstance() hands back a fresh production instance), and deleting the
+             auto-created app to re-initialize it crashes with "FirebaseApp was deleted" because
+             Firebase Installations is already using it on a background thread. Removing this
+             provider is the supported way to take over that initialization. Debug-only - release
+             builds keep the provider and the normal auto-init path. -->
+        <provider
+            android:name="com.google.firebase.provider.FirebaseInitProvider"
+            android:authorities="${applicationId}.firebaseinitprovider"
+            tools:node="remove" />
+
+    </application>
 
 </manifest>

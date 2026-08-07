@@ -247,6 +247,12 @@ public class StartFragment extends Fragment {
         view.findViewById(R.id.signOut).setVisibility(accountPlayer ? View.VISIBLE : View.GONE);
         view.findViewById(R.id.back).setVisibility(accountPlayer ? View.GONE : View.VISIBLE);
         view.findViewById(R.id.profile_button).setVisibility(accountPlayer ? View.VISIBLE : View.GONE);
+        // Leader Boards is account-only like Profile/Sign Out: the leaderboard is fed by the vote
+        // round, which only runs when every player has an account (GameFlowPolicy
+        // .allPlayersHaveAccounts), and its entries are keyed to accounts. This was the one
+        // account-mode control applyUserMode never toggled, so it sat on the free-play start
+        // screen offering a board free players can neither appear on nor contribute to.
+        view.findViewById(R.id.leaderboards_button).setVisibility(accountPlayer ? View.VISIBLE : View.GONE);
         enterName.setVisibility(accountPlayer ? View.GONE : View.VISIBLE);
         userName.setVisibility(accountPlayer ? View.VISIBLE : View.GONE);
         if (accountPlayer) {

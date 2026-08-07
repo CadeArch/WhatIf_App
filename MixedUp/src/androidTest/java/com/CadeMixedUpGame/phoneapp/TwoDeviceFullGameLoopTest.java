@@ -9,6 +9,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isEnabled;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -88,6 +89,7 @@ public class TwoDeviceFullGameLoopTest {
     private void runHost(String correlationId) {
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             onView(withId(R.id.freePlay)).perform(click());
+            assertNoAccountOnlyControls();
             onView(withId(R.id.enterName)).perform(typeText("E2E-Host"), closeSoftKeyboard());
             onView(withId(R.id.create_game)).perform(click());
 
@@ -110,6 +112,7 @@ public class TwoDeviceFullGameLoopTest {
     private void runGuest(String correlationId) {
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             onView(withId(R.id.freePlay)).perform(click());
+            assertNoAccountOnlyControls();
             onView(withId(R.id.enterName)).perform(typeText("E2E-Guest"), closeSoftKeyboard());
             onView(withId(R.id.joinGame)).perform(click());
             onView(withId(R.id.enterGameCode)).check(matches(isDisplayed()));
@@ -177,17 +180,22 @@ public class TwoDeviceFullGameLoopTest {
         EspressoWaitUtils.waitFor(() -> onView(withId(R.id.next_frag)).check(matches(isDisplayed())), WAIT_TIMEOUT_MS);
         playMyReadingTurn();
 
-        EspressoWaitUtils.waitFor(() -> onView(withId(R.id.again_ending)).check(matches(isDisplayed())), WAIT_TIMEOUT_MS);
-
         if (isLastRound) {
             if (isHost) {
+                EspressoWaitUtils.waitFor(() -> onView(withId(R.id.again_ending)).check(matches(isDisplayed())), WAIT_TIMEOUT_MS);
                 onView(withId(R.id.home_ending)).perform(click());
             }
-            // Guest clicks nothing - EndFrag's replayState=="no" observer auto-navigates it home
-            // once the host's home click writes that state, matching real gameplay.
+            // The guest deliberately does NOT wait for EndFrag to be on screen first. It clicks
+            // nothing here - EndFrag's replayState=="no" observer auto-navigates it home as soon as
+            // the host's home click lands - and against the local emulator that round trip can beat
+            // the guest's own poll: observed EndFrag at :21.881 and StartFragment at :22.152, a
+            // 271ms window, so a wait for again_ending would flake out having never seen it. Waiting
+            // only for the home screen is both race-free and the thing actually worth asserting.
             EspressoWaitUtils.waitFor(() -> onView(withId(R.id.enterName)).check(matches(isDisplayed())), WAIT_TIMEOUT_MS);
             return;
         }
+
+        EspressoWaitUtils.waitFor(() -> onView(withId(R.id.again_ending)).check(matches(isDisplayed())), WAIT_TIMEOUT_MS);
 
         if (!isHost) {
             // Guest's button starts disabled ("waiting") until it observes replayState=="yes",
@@ -197,12 +205,30 @@ public class TwoDeviceFullGameLoopTest {
         onView(withId(R.id.again_ending)).perform(click());
     }
 
+    /** Free play must not surface account-mode controls on the start screen. These are wired to
+     * account features (a leaderboard fed by the account-only vote round, a profile, a sign-out)
+     * that a guest can neither use nor appear in - Leader Boards in particular used to be left
+     * visible here because applyUserMode never toggled it. */
+    private void assertNoAccountOnlyControls() {
+        onView(withId(R.id.enterName)).check(matches(isDisplayed()));
+        onView(withId(R.id.leaderboards_button)).check(matches(not(isDisplayed())));
+        onView(withId(R.id.profile_button)).check(matches(not(isDisplayed())));
+        onView(withId(R.id.signOut)).check(matches(not(isDisplayed())));
+    }
+
+    /** The mic is an account-play control (text-to-speech of your own sentence) and free play
+     * never gets one, on any reading turn. */
+    private void assertNoMicControl() {
+        onView(withId(R.id.readSentence)).check(matches(not(isDisplayed())));
+    }
+
     /** R.id.next_frag is a single dual-purpose button: disabled until it's your turn, then "show"
      * (reveals the sentence) then "pass" (advances to the next reader). Waiting for it to become
      * enabled is what makes this correct regardless of read order - the other device's button
      * just stays disabled throughout its own turn. */
     private void playMyReadingTurn() {
         EspressoWaitUtils.waitFor(() -> onView(withId(R.id.next_frag)).check(matches(isEnabled())), WAIT_TIMEOUT_MS);
+        assertNoMicControl();
         onView(withId(R.id.next_frag)).perform(click());
         EspressoWaitUtils.waitFor(() -> onView(withId(R.id.next_frag)).check(matches(withText("pass"))), WAIT_TIMEOUT_MS);
         onView(withId(R.id.next_frag)).perform(click());

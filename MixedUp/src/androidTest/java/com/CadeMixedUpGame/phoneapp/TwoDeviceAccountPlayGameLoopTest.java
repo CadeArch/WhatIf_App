@@ -10,6 +10,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isEnabled;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -182,26 +183,43 @@ public class TwoDeviceAccountPlayGameLoopTest {
 
         castVote();
 
-        EspressoWaitUtils.waitFor(() -> onView(withId(R.id.again_ending)).check(matches(isDisplayed())), WAIT_TIMEOUT_MS);
-
         if (isLastRound) {
             if (isHost) {
+                // A single click is enough now: CollectingVotesFrag holds everyone until the last
+                // vote lands, so Home can no longer be silently refused for outstanding votes.
+                EspressoWaitUtils.waitFor(() -> onView(withId(R.id.again_ending)).check(matches(isDisplayed())), WAIT_TIMEOUT_MS);
                 onView(withId(R.id.home_ending)).perform(click());
             }
-            EspressoWaitUtils.waitFor(() -> onView(withId(R.id.email)).check(matches(isDisplayed())), WAIT_TIMEOUT_MS);
+            // Ending the game sends BOTH devices back to StartFragment, not to the sign-in screen:
+            // going Home doesn't sign anybody out, so an account player is still authenticated and
+            // never sees AccountFrag again. (Waiting on R.id.email here failed the test even though
+            // the whole game had just played through correctly, voting and all - the guest gets
+            // here on its own via EndFrag's replayState=="no" observer, no click needed.)
+            // create_game is the StartFragment control that is visible in the signed-in state.
+            EspressoWaitUtils.waitFor(() -> onView(withId(R.id.create_game)).check(matches(isDisplayed())), WAIT_TIMEOUT_MS);
             return;
         }
 
+        EspressoWaitUtils.waitFor(() -> onView(withId(R.id.again_ending)).check(matches(isDisplayed())), WAIT_TIMEOUT_MS);
         if (!isHost) {
+            // Guest's button starts disabled ("waiting") until it observes replayState=="yes",
+            // which only happens after the host clicks first.
             EspressoWaitUtils.waitFor(() -> onView(withId(R.id.again_ending)).check(matches(isEnabled())), WAIT_TIMEOUT_MS);
         }
         onView(withId(R.id.again_ending)).perform(click());
     }
 
     private void playMyReadingTurn() {
+        // Before the turn starts the mic must be hidden, not merely dimmed: it used to sit on the
+        // page at alpha 0.35 the whole time someone else was reading, which still reads as an
+        // available control. Only meaningful once the sentence is actually revealed below.
+        onView(withId(R.id.readSentence)).check(matches(not(isDisplayed())));
+
         EspressoWaitUtils.waitFor(() -> onView(withId(R.id.next_frag)).check(matches(isEnabled())), WAIT_TIMEOUT_MS);
         onView(withId(R.id.next_frag)).perform(click());
         EspressoWaitUtils.waitFor(() -> onView(withId(R.id.next_frag)).check(matches(withText("pass"))), WAIT_TIMEOUT_MS);
+        // Revealed and it's this player's turn - now the mic is a real control.
+        onView(withId(R.id.readSentence)).check(matches(isDisplayed()));
         onView(withId(R.id.next_frag)).perform(click());
     }
 

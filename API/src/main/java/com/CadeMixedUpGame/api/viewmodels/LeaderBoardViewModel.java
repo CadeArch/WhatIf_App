@@ -24,6 +24,7 @@ public class LeaderBoardViewModel extends ViewModel {
     DatabaseReference db;
     ObservableArrayList<LeaderBoardItem> potentialLeaderBoardItems;
     ObservableArrayList<String> castvotes = new ObservableArrayList<String>();
+    ObservableArrayList<String> votedPlayerKeys = new ObservableArrayList<String>();
     ChildEventListener votesListener;
     ChildEventListener leaderBoardListener;
     ChildEventListener votingItemsListener;
@@ -60,6 +61,7 @@ public class LeaderBoardViewModel extends ViewModel {
         removeCastVotesCallback();
         potentialLeaderBoardItems = new ObservableArrayList<LeaderBoardItem>();
         castvotes = new ObservableArrayList<String>();
+        votedPlayerKeys = new ObservableArrayList<String>();
         mostVotedID = "";
         mostVotes = 0;
         plbi = null;
@@ -200,7 +202,20 @@ public class LeaderBoardViewModel extends ViewModel {
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                 String vote = snapshot.getValue(String.class);
                 if (vote != null) {
+                    // castvotes MUST be updated before votedPlayerKeys: adding to an
+                    // ObservableArrayList notifies its listeners synchronously, and
+                    // CollectingVotesFrag watches votedPlayerKeys. Adding the key first fired that
+                    // screen's progress check while castvotes was still one behind, so the final
+                    // vote left it reading "1 of 2" with no later event to correct it - the screen
+                    // hung forever. Keep the observed list last so everything it reads is settled.
                     castvotes.add(vote);
+                    // The child key is the voter's playerKey (see castVote) - tracked so
+                    // CollectingVotesFrag can show *who* the group is still waiting on, the same way
+                    // the If/Then collecting screens do. castvotes stays the list of vote values
+                    // because findBestSentence tallies frequencies over it.
+                    if (snapshot.getKey() != null && !votedPlayerKeys.contains(snapshot.getKey())) {
+                        votedPlayerKeys.add(snapshot.getKey());
+                    }
                     AppLog.d(AppLog.VOTE, "Vote received room=" + gameroom + ", total=" + castvotes.size());
                 }
             }
@@ -219,6 +234,11 @@ public class LeaderBoardViewModel extends ViewModel {
 
     public ObservableArrayList<String> getCastvotes() {
         return castvotes;
+    }
+
+    /** playerKeys of everyone whose vote has landed, for the collecting-votes waiting screen. */
+    public ObservableArrayList<String> getVotedPlayerKeys() {
+        return votedPlayerKeys;
     }
 
     public void castVoteListener(int numOfUsers) {

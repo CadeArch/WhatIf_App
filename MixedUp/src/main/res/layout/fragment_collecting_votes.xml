@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".CollectingVotesFrag"
+    android:background="@drawable/white_papers_tiled"
+    android:id="@+id/layout">
+
+    <TextView
+        android:id="@+id/collectingVotes_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_16"
+        android:text="@string/collecting_votes_title"
+        android:textAppearance="@style/TextAppearance.WhatIf.Display"
+        android:gravity="center_horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/layout"
+        app:layout_constraintWidth_max="500dp"
+        app:layout_constraintWidth_percent="0.8" />
+
+    <TextView
+        android:id="@+id/collectingVotes_subtitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/collecting_votes_subtitle"
+        android:textAppearance="@style/TextAppearance.WhatIf.Title"
+        android:gravity="center_horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/collectingVotes_title"
+        app:layout_constraintWidth_max="360dp"
+        app:layout_constraintWidth_percent="0.58" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/collectingVotes_subtitle">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewCollectVotes"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="@dimen/space_24"
+            android:paddingEnd="@dimen/space_16"
+            android:clipToPadding="false" />
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
