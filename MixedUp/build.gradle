@@ -11,8 +11,8 @@ android {
         applicationId "com.CadeMixedUpGame.phoneapp"
         minSdkVersion 25
         targetSdkVersion 36
-        versionCode 11
-        versionName "2.0.4"
+        versionCode 12
+        versionName "2.0.5"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // Opt-in only: ./gradlew assembleDebug -PuseFirebaseEmulator=true points the app at the
