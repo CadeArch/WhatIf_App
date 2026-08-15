@@ -195,6 +195,13 @@ Useful Logcat filters:
 - [ ] Add Firebase emulator or fake-repository tests for replay loops, late joins, player leaves, and stale room data.
 - [ ] Add manual QA steps for toggling airplane mode during submit, pass, vote, play again, and Home.
 - [ ] Add host controls for removing a player who stays disconnected too long but is not the host.
+- [ ] Remove the now-dead `e2eSignals` node from production. It is allow-listed in
+      `database.rules.json` and exists only for the Tier B room-code handoff, which was allow-listed
+      back when Tier B was unknowingly running against the live project. Tier B now runs entirely
+      against the local emulator, so this is read/write surface in production that nothing real
+      uses. Dropping the rule entry and re-deploying tightens prod with no functional change (there
+      may also be a stray leftover `e2eSignals` key in the live data to delete). Left in place only
+      because deleting production access is not something to do casually.
 
 ### Publishing And Policy
 
@@ -274,6 +281,23 @@ after every branch is expensive. Options considered, in order of increasing cost
 - [x] Add focused unit tests for extracted logic, especially replay cleanup, reader turn advancement, assignment selection, and validation.
 - [ ] Standardize fragment setup patterns for binding views, observing ViewModels, handling submit clicks, and cleanup in `onDestroyView`. Started with shared UI message observer helpers.
 - [ ] Review listener ownership so every Firebase listener has one obvious attach/detach location.
+- [ ] **Break up the biggest files.** Current line counts, worst first:
+      - `UserViewModel` (1112) - auth, account/profile data, player presence, `onDisconnect`
+        registration, host heartbeat, unlockables and room-leave cleanup all in one class. The most
+        tangled file in the repo and the one most often edited for unrelated reasons.
+      - `RoomViewModel` (1111) - room lifecycle, round/assignment state, replay reset, reader turn
+        order, connection listeners and now maintenance cleanup.
+      - `ReadSentenceFrag` (652) - view binding, Firebase listeners, TTS/voice, turn mechanics and
+        navigation together.
+      - `MainActivity` (528) - insets, connection banner, host-disconnect grace timers, heartbeat
+        scheduling.
+
+      Split along the seams the repo already favours: pure decisions into policy classes
+      (`GameFlowPolicy`/`GameLogic`/`RoomCreationPolicy`), Firebase access behind `GameRepository`,
+      and per-feature collaborators for the rest. Do it as its own branch rather than as drive-by
+      edits - these files hold hard-won disconnect/replay behaviour, so each extraction wants Tier A
+      coverage of the moved logic before and after, and pairs naturally with the package
+      reorganization item above.
 
 ### Sentence Formatting
 
@@ -294,6 +318,28 @@ after every branch is expensive. Options considered, in order of increasing cost
   - contributor shown near each sentence part in smaller readable text.
 - Keep leaderboard scrolling acceptable, but prioritize readable typography.
 - Improve vote selection so users cannot select an invalid number of sentences.
+
+### Unlockables
+
+- [ ] **Give every unlockable a way to actually be unlocked.** `UserViewModel.fillUnlockables`
+      creates seven voices (`fuddify`, `pig latin`, `backwords`, `jokester`, `forgetful`, `shaggy`,
+      `disobedient`), but `unlockVoice` only has rules for three:
+      - `backwords` - 5+ games played
+      - `fuddify` - made the leaderboard
+      - `pig latin` - perfect leaderboard entry
+
+      So `jokester`, `forgetful`, `shaggy` and `disobedient` are written to every account with
+      `unlocked=false` and nothing in the app can ever flip them - dead rewards a player can see but
+      never earn. Either add a rule per remaining voice (games-played tiers, first win, N leaderboard
+      entries, voting participation, etc.) or stop creating the ones that aren't real yet.
+- [ ] **Tidy the unlock rules themselves while doing it.** They're currently a chain of `if`s in
+      `UserViewModel` that hard-code the voice name, the DB path and the condition together, keyed
+      off a stringly-typed `which` argument (`"numGames"` / `"leaderBoards"`) with each rule
+      re-writing its own `AccountPlayers/.../unlockables/<name>/unlocked` path by hand. The
+      condition part belongs in a pure policy class (see the `GameFlowPolicy`/`GameLogic` pattern)
+      so "what unlocks this" is unit-testable without Firebase, and the voice list belongs in one
+      place instead of being spelled out separately in `fillUnlockables` and again in `unlockVoice`.
+      There is currently no Tier A coverage of unlock rules at all.
 
 ### UI And Accessibility
 
