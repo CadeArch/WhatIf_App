@@ -102,7 +102,13 @@ public class CollectingPhaseEmulatorTest {
     }
 
     @Test
-    public void aDisconnectedFinishedPlayerStillBlocksAutoAdvance() throws InterruptedException {
+    public void aDisconnectedPlayerWhoAlreadyFinishedNoLongerBlocksAutoAdvance() throws InterruptedException {
+        // Deliberate behaviour change. This used to assert the opposite: that going offline pulled
+        // the round back to "not ready" even for someone who had already submitted. That rule made
+        // a locked phone freeze the collecting screen for everyone, and it could never resolve -
+        // an offline player cannot un-disconnect by submitting again, because they already had.
+        // The gate is now about missing work, not about connection state; a player who has not
+        // written still holds the round indefinitely, and only a host kick removes them.
         UserViewModel playerA = joinPlayer("PlayerA", 1, true);
         UserViewModel playerB = joinPlayer("PlayerB", 2, false);
         observer.loadUsers(roomId);
@@ -114,8 +120,8 @@ public class CollectingPhaseEmulatorTest {
         assertTrue(GameFlowPolicy.allPlayersFinishedIfs(observer.getUsers()));
 
         markDisconnected(playerB.getUser().getValue());
-        waitUntil(() -> !GameFlowPolicy.allPlayersFinishedIfs(observer.getUsers()));
-        assertFalse("a disconnected player must block advancement even though they already finished",
+        Thread.sleep(1000);
+        assertTrue("dropping out after submitting must not un-ready the round",
                 GameFlowPolicy.allPlayersFinishedIfs(observer.getUsers()));
     }
 

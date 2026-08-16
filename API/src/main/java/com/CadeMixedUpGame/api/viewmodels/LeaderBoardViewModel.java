@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.FirebaseRoot;
 import com.CadeMixedUpGame.api.ChildEventListenerAdapter;
 import com.CadeMixedUpGame.api.models.LeaderBoardItem;
 import com.CadeMixedUpGame.api.models.User;
@@ -37,7 +38,7 @@ public class LeaderBoardViewModel extends ViewModel {
     LeaderBoardItem plbi;
 
     public LeaderBoardViewModel() {
-        this(FirebaseDatabase.getInstance().getReference(), true);
+        this(FirebaseRoot.get(), true);
     }
 
     public LeaderBoardViewModel(DatabaseReference db) {

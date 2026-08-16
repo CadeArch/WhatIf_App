@@ -122,6 +122,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/leaderboards_button"
+            android:visibility="gone"
             style="@style/Widget.WhatIf.Button.Secondary"
             android:layout_width="0dp"
             android:layout_height="64dp"

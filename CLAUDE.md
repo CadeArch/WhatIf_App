@@ -28,6 +28,13 @@ every rule in them exists because the "obvious" approach shipped a real bug firs
 | write or run any test, run a Tier B script, touch `FirebaseEmulatorConfig`/the emulator build flag, or debug "Client is offline" / "Connection lost" / data not appearing in the local emulator | `whatif-testing` |
 | debug **any** Tier B / two-device failure, or "the write worked but the other device never saw it" — load this *first*, it is a short symptom→cause table and these failures never look like what they are | `e2e-gotchas` |
 
+**When you hit a testing gotcha, write it into the skill before moving on.** Any behaviour that
+made a test lie - pass vacuously, fail for a reason unrelated to the code, or point at the wrong
+cause - belongs in `whatif-testing` (Tier A / local Firebase) or `e2e-gotchas` (Tier B /
+two-device) the moment you understand it, not at the end of the session. These have each already
+cost hours twice, because the second person to hit one had no way to know the first person had
+solved it. A fix without the note is half the work.
+
 Everything below applies to any Java change and stays loaded.
 
 # Java engineering — readability, reliability, scalability, encapsulation, reusability

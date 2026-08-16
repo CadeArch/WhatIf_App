@@ -71,13 +71,16 @@ public class EndFrag extends Fragment {
         }
 
         // so database resets temp votes and vote items as well if all are account players
+        // Removed players are excluded from both sides. Counting them would compare "accounts among
+        // the people still here" against "everyone who was ever here", so one removed free-play
+        // player could permanently deny an all-account table its voting round.
         int counter = 0;
-        for (User user:userViewModel.getUsers()){
-            if(user.accountPlay) {
+        for (User user : userViewModel.getUsers()) {
+            if (GameFlowPolicy.isActivePlayer(user) && user.accountPlay) {
                 counter += 1;
             }
         }
-        if (counter == userViewModel.getUsers().size()) {
+        if (counter == GameFlowPolicy.activePlayerCount(userViewModel.getUsers())) {
             allAccountPlayers = true;
         }
 

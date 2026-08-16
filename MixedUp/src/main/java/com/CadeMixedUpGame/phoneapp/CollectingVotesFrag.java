@@ -115,7 +115,10 @@ public class CollectingVotesFrag extends Fragment {
         }
         adapter.notifyDataSetChanged();
 
-        int playerCount = userViewModel.getUsers().size();
+        // Active players only. A removed player can never cast a vote, so counting them means the
+        // total is unreachable and this screen waits forever - a hard hang at the end of an
+        // account-play round, after everyone still playing has already voted.
+        int playerCount = GameFlowPolicy.activePlayerCount(userViewModel.getUsers());
         // Counts the same list this screen observes, so the count can never be read a beat behind
         // the notification that triggered this (one key per voter, so it matches the vote count).
         int voteCount = leaderBoardViewModel.getVotedPlayerKeys().size();

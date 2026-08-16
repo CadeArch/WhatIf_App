@@ -30,6 +30,33 @@ public class UiMessenger {
         Snackbar.make(root, message, Snackbar.LENGTH_SHORT).show();
     }
 
+    /**
+     * A message that stays until it is dismissed in code, with one action button.
+     *
+     * <p>For room-level states that are not transient and that the player may need to act on -
+     * "the host is away, here is how to leave", "this player has been gone a while, remove them?".
+     * A timed snackbar is wrong for these: the condition can persist for minutes, and a message the
+     * player missed while looking away is no use.
+     *
+     * <p>Deliberately a snackbar rather than a new view in every screen's layout: this has to work
+     * on all sixteen fragments, and adding a bar to each one means sixteen chances to break a
+     * ConstraintLayout that other views are anchored to.
+     *
+     * @return the shown bar, so the caller can dismiss it when the condition clears.
+     */
+    public static Snackbar showPersistentAction(View root, String message, String actionLabel,
+                                                Runnable action) {
+        if (root == null || message == null || message.length() == 0) {
+            return null;
+        }
+        Snackbar bar = Snackbar.make(root, message, Snackbar.LENGTH_INDEFINITE);
+        if (actionLabel != null && actionLabel.length() > 0 && action != null) {
+            bar.setAction(actionLabel, v -> action.run());
+        }
+        bar.show();
+        return bar;
+    }
+
     public static void observeSnackbar(LifecycleOwner owner, MutableLiveData<String> message, View root) {
         observeSnackbar(owner, message, root, null);
     }

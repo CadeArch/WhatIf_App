@@ -178,15 +178,42 @@ The app is being adapted to work well in both orientations. Rules for this work:
    Top-level containers (`activity_main.xml`, and any screen with content anchored to `parent`
    top/bottom) must consume `WindowInsets` (`ViewCompat.setOnApplyWindowInsetsListener`/
    `WindowInsetsCompat`) and apply that padding themselves.
-7. **Never override `Activity.onBackPressed()`.** It's not called for apps targeting API 36+
-   (predictive back replaced it) — see `MainActivity.onCreate()` for the
-   `OnBackPressedCallback` pattern already in use (a permanently-enabled no-op callback that
-   intentionally blocks all back navigation so players can't corrupt an in-progress Firebase room
-   by backing out mid-game).
-8. **Use window size classes, not orientation checks, for structural decisions** (e.g. leaderboard
+7. **Never override `Activity.onBackPressed()`**, and **do not set
+   `android:enableOnBackInvokedCallback="true"` while this app is on `appcompat:1.2.0`.** Back is
+   handled by `OnBackPressedCallback` (see `MainActivity.onCreate()`): a default block so players
+   cannot back out mid-round and corrupt a Firebase room, with per-screen opt-outs
+   (`RoomExit.wireSystemBack()` for in-room screens that must clean up membership,
+   `Utils.wireSystemBackTo()` for screens holding no room state).
+   - **The opt-in flag was set and it silently broke all of it.** Only `androidx.activity` 1.6.0+
+     registers `OnBackPressedDispatcher` with the platform's `OnBackInvokedCallback`; this app's
+     `appcompat:1.2.0` (2020) does not. So the platform used the new back path, AndroidX never
+     hooked in, **every** callback was skipped, and back fell through to "finish the activity".
+     Verified on a real Pixel 9: back from the lobby exited the app outright. That means the
+     app-wide block was dead for every user on Android 13+, not just for new code.
+   - The flag is now `false`, restoring the legacy dispatch that does reach the dispatcher. Flip it
+     back **only** as part of upgrading appcompat/activity, and re-verify back on a real device
+     afterwards - an emulator `KEYCODE_BACK` and a gesture-nav phone are not the same test.
+   - **Any new screen that should allow leaving must opt out explicitly**, and must tear down room
+     state and navigate with `navigateHomeReplacingCurrent` (no `addToBackStack`) - see
+     `RoomExit.navigateHome()` for why both halves matter.
+8. **Never commit a fragment transaction synchronously from inside `onViewCreated`.**
+   `commitNow`/`commitNowAllowingStateLoss` (which is what `Utils.navigateHomeReplacingCurrent` and
+   `navigateLandingReplacingCurrent` use) throws `IllegalStateException: FragmentManager is already
+   executing transactions` when called from within one - and `onViewCreated` is inside one. It took
+   the process down mid-round on a real device. If a screen needs to redirect on entry, post it:
+   ```java
+   view.post(() -> { if (isAdded()) { Utils.navigateLandingReplacingCurrent(getActivity()); } });
+   ```
+9. **UI that depends on elapsed time or on *other* players must be re-evaluated on a tick, not only
+   when its own data changes.** Two bugs from the same mistake: the host's "Remove" control was
+   updated only when the player list changed, so someone crossing the 90s threshold - which changes
+   nothing in the room - never produced one; and the reading controls were updated only when the
+   active reader index/key moved, so a player being removed (which moves neither) left the host
+   unable to take the turn nobody else could. Both now also refresh on the presence pulse.
+10. **Use window size classes, not orientation checks, for structural decisions** (e.g. leaderboard
    columns, RecyclerView span count) — compact/medium/expanded width, not
    `getResources().getConfiguration().orientation`.
-9. **Test matrix before calling UI work done:** phone portrait, phone landscape, and at least one
+11. **Test matrix before calling UI work done:** phone portrait, phone landscape, and at least one
    large-screen/tablet-sized viewport (rotated both ways). This is a party game people rotate
    mid-session — both orientations are a real, common path, not an edge case.
 

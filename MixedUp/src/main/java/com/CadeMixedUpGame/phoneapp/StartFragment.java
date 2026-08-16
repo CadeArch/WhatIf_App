@@ -61,8 +61,24 @@ public class StartFragment extends Fragment {
         // but it wont notify or try to unlock it again if the player has already unlocked that value
         User currentUser = userViewModel.getUser().getValue();
         if (currentUser == null) {
-            UiMessenger.showSnackbar(view, "User is not loaded yet. Go back and try again.");
-            AppLog.w(AppLog.AUTH, "Start screen opened without current user");
+            // Send them to the landing screen instead of telling them to "go back": back is blocked
+            // on this screen, so that message was a dead end with no way out of it. The landing
+            // screen is where a free-play user is actually built (FirstFrag -> buildUserFree), so
+            // this recovers rather than strands.
+            //
+            // Reachable because a free-play user exists only in memory - the auth state listener
+            // nulls it whenever FirebaseAuth reports no current user, which free play never has.
+            // Seen after leaving a room.
+            AppLog.w(AppLog.AUTH, "Start screen opened without current user; returning to landing");
+            // Posted, not immediate: this runs inside onViewCreated, which is itself inside a
+            // FragmentManager transaction, and navigateLandingReplacingCurrent commits *now*.
+            // Committing synchronously from in there throws "FragmentManager is already executing
+            // transactions" and takes the process down - seen crashing the host mid-round.
+            view.post(() -> {
+                if (isAdded()) {
+                    Utils.navigateLandingReplacingCurrent(getActivity());
+                }
+            });
             return;
         }
         showPendingHomeMessage(view);
@@ -240,10 +256,14 @@ public class StartFragment extends Fragment {
     }
 
     private void applyUserMode(View view, EditText enterName, TextView userName, User user) {
-        if (user == null) {
-            return;
-        }
-        boolean accountPlayer = Boolean.TRUE.equals(user.accountPlay);
+        // A null user is treated as free play rather than returning early. Returning left every
+        // control at whatever the XML declared, and those defaults disagreed: profile_button and
+        // signOut declare visibility="gone", leaderboards_button declared nothing (so, visible).
+        // The result was Leader Boards - an account-only screen - sitting on the free-play start
+        // screen, which is exactly what showed up after leaving a room, when this runs before the
+        // user is repopulated. leaderboards_button now declares "gone" too, so the defaults agree,
+        // and this no longer depends on which path got here first.
+        boolean accountPlayer = user != null && Boolean.TRUE.equals(user.accountPlay);
         view.findViewById(R.id.signOut).setVisibility(accountPlayer ? View.VISIBLE : View.GONE);
         view.findViewById(R.id.back).setVisibility(accountPlayer ? View.GONE : View.VISIBLE);
         view.findViewById(R.id.profile_button).setVisibility(accountPlayer ? View.VISIBLE : View.GONE);

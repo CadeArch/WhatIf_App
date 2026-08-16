@@ -3,12 +3,21 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 <!-- hardware accelerated might fix an onstartup crash issue -->
+    <!-- enableOnBackInvokedCallback MUST stay false until androidx.activity is 1.6.0+ (appcompat
+         1.6+). Opting in tells the platform to use the OnBackInvokedCallback API, but only a recent
+         androidx.activity registers OnBackPressedDispatcher with it - this app is on appcompat
+         1.2.0 (2020), so opting in meant EVERY OnBackPressedCallback was skipped and back fell
+         straight through to "finish the activity". Verified on a real Pixel 9: back from the lobby
+         exited the app outright, with neither the per-screen leave handler nor MainActivity's
+         app-wide block running - and that block is what stops players backing out mid-round and
+         corrupting a game, so this was broken for every user on Android 13+. Re-enable only
+         together with the dependency upgrade (see README roadmap). -->
     <application
         android:name=".WhatIfApplication"
         android:allowBackup="true"
         android:usesCleartextTraffic="false"
         android:hardwareAccelerated="false"
-        android:enableOnBackInvokedCallback="true"
+        android:enableOnBackInvokedCallback="false"
         android:icon="@mipmap/if_ford_icon"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/if_ford_icon_round"

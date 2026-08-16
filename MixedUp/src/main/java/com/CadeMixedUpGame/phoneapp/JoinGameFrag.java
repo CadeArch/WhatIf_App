@@ -29,7 +29,11 @@ public class JoinGameFrag extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         //giving back button functionality
-        view.findViewById(R.id.joinGame_back).setOnClickListener(v -> {
+                // System back / predictive gesture do what the Back button does; without this they
+        // are swallowed by MainActivity's app-wide block.
+        Utils.wireSystemBackTo(this, StartFragment.class);
+
+view.findViewById(R.id.joinGame_back).setOnClickListener(v -> {
             Utils.navigateToFragment(getActivity(), StartFragment.class);
         });
 

@@ -347,6 +347,21 @@ after every branch is expensive. Options considered, in order of increasing cost
       like first win, games hosted, or votes cast would need new fields plumbed through first.
 - [ ] Surface *why* a voice is locked in the profile/picker UI. `UnlockPolicy.Voice.getRequirement()`
       already returns player-facing text ("Play 10 games") that nothing displays yet.
+- [x] **Resolved: a player being away no longer costs anyone the game.** The reported "come back to
+      a broken app" was not the connection failing to recover - measured on a real Pixel 9, it
+      reconnects in ~2s. It was the room being *deleted* while you were away: a locked phone freezes
+      the app and its heartbeat stops for over two minutes (socket still up, `onDisconnect` never
+      fires), and the app ended the room after twenty seconds of that. Nothing is now removed
+      automatically; rooms hold indefinitely and only the maintenance sweep reclaims them. See the
+      archived changelog entry for this branch.
+- [ ] Upgrade `appcompat`/`androidx.activity` (1.2.0 is from 2020) and re-enable
+      `android:enableOnBackInvokedCallback`. It is currently **false** because with this AndroidX
+      version the platform's new back API skips every `OnBackPressedCallback` - which silently
+      disabled back handling for all users on Android 13+. Re-verify back on a physical device
+      afterwards; an emulator `KEYCODE_BACK` and a gesture-nav phone are not the same test.
+- [ ] Consider host migration. With nothing auto-ending a room, a host who never returns leaves
+      guests waiting - they can leave under their own steam ("Leave game" once the host is away), but
+      promoting a new host would let the game continue instead.
 - [ ] Have the Tier B scripts delete their `e2eSignals/<correlationId>` node when a run finishes.
       Purely hygiene, not correctness: the RTDB emulator is in-memory (wiped on restart), each run
       uses a fresh correlation ID so runs never collide, and the node is deliberately absent from

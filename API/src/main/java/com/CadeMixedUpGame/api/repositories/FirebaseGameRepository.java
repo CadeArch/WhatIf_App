@@ -3,13 +3,15 @@ package com.CadeMixedUpGame.api.repositories;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DatabaseReference;
+import com.CadeMixedUpGame.api.FirebaseRoot;
 import com.google.firebase.database.FirebaseDatabase;
 
 public class FirebaseGameRepository implements GameRepository {
     private final DatabaseReference db;
 
     public FirebaseGameRepository() {
-        db = FirebaseDatabase.getInstance().getReference();
+        // One root for the whole app - see FirebaseRoot for what separate roots cost us.
+        db = FirebaseRoot.get();
     }
 
     /** Points at a specific FirebaseDatabase instance's root instead of the default app's — used

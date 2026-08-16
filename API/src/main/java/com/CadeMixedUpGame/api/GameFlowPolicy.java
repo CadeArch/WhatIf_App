@@ -1,11 +1,29 @@
 package com.CadeMixedUpGame.api;
 
+import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.User;
 
 import java.util.List;
 
 public final class GameFlowPolicy {
-    public static final long CONNECTION_GRACE_MS = 20000L;
+    /** How long the host can be unreachable before the room is given up on and everyone is sent
+     * home.
+     *
+     * <p>Was 20s, which measurement showed is unsurvivable: backgrounding the app (a phone call,
+     * checking a message) drops the Realtime Database socket after about <b>38 seconds</b> while
+     * the process is still alive - Android freezes the cached process and the connection dies
+     * underneath it. So a sub-minute interruption by the host reliably deleted the room and ejected
+     * everyone mid-game, with nobody having done anything wrong. 90s covers a short call with room
+     * to spare while still ending genuinely dead rooms quickly; a room whose host never comes back
+     * is cleaned up by the maintenance sweep regardless (ABANDONED_ROOM_TTL_MS). */
+    public static final long CONNECTION_GRACE_MS = 90000L;
+    /** How long a dropped non-host player must stay gone before the host may kick them.
+     *
+     * <p>The round does <b>not</b> skip them on its own. Disconnection is assumed to be temporary -
+     * measurement showed a host's heartbeat freezes for over two minutes just from a locked phone,
+     * so any automatic "they're gone, move on" rule ends real games that were only interrupted.
+     * The round waits indefinitely, and removing someone is a deliberate act by the host. */
+    public static final long KICK_ELIGIBLE_AFTER_MS = 90000L;
     public static final long HOST_HEARTBEAT_INTERVAL_MS = 1000L;
     public static final long CLIENT_HOME_AFTER_HOST_EXPIRE_DELAY_MS = 4000L;
     public static final long EXPIRED_ROOM_TOMBSTONE_TTL_MS = 24L * 60L * 60L * 1000L;
@@ -62,12 +80,154 @@ public final class GameFlowPolicy {
     }
 
     public static boolean allPlayersFinishedIfs(List<User> players) {
-        return players != null && players.size() > 0 && allPlayersConnected(players) && countFinishedIfs(players) == players.size();
+        return allPlayersFinishedIfs(players, System.currentTimeMillis());
     }
 
     public static boolean allPlayersFinishedThens(List<User> players) {
-        return players != null && players.size() > 0 && allPlayersConnected(players) && countFinishedThens(players) == players.size();
+        return allPlayersFinishedThens(players, System.currentTimeMillis());
     }
+
+    public static boolean allPlayersFinishedIfs(List<User> players, long nowMs) {
+        return everyPresentPlayerIsDone(players, nowMs, true);
+    }
+
+    public static boolean allPlayersFinishedThens(List<User> players, long nowMs) {
+        return everyPresentPlayerIsDone(players, nowMs, false);
+    }
+
+    /**
+     * True once every player in the room has submitted.
+     *
+     * <p>Waits for disconnected players indefinitely, on purpose. An earlier version skipped a
+     * player who had been gone past a grace window, which sounds reasonable and is wrong here:
+     * dropping out is overwhelmingly temporary (a locked phone freezes the app within ~2 minutes),
+     * and silently continuing without someone throws away the sentence they were writing. If a
+     * player really is not coming back, the host removes them deliberately - see
+     * {@link #canKickPlayer}.
+     */
+    private static boolean everyPresentPlayerIsDone(List<User> players, long nowMs, boolean checkIfs) {
+        if (players == null || players.size() == 0) {
+            return false;
+        }
+        boolean anyActive = false;
+        for (User player : players) {
+            if (player == null) {
+                return false;
+            }
+            if (!isActivePlayer(player)) {
+                continue;
+            }
+            anyActive = true;
+            boolean finished = checkIfs
+                    ? Boolean.TRUE.equals(player.ifFinished)
+                    : Boolean.TRUE.equals(player.thenFinished);
+            if (!finished) {
+                return false;
+            }
+        }
+        return anyActive;
+    }
+
+    /**
+     * Whether this player still counts - i.e. has not been removed from the round.
+     *
+     * <p>Null reads as active: rooms predating the {@code removed} field have no value for it, and
+     * the safe reading of unknown data is "still playing".
+     */
+    public static boolean isActivePlayer(User player) {
+        return player != null && !Boolean.TRUE.equals(player.removed);
+    }
+
+    /**
+     * Whether removing a player should rebuild the round's assignments.
+     *
+     * <p>Before reading starts, rebuild: assignments are only a *plan* (who will read whose If and
+     * whose Then), created in the lobby before anyone writes, so regenerating for the remaining
+     * players costs nothing they have seen and guarantees the counts line up. Without it, removing
+     * someone between the If and Then phases strands an If with no Then - four Ifs written, then
+     * only three Thens.
+     *
+     * <p>Once reading has started, do not: every sentence already exists and players are working
+     * through them in order, so re-pairing would reshuffle sentences people have already heard. The
+     * departing player's slot simply stays in the reading order and the host covers that turn.
+     *
+     * <p>An unknown phase is treated as "do not rebuild" - the damage from reshuffling a live
+     * reading round is worse and more visible than one sentence missing its Then.
+     */
+    public static boolean shouldRegenerateAfterRemoval(GamePhase phase) {
+        return phase == GamePhase.LOBBY
+                || phase == GamePhase.WRITING_IF
+                || phase == GamePhase.COLLECTING_IFS
+                || phase == GamePhase.WRITING_THEN
+                || phase == GamePhase.COLLECTING_THENS;
+    }
+
+    /** How many players still count toward progression, votes and the roster. */
+    public static int activePlayerCount(List<User> players) {
+        if (players == null) {
+            return 0;
+        }
+        int count = 0;
+        for (User player : players) {
+            if (isActivePlayer(player)) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * A round cannot continue with one player left. Applies only once a round is under way - a lone
+     * player sitting in the lobby is just a host waiting for people to join.
+     */
+    public static boolean roundCannotContinue(List<User> players, boolean roundInProgress) {
+        return roundInProgress && activePlayerCount(players) < 2;
+    }
+
+    /**
+     * Whether the host may take over a reading turn that belongs to someone else.
+     *
+     * <p>Reading advances by whoever matches the active reader key, so an absent reader stops the
+     * round dead - nobody else can move it on. The host covers that turn once the reader has been
+     * removed from the round, or has been disconnected long enough to be removable anyway
+     * ({@link #KICK_ELIGIBLE_AFTER_MS}). Deliberately not immediate: someone who dropped a few
+     * seconds ago is probably about to read, and stealing their turn would be worse than waiting.
+     */
+    public static boolean hostMayCoverReadingTurn(User viewer, User activeReader, long nowMs) {
+        if (viewer == null || !viewer.host || activeReader == null) {
+            return false;
+        }
+        if (!isActivePlayer(activeReader)) {
+            return true;
+        }
+        return canKickPlayer(activeReader, nowMs);
+    }
+
+    /**
+     * Whether the host may remove this player right now.
+     *
+     * <p>Never the host themselves (nobody is left to run the room), and only after the player has
+     * been visibly gone for {@link #KICK_ELIGIBLE_AFTER_MS}. A player with no {@code disconnectedAt}
+     * is not kickable: without a timestamp there is no evidence of how long they have been away, and
+     * older room records predate the field.
+     *
+     * <p>Re-check this at the moment the kick executes, not just when the button is drawn - the
+     * player may have reconnected in between.
+     */
+    public static boolean canKickPlayer(User player, long nowMs) {
+        if (player == null || Boolean.TRUE.equals(player.host) || !isActivePlayer(player)) {
+            return false;
+        }
+        if (!Boolean.FALSE.equals(player.connected)) {
+            return false;
+        }
+        Long disconnectedAt = player.disconnectedAt;
+        if (disconnectedAt == null || disconnectedAt <= 0L) {
+            return false;
+        }
+        return nowMs - disconnectedAt >= KICK_ELIGIBLE_AFTER_MS;
+    }
+
 
     public static boolean allPlayersConnected(List<User> players) {
         if (players == null || players.size() == 0) {

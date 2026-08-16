@@ -132,6 +132,44 @@ public class RoomPresenceRepository {
         onDisconnectHostConnectionRoom = null;
     }
 
+    /**
+     * Re-arms presence after the app returns to the foreground.
+     *
+     * <p><b>This does not fix the connection wedge, and is not claimed to.</b> Measured repeatedly
+     * on an emulator: backgrounding drops the Realtime Database socket after ~30-60s while the
+     * process is still alive, and afterwards the SDK reconnects only on its own exponential backoff
+     * - observed at 82s, 4m17s, and still down at 3m in another run. None of {@code goOnline()},
+     * {@code goOffline()+goOnline()}, or the two separated by 750ms changed that, and a
+     * {@code goOffline()} on resume was removed because a *brief* app switch does not drop the
+     * socket, so forcing offline there would fire the onDisconnect handlers and mark a perfectly
+     * connected player as gone. Cade confirms this wedge happens in real games on production, so it
+     * is a genuine bug, not a local-rig artefact. See README's roadmap item.
+     *
+     * <p>What this method does still earn: re-arming the onDisconnect handlers. They are
+     * <b>consumed when they fire</b>, so after a real drop the server holds none for this client -
+     * yet {@code onDisconnectPlayerPath}/{@code onDisconnectHostConnectionRoom} still say
+     * "registered", and both register methods early-return on that. Left alone, a resumed player
+     * would have no cleanup armed at all, so their *next* disconnect would go unnoticed forever.
+     * Clearing the bookkeeping first is what forces a genuine re-arm.
+     */
+    public void reconnectAfterResume() {
+        // goOnline() is a cheap no-op when already online; it is not what fixes the wedge (see javadoc).
+        db.getDatabase().goOnline();
+        User currentUser = user.getValue();
+        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0
+                || currentUser.userName == null) {
+            AppLog.d(AppLog.FIREBASE, "Resume reconnect: online again, not in a room");
+            return;
+        }
+        AppLog.i(AppLog.FIREBASE, "Resume reconnect: re-arming presence room=" + currentUser.gameRoom);
+        onDisconnectPlayerRef = null;
+        onDisconnectPlayerPath = null;
+        onDisconnectHostConnectionRef = null;
+        onDisconnectHostConnectionRoom = null;
+        registerOnDisconnectCleanup(currentUser, playerRef(currentUser));
+        markCurrentPlayerConnected();
+    }
+
     public void markCurrentPlayerConnected() {
         User currentUser = user.getValue();
         if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0 || currentUser.userName == null) {

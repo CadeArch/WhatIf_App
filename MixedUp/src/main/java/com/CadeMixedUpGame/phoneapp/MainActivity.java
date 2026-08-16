@@ -21,6 +21,10 @@ import android.view.View;
 import android.widget.TextView;
 
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.GameLogic;
+import androidx.databinding.ObservableList;
+import androidx.appcompat.app.AlertDialog;
+import com.google.android.material.snackbar.Snackbar;
 import com.CadeMixedUpGame.api.GameFlowPolicy;
 import com.CadeMixedUpGame.api.HostDisconnectScheduler;
 import com.CadeMixedUpGame.api.RepeatingPulse;
@@ -65,17 +69,18 @@ public class MainActivity extends AppCompatActivity {
                     connectionHandler.removeCallbacks(runnable);
                 }
             },
-            reason -> expireHostDisconnectedRoom(reason));
-    private Runnable hostConnectionCountdownRunnable;
+            reason -> markHostAway(reason));
     // The heartbeat and presence tickers are the same self-rescheduling shape, so they share
-    // RepeatingPulse. hostConnectionCountdownRunnable deliberately stays hand-rolled: it is a
-    // *terminating* countdown that stops rescheduling once the grace window closes while leaving
-    // its field non-null, so a later start() is a no-op until stopHostConnectionCountdown() runs.
-    // Forcing it into RepeatingPulse would quietly change that.
+    // RepeatingPulse. (A third, hand-rolled countdown used to live here: the host's own "give up on
+    // my room" timer. It is gone - a host no longer abandons its own room just because its phone
+    // was locked, which is the whole point of the wait-for-them-to-return model.)
     private RepeatingPulse hostHeartbeatPulse;
     private RepeatingPulse presencePulse;
-    private boolean hostLocalGraceExpired = false;
-    private String pendingExpiredRoomMessage = "";
+    private boolean resumedFromBackground = false;
+    private boolean hostAway = false;
+    private Snackbar hostAwayBar;
+    private Snackbar kickBar;
+    private String kickBarPlayerName;
 
     // Firebase's .info/connected briefly reports false on every fresh launch, before the initial
     // WebSocket handshake completes - not a real disconnect. Debounce showing the banner so that
@@ -133,12 +138,21 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Intentionally disabling back navigation (including the predictive back gesture)
-        // for all fragments so players cannot back out mid-game and corrupt room state.
+        // Back means "leave the room", from wherever you are, with a confirmation.
+        //
+        // This used to be an unconditional no-op on every screen, because backing out mid-round left
+        // the round in a state nobody could finish. That is no longer true: leaving is now the same
+        // operation as being removed, so the round is rebuilt (before reading) or the host covers the
+        // empty slot (during it). With that in place, blocking back only trapped people - a player
+        // who joined the wrong room had no way out, and force-quitting did not release them either,
+        // since a dropped player is assumed to be coming back.
+        //
+        // Screens with no room state opt out and simply navigate (Utils.wireSystemBackTo); the lobby
+        // opts out to leave without a prompt, because nothing has started there yet.
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                // no-op
+                confirmLeaveFromBack();
             }
         });
 
@@ -146,6 +160,7 @@ public class MainActivity extends AppCompatActivity {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         setupConnectionBanner();
         setupHostDisconnectNavigation();
+        setupRoomMembershipChrome();
         startPresencePulse();
         cleanupOldExpiredRooms();
 
@@ -221,7 +236,7 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             roomViewModel.expiredRoomMessage.setValue("");
-            handleDisruptedRoomMessage(message);
+            handleRoomEnded(message);
         });
     }
 
@@ -232,7 +247,11 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             userViewModel.clearHostDisconnectedMessage();
-            handleDisruptedRoomMessage(message);
+            // The host's *connection* dropped. That pauses the room; it does not end it. These two
+            // signals are easy to conflate and must not be: routing this at the room-ended handler
+            // sent everyone to the landing screen on the ordinary connection blip that happens when
+            // a finished room is torn down, so a normal end of round looked like a crash.
+            markHostAway(message);
         });
         userViewModel.hostDisconnectedAt.observe(this, disconnectedAt -> {
             if (disconnectedAt == null || disconnectedAt <= 0L) {
@@ -249,44 +268,43 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void sendPlayerHomeAfterHostDisconnect(String message) {
+    private void sendPlayerHomeAfterRoomEnded(String message) {
         if (handlingHostDisconnect) {
             return;
         }
         handlingHostDisconnect = true;
         User currentUser = userViewModel.getUser().getValue();
         String room = currentUser == null ? "" : currentUser.gameRoom;
-        AppLog.w(AppLog.ROOM, "Host disconnected; returning client home room=" + room
+        AppLog.w(AppLog.ROOM, "Room ended; returning client home room=" + room
                 + ", from=" + Utils.currentFragmentName(this));
 
         userViewModel.removePlayersListenerOnDB();
         roomViewModel.clearLocalRoundState();
-        if (room != null && room.length() > 0) {
-            roomViewModel.deleteRoom(room);
-            if (currentUser != null && currentUser.host) {
-                roomViewModel.deleteExpiredRoomMarker(room);
-            }
+        if (room != null && room.length() > 0 && currentUser != null && currentUser.host) {
+            roomViewModel.deleteExpiredRoomMarker(room);
         }
         userViewModel.reset();
         userViewModel.clearLocalRoomIdentity();
         stopHostHeartbeat();
         hostDisconnectScheduler.reset();
+        hostAway = false;
+        userViewModel.hostAway.setValue(false);
         Utils.navigateLandingReplacingCurrent(this);
         UiMessenger.showSnackbar(findViewById(R.id.fragment_container), message);
         roomViewModel.expiredRoomMessage.setValue("");
-        hostLocalGraceExpired = false;
-        pendingExpiredRoomMessage = "";
         handlingHostDisconnect = false;
     }
 
-    private void handleDisruptedRoomMessage(String message) {
-        User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
-        if (currentUser != null && currentUser.host && !hostLocalGraceExpired) {
-            pendingExpiredRoomMessage = message;
-            AppLog.w(AppLog.ROOM, "Host disruption message held until local grace expires");
-            return;
-        }
-        sendPlayerHomeAfterHostDisconnect(message);
+    /**
+     * An {@code expiredRooms} tombstone appeared, so this room is genuinely over and its data is
+     * going away - send the player home.
+     *
+     * <p>Only two things write that marker now: a host deliberately ending the game, and the
+     * maintenance sweep reclaiming a room nobody came back to. A host merely being *disconnected*
+     * no longer writes one and no longer ends anything - that path calls markHostAway() and holds.
+     */
+    private void handleRoomEnded(String message) {
+        sendPlayerHomeAfterRoomEnded(message);
     }
 
     private void scheduleHostDisconnect(long disconnectedAt) {
@@ -309,32 +327,245 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void handleHostConnectionRecovered(boolean cancelHeartbeatTimer) {
-        if (hostDisconnectScheduler.isExpired()) {
-            expireHostDisconnectedRoom("host recovered after expiration");
+        // "connected" is not evidence the host is actually there. A frozen app keeps its socket up
+        // while its heartbeat stops - measured at over two minutes from nothing worse than a locked
+        // phone - so the room reports connected=true with a lastSeenAt going stale. Treating that
+        // as recovery cancelled the very heartbeat deadline meant to catch it, and the host could
+        // then never be shown as away at all. A fresh heartbeat is the only thing that counts.
+        Long lastSeenAt = userViewModel.hostLastSeenAt.getValue();
+        boolean heartbeatFresh = lastSeenAt != null && lastSeenAt > 0L
+                && !GameFlowPolicy.hostHeartbeatExpired(System.currentTimeMillis(), lastSeenAt);
+        if (!heartbeatFresh) {
             return;
         }
-        if (hostDisconnectScheduler.isPastDeadline(System.currentTimeMillis())) {
-            expireHostDisconnectedRoom("host recovered after deadline");
-            return;
-        }
+        handleHostBack();
+        hostDisconnectScheduler.reset();
         if (cancelHeartbeatTimer) {
             hostDisconnectScheduler.cancel();
         }
     }
 
-    private void expireHostDisconnectedRoom(String reason) {
-        if (handlingHostDisconnect || hostDisconnectScheduler.isExpired()) {
-            return;
-        }
-        AppLog.w(AppLog.ROOM, "Expiring room after host disconnect: " + reason);
+    /**
+     * The host has gone quiet for longer than the grace window.
+     *
+     * <p>This used to delete the room and send everyone home. It no longer does either, because
+     * measurement showed the trigger is routine: a host's heartbeat freezes for over two minutes
+     * from nothing worse than a locked phone, while the socket stays up and onDisconnect never
+     * fires. Deleting on that signal ended real games whose host was about to walk back in - the
+     * reported "came back and the app was broken".
+     *
+     * <p>Now the room is simply marked as waiting. Players hold where they are and can leave under
+     * their own steam. A room whose host genuinely never returns is cleaned up by the maintenance
+     * sweep after ABANDONED_ROOM_TTL_MS - the only automatic deletion left in the app.
+     */
+    /**
+     * Room-level controls that must be reachable from every screen: a way out for guests when the
+     * host has gone quiet, and the host's control for removing someone who is not coming back.
+     *
+     * <p>Lives in the Activity rather than in each fragment on purpose. There are sixteen game
+     * screens; adding a bar to each is sixteen ConstraintLayouts to get right and sixteen chances
+     * to break a view something else is anchored to. Snackbars sit above whatever screen is showing
+     * and need no layout changes at all.
+     */
+    /**
+     * Back from an in-round screen: confirm, then leave cleanly.
+     *
+     * <p>Both roles are asked, for different reasons. A host leaving ends the game for everyone, so
+     * the prompt says so. A guest leaving costs them the round they are in the middle of - not the
+     * end of the world, but not something to do by brushing a gesture area either.
+     */
+    private void confirmLeaveFromBack() {
         User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
-        String room = currentUser == null ? "" : currentUser.gameRoom;
-        String message = "Sorry! Host disconnected - create a new game!";
-        if (room == null || room.length() == 0) {
-            sendPlayerHomeAfterHostDisconnect(message);
+        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0) {
+            // Not in a room: nothing to leave, and nothing worth backing out of either.
             return;
         }
-        roomViewModel.markRoomExpired(room, message, () -> sendPlayerHomeAfterHostDisconnect(message));
+        boolean host = currentUser.host;
+        new AlertDialog.Builder(this)
+                .setTitle(host ? "End the game?" : "Leave the game?")
+                .setMessage(host
+                        ? "You are the host, so leaving ends this game for everyone in the room."
+                        : "You will be dropped from this round. The others will keep playing.")
+                .setNegativeButton("Stay", null)
+                .setPositiveButton(host ? "End game" : "Leave", (dialog, which) -> leaveRoomFromChrome())
+                .show();
+    }
+
+    private void setupRoomMembershipChrome() {
+        userViewModel.hostAway.observe(this, away -> updateHostAwayBar(Boolean.TRUE.equals(away)));
+        // Being removed is the one room event a player cannot act on themselves - send them home
+        // rather than leaving them looking at a game that is no longer counting them.
+        userViewModel.removedFromRoomMessage.observe(this, message -> {
+            if (message == null || message.length() == 0) {
+                return;
+            }
+            userViewModel.removedFromRoomMessage.setValue("");
+            AppLog.w(AppLog.ROOM, "Removed from room; returning home");
+            dismissKickBar();
+            sendPlayerHomeAfterRoomEnded(message);
+        });
+        userViewModel.getUsers().addOnListChangedCallback(
+                new ObservableList.OnListChangedCallback<ObservableList<User>>() {
+                    @Override
+                    public void onChanged(ObservableList<User> sender) {
+                        updateKickBar();
+                    }
+
+                    @Override
+                    public void onItemRangeChanged(ObservableList<User> sender, int start, int count) {
+                        updateKickBar();
+                    }
+
+                    @Override
+                    public void onItemRangeInserted(ObservableList<User> sender, int start, int count) {
+                        updateKickBar();
+                    }
+
+                    @Override
+                    public void onItemRangeMoved(ObservableList<User> sender, int from, int to, int count) {
+                        updateKickBar();
+                    }
+
+                    @Override
+                    public void onItemRangeRemoved(ObservableList<User> sender, int start, int count) {
+                        updateKickBar();
+                    }
+                });
+    }
+
+    private void updateHostAwayBar(boolean away) {
+        User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
+        boolean showToGuest = away && currentUser != null && !currentUser.host
+                && currentUser.gameRoom != null && currentUser.gameRoom.length() > 0;
+        if (!showToGuest) {
+            if (hostAwayBar != null) {
+                hostAwayBar.dismiss();
+                hostAwayBar = null;
+            }
+            return;
+        }
+        if (hostAwayBar != null && hostAwayBar.isShownOrQueued()) {
+            return;
+        }
+        // Without this a guest is simply stuck: the round now waits for the host indefinitely by
+        // design, so if the host never comes back there has to be a door.
+        hostAwayBar = UiMessenger.showPersistentAction(findViewById(R.id.fragment_container),
+                "Host is away. The game is paused.", "Leave game", this::leaveRoomFromChrome);
+    }
+
+    private void leaveRoomFromChrome() {
+        RoomExit.leaveRoom(this, userViewModel, roomViewModel, "host away - guest left", () -> {
+            userViewModel.removePlayersListenerOnDB();
+            roomViewModel.clearLocalRoundState();
+            userViewModel.reset();
+            userViewModel.clearLocalRoomIdentity();
+            hostAway = false;
+            userViewModel.hostAway.setValue(false);
+            Utils.navigateHomeReplacingCurrent(this);
+        });
+    }
+
+    /** Offers the host a way to remove someone who has been gone past the kick threshold. */
+    private void updateKickBar() {
+        User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
+        if (currentUser == null || !currentUser.host) {
+            dismissKickBar();
+            return;
+        }
+        User kickable = firstKickablePlayer();
+        if (kickable == null) {
+            dismissKickBar();
+            return;
+        }
+        // isShownOrQueued matters: snackbars are a queue, so anything else the app shows ("Your turn
+        // to read", a database message) displaces this one permanently. Without this check the bar
+        // is remembered as still up and never comes back - which is exactly how it vanished by the
+        // time the round reached reading, the phase where the host most needs it.
+        if (kickBar != null && kickBar.isShownOrQueued()
+                && kickable.userName != null && kickable.userName.equals(kickBarPlayerName)) {
+            return;
+        }
+        dismissKickBar();
+        kickBarPlayerName = kickable.userName;
+        kickBar = UiMessenger.showPersistentAction(findViewById(R.id.fragment_container),
+                kickable.userName + " has been away a while.", "Remove",
+                () -> confirmRemovePlayer(kickable));
+    }
+
+    private User firstKickablePlayer() {
+        long now = System.currentTimeMillis();
+        for (User player : userViewModel.getUsers()) {
+            if (GameFlowPolicy.canKickPlayer(player, now)) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    private void dismissKickBar() {
+        if (kickBar != null) {
+            kickBar.dismiss();
+            kickBar = null;
+        }
+        kickBarPlayerName = null;
+    }
+
+    private void confirmRemovePlayer(User player) {
+        User currentUser = userViewModel.getUser().getValue();
+        if (currentUser == null || currentUser.gameRoom == null || player == null) {
+            return;
+        }
+        // Re-checked here, not just when the bar was drawn: they may have reconnected in between,
+        // and removing someone who has just walked back in would be the wrong outcome.
+        if (!GameFlowPolicy.canKickPlayer(player, System.currentTimeMillis())) {
+            UiMessenger.showSnackbar(findViewById(R.id.fragment_container),
+                    player.userName + " is back - leaving them in the game.");
+            dismissKickBar();
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Remove " + player.userName + "?")
+                .setMessage("They will be dropped from this round. Anything they already wrote is "
+                        + "discarded and the round is rebuilt for the remaining players.")
+                .setNegativeButton("Keep waiting", null)
+                .setPositiveButton("Remove", (dialog, which) -> removePlayer(currentUser, player))
+                .show();
+    }
+
+    private void removePlayer(User currentUser, User player) {
+        String room = currentUser.gameRoom;
+        String playerKey = GameLogic.playerKey(player);
+        dismissKickBar();
+        roomViewModel.removePlayerFromRound(room, playerKey, userViewModel.getUsers(),
+                userViewModel.gamePhase.getValue(),
+                () -> UiMessenger.showSnackbar(findViewById(R.id.fragment_container),
+                        player.userName + " was removed."),
+                () -> endRoundWithTooFewPlayers(room));
+    }
+
+    /** A round cannot run with one player. End it rather than leaving someone alone in a dead game. */
+    private void endRoundWithTooFewPlayers(String room) {
+        AppLog.w(AppLog.ROOM, "Ending room - not enough players left room=" + room);
+        roomViewModel.markRoomExpired(room, "Not enough players left to keep going.",
+                () -> handleRoomEnded("Not enough players left to keep going."));
+    }
+
+    private void markHostAway(String reason) {
+        if (hostAway) {
+            return;
+        }
+        hostAway = true;
+        AppLog.w(AppLog.ROOM, "Host is away (holding the room, not ending it): " + reason);
+        userViewModel.hostAway.setValue(true);
+    }
+
+    private void handleHostBack() {
+        if (!hostAway) {
+            return;
+        }
+        hostAway = false;
+        AppLog.i(AppLog.ROOM, "Host is back");
+        userViewModel.hostAway.setValue(false);
     }
 
     private void setupDeviceNetworkMonitor() {
@@ -392,11 +623,6 @@ public class MainActivity extends AppCompatActivity {
         connectionHandler.removeCallbacks(showConnectionBannerRunnable);
         if (connected) {
             connectionBanner.setVisibility(View.GONE);
-            if (hostLocalGraceExpired && pendingExpiredRoomMessage.length() > 0) {
-                sendPlayerHomeAfterHostDisconnect(pendingExpiredRoomMessage);
-                return;
-            }
-            stopHostConnectionCountdown();
             markCurrentPlayerConnectedIfNeeded();
         }
         else {
@@ -423,48 +649,12 @@ public class MainActivity extends AppCompatActivity {
     private void updateDisconnectedBannerText() {
         User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
         if (currentUser != null && currentUser.host) {
-            startHostConnectionCountdown();
             return;
         }
         setConnectionBannerText("Connection lost. Reconnecting before the game can move on.");
     }
 
-    private void startHostConnectionCountdown() {
-        if (hostConnectionCountdownRunnable != null) {
-            return;
-        }
-        long startedAt = System.currentTimeMillis();
-        hostConnectionCountdownRunnable = new Runnable() {
-            @Override
-            public void run() {
-                long elapsedMs = Math.max(0L, System.currentTimeMillis() - startedAt);
-                long remainingMs = Math.max(0L, GameFlowPolicy.CONNECTION_GRACE_MS - elapsedMs);
-                long remainingSeconds = Math.max(0L, (remainingMs + 999L) / 1000L);
-                if (remainingMs > 0L) {
-                    setConnectionBannerText("Connection lost. Host grace: " + remainingSeconds + "s before players are sent home.");
-                }
-                else {
-                    hostLocalGraceExpired = true;
-                    setConnectionBannerText("Connection lost. Create a new game after internet connection is restored.");
-                }
-                if (remainingMs > 0L) {
-                    connectionHandler.postDelayed(this, 1000L);
-                }
-            }
-        };
-        hostConnectionCountdownRunnable.run();
-    }
 
-    private void stopHostConnectionCountdown() {
-        if (hostConnectionCountdownRunnable != null) {
-            connectionHandler.removeCallbacks(hostConnectionCountdownRunnable);
-            hostConnectionCountdownRunnable = null;
-        }
-        if (!hostLocalGraceExpired) {
-            pendingExpiredRoomMessage = "";
-        }
-        setConnectionBannerText("Connection lost. Check Wi-Fi and try again.");
-    }
 
     private void startHostHeartbeatIfNeeded() {
         User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
@@ -492,6 +682,11 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         presencePulse = new RepeatingPulse(pulseRunner, GameFlowPolicy.HOST_HEARTBEAT_INTERVAL_MS, () -> {
+            // Room-level bars are re-checked on the pulse as well as on list changes. Eligibility is
+            // a function of *elapsed time*, so nothing may change in the room at the moment someone
+            // becomes removable - and a bar displaced by another snackbar has to be able to return.
+            updateKickBar();
+            updateHostAwayBar(hostAway);
             if (firebaseConnected && deviceNetworkAvailable) {
                 markCurrentPlayerConnectedIfNeeded();
             }
@@ -520,6 +715,34 @@ public class MainActivity extends AppCompatActivity {
 //        // FCM registration token to your app server.
 //        sendRegistrationToServer(token);
 //    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Only a resume that follows a real pause may touch the connection - see onResume.
+        resumedFromBackground = true;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Backgrounding this app is not free: measured on a real device, Android freezes the cached
+        // process and the Realtime Database socket dies ~38s later even though the process lives,
+        // and coming back did not re-establish it on its own - the app sat foreground and visible on
+        // "Connection lost" for 4+ minutes. So resuming has to say so explicitly rather than assume
+        // the SDK healed itself.
+        // Guarded on an actual pause. onResume also runs immediately after onCreate, and forcing
+        // the offline->online cycle *during* the first handshake wedged it outright - the app then
+        // never connected at all on launch. Measured, after this fix was written the naive way.
+        if (resumedFromBackground && userViewModel != null) {
+            userViewModel.reconnectAfterResume();
+        }
+        resumedFromBackground = false;
+        // The heartbeat is stopped in onDestroy and must come back with the Activity, or the room
+        // looks host-less to everyone else after a rotation.
+        startPresencePulse();
+        startHostHeartbeatIfNeeded();
+    }
 
     @Override
     protected void onDestroy() {
