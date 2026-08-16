@@ -189,6 +189,13 @@ public class GameLogic {
         return bestVote;
     }
 
+    /**
+     * Applies a voice's text mutation. Every code in {@link UnlockPolicy#catalog()} except the
+     * "regular" voice must change the text somehow — a voice that returns its input unchanged is
+     * an unlockable the player earns and then can't tell apart from no voice at all, which is
+     * exactly what codes 4-7 silently did until they became earnable.
+     * {@code GameLogicTest.everyUnlockableVoiceActuallyChangesTheText} guards that.
+     */
     public static String mutateVoiceText(String ifThen, String code) {
         if ("1".equals(code)) {
             return ifThen.replace("r", "w");
@@ -199,7 +206,55 @@ public class GameLogic {
         if ("3".equals(code)) {
             return reverseWords(ifThen);
         }
+        if ("4".equals(code)) {
+            return jokester(ifThen);
+        }
+        if ("5".equals(code)) {
+            return forgetful(ifThen);
+        }
+        if ("6".equals(code)) {
+            return shaggy(ifThen);
+        }
+        if ("7".equals(code)) {
+            return disobedient(ifThen);
+        }
         return ifThen;
+    }
+
+    /** Punctuates the sentence with laughter, so the reader can't get through it straight. */
+    private static String jokester(String ifThen) {
+        return ifThen.replace(", ", ", heh heh, ") + " ha ha ha!";
+    }
+
+    /**
+     * Trails off on the longer words, as if the reader keeps losing the thread. Deterministic on
+     * word length rather than random so the same sentence always reads the same way - a voice that
+     * changed every time it was read would be untestable and would feel broken to the player.
+     */
+    private static String forgetful(String ifThen) {
+        String[] words = ifThen.split(" ");
+        StringBuilder result = new StringBuilder();
+        for (String word : words) {
+            if (result.length() > 0) {
+                result.append(" ");
+            }
+            if (word.length() >= 6) {
+                result.append(word, 0, 3).append("... uh... what was it... ").append(word);
+            } else {
+                result.append(word);
+            }
+        }
+        return result.toString();
+    }
+
+    /** Stoner-detective delivery: "like" wedged in, and a "Zoinks!" on the front. */
+    private static String shaggy(String ifThen) {
+        return "Zoinks! Like, " + ifThen.replace(", ", ", like, ");
+    }
+
+    /** Reads the sentence, then immediately refuses to have read it. */
+    private static String disobedient(String ifThen) {
+        return "No. I'm not reading that. " + ifThen + ". There, happy?";
     }
 
     private static String pigLatin(String ifThen) {

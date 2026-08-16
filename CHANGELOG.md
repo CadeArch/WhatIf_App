@@ -16,6 +16,180 @@ for stack/build/roadmap; this file is the "what changed and why" log.
 
 ## Current Session Changes
 
+
+## Archived Session: feature/unlockables-and-file-cleanup
+
+- **Every unlockable can now actually be earned.** `fillUnlockables` seeded seven voices but
+  `unlockVoice` only had rules for three, so `jokester`, `forgetful`, `shaggy` and `disobedient`
+  were written to every account as `unlocked=false` with nothing in the app able to flip them —
+  rewards a player could see but never earn. New `UnlockPolicy` (pure, Firebase-free, per §5) is
+  now the single source of truth for both the catalog and the rules; the catalog used to be spelled
+  out twice, in `fillUnlockables` and again in `unlockVoice`, which is how the two drifted apart in
+  the first place. The three pre-existing rules are unchanged so nobody loses a voice they earned;
+  the four new ones extend the games-played ladder (1 / 5 / 10 / 20 / 40) — **that pacing is a
+  proposal, and retuning it means editing five constants and nothing else.**
+  - `unlockVoice(user, "numGames"|"leaderBoards")` became `unlockEarnedVoices(user)`. The old
+    stringly-typed argument meant a voice was only ever considered at the one call site passing its
+    matching string; asking for the whole earned set instead makes unlocking idempotent, so an
+    account that missed an unlock (offline when it was earned, or earned before the rule existed)
+    repairs itself on the next call rather than staying short forever.
+  - `WaitingForHostFrag` hard-coded "5 games → backwords" for its congratulation snackbar, which
+    both duplicated the threshold and stayed silent for every other voice. It now asks
+    `UnlockPolicy.voiceEarnedAtExactly(gamesPlayed)`, which is exact rather than `>=` so the
+    message fires on the game that crosses the line and stays quiet afterwards.
+
+- **`AuthErrorPolicy` extracted from `UserViewModel`.** Sign-in/sign-up error handling was two
+  chains of `if`s comparing `getMessage()` against hard-coded English SDK sentences, inline with
+  the Firebase calls and untestable without an auth emulator. Split into a pure, tested decision
+  (`signInMessage`/`signUpMessage`) plus a thin Firebase-typed adapter. The split was forced by a
+  real constraint worth recording: a JVM test **cannot** construct a `FirebaseNetworkException` —
+  its constructor calls `android.text.TextUtils.isEmpty`, which isn't mocked — so any policy taking
+  Firebase exception types directly is untestable by construction. Typed checks now run before any
+  string matching, since the SDK's wording isn't a stable contract; that ordering is what stops a
+  network blip being reported as "User Disabled".
+
+- **`VoicePlayback` extracted from `ReadSentenceFrag`.** The TTS engine's whole lifecycle — build,
+  selected voice, speak, shut down — now lives in one class instead of being threaded through a
+  fragment that also does view binding, Firebase listeners, turn mechanics and navigation. It was
+  the cleanest seam available there because nothing else on the screen touches the engine.
+
+- **Removed the dead `e2eSignals` node from `database.rules.json`.** It was only ever allow-listed
+  while Tier B was unknowingly running against the live project; Tier B now runs against the local
+  emulator, where the app's namespace isn't governed by this file at all, so local runs are
+  unaffected. Verified the allowlist still covers every top-level root the app actually writes
+  (`rooms`, `leaderBoard`, `AccountPlayers`, `expiredRooms`, `errorLogs`, `maintenance`).
+
+- **Started decomposing the two ~1100-line ViewModels, characterization-tests-first.** The method
+  throughout: write emulator tests against the code *in its existing home*, confirm green, move the
+  code, then re-run **the same test file with no edits**. A passing run after the move is then real
+  evidence the behavior didn't change, rather than a claim.
+  - `RoomMaintenance` (155 lines) out of `RoomViewModel` — the abandoned-room sweep, the daily
+    claim and the tombstone prune. Whole-table housekeeping that runs once at startup and shares no
+    state with room lifecycle, round state or reader order.
+  - `AccountProgressRepository` (148 lines) out of `UserViewModel` — games played, the unlockable
+    rows and the leaderboard flags. Only ever touches `AccountPlayers/<uid>/<name>/...`.
+  - Both ViewModels keep their existing public methods and forward, so no call site changed and the
+    characterization tests applied to old and new implementations unmodified.
+  - **11 new emulator tests covering behavior that previously had none.** Both extracted areas were
+    in the awkward position of having their *decisions* unit tested (`GameFlowPolicy`,
+    `UnlockPolicy`) while the part that actually reads, decides and writes had only ever been
+    checked by hand — exactly the code an extraction can quietly break.
+  - `RoomPresenceRepository` (295 lines) out of `UserViewModel` — the `onDisconnect`
+    registrations, the host heartbeat, and the listener guests use to notice their host went quiet.
+    This is the hard-won disconnect behavior, so it was pinned first by tests that drive a **real
+    socket drop** rather than simulating the write: a second FirebaseApp watches the room while the
+    first calls `goOffline()`, so the server-side `onDisconnect` firing is covered, not just the
+    registration call. **That corrected a standing assumption in this repo** —
+    `HostLeaveEmulatorTest` records that a real `onDisconnect` trigger "needs an actual socket drop,
+    not reproducible" and writes the value by hand; `goOffline()` turns out to be exactly that drop.
+  - `RoundStateRepository` (622 lines) out of `RoomViewModel` — round/assignment creation, the
+    reader turn order, `readingComplete`, and the replay reset. The most entangled cluster left,
+    and the one where "move it and see if the app still works" would have been worthless: its bugs
+    are ordering bugs between two devices, which only show up in a real round. It was pinned by the
+    existing `ReadingTurn`/`RoundAssignment`/`ReplayLoop` emulator suites (8 tests) run green
+    before the move and re-run **byte-identical** after.
+    - The 11 shared `LiveData` instances are handed to the repository by reference, which is only
+      safe because none of them is ever *reassigned* — checked every one before relying on it.
+      Two callers still needed to stay behind: `clearLocalRoundState()` also drops the expired-room
+      listener, which is room lifecycle rather than round state, so `RoomViewModel`'s delegate does
+      that half itself.
+  - **Net: `RoomViewModel` 1111 → 553 lines, `UserViewModel` 1112 → 827.** Both keep their public
+    surface and forward, so no Fragment or Activity changed in any of the four extractions.
+  - **A green build is not a green run here.** The emulator suites `assumeTrue(emulatorReachable())`,
+    so a dead emulator reports `BUILD SUCCESSFUL` with every test skipped — and Gradle's up-to-date
+    check will then replay that same result for a *second* clean-looking run without executing
+    anything. Both happened during this extraction's verification. Check `skipped="0"` in the XML,
+    not the build banner.
+
+- **Four unlockable voices were silent - earning them changed nothing you could hear.**
+  `mutateVoiceText` only ever had branches for codes 1-3, so `jokester`, `forgetful`, `shaggy` and
+  `disobedient` fell through to `return ifThen`. Harmless while those voices were permanently
+  locked; the moment the unlock ladder above made them earnable, they became four rewards
+  indistinguishable from no reward. Implemented all four (**the deliveries are a proposal - each is
+  one small private method**) and added `everyUnlockableVoiceActuallyChangesTheText`, which walks
+  the catalog and fails naming any voice whose mutation is a no-op, plus a duplicate-code guard.
+  Confirmed it can fail: deleting the `"6"` branch fails it by name.
+
+- **Unlocked voices never reached the picker.** `ReadSentenceFrag.buildVoiceList()` added rows to
+  the adapter's backing `ArrayList` directly and nothing ever called `notifyDataSetChanged()`, so
+  a Spinner built before the Firebase rows arrive (always, they are async) kept showing only
+  "regular". Two smaller faults rode along: only `sender.get(positionStart)` was read, so a
+  multi-row insert dropped all but the first, and the callback was never unregistered, leaving one
+  more dead copy per rotation. Now rebuilt from the whole list on every change and detached in
+  `onDestroyView`.
+
+- **Tier B was red for the whole session and it was never a product bug — root-caused and fixed.**
+  The Android emulator's `10.0.2.2` host-loopback alias routes through qemu's user-mode NAT, which
+  passes outbound traffic but **drops server-initiated frames**. RTDB writes committed and initial
+  reads returned while pushes never arrived, so the host sat on "1 player" with the guest's join
+  already in the database, and transactions died at 15.09s with `aborted due to a network
+  disconnect` — Firebase's health timeout firing because the server's reply never came. Every
+  symptom chased for hours was downstream of that one fact. Fix: the app targets `127.0.0.1` and
+  both Tier B scripts `adb reverse tcp:9000` / `tcp:9099`, tunnelling over adb instead of the NAT.
+  **Free-play Tier B now passes end-to-end, both roles, full two-round loop.**
+  - **Proved it was not this session's changes by stashing all 32 modified/new files and running
+    against clean HEAD, which failed identically.** Worth doing early next time — separating
+    environment from code took hours it should not have.
+  - Contributing factor: long-running AVDs degrade badly. A cold restart took room reservation from
+    a 15s timeout back to 76ms. Cold-restart the AVDs and the Gradle daemon when a run starts
+    getting slow, rather than theorising about the code.
+  - `E2ERoomCodeSignal.publish()` ignored its completion result, so a failed write on the *host*
+    surfaced only as the *guest* timing out on another device. Making it fail loudly is what made
+    the NAT bug diagnosable at all. Waiting also uses a listener now instead of polling `get()`.
+  - **Two of my own "ruled out" conclusions were wrong, both from the same mistake:** treating a
+    listener's initial `onDataChange` as proof of connectivity. Firebase serves that from cache, so
+    an unconnected client looks exactly like a connected one on an empty path. That sent the
+    investigation into the `getReference()` and security-rules theories, neither of which was the
+    cause. Verify with the client's own `.info/connected`.
+  - `database.rules.emulator.json` + `firebase.emulator.json` split the test-only `e2eSignals`
+    allow-list out of the production rules, so local runs can have it and `firebase deploy` (which
+    reads `firebase.json` → `database.rules.json`) still cannot ship it.
+  - Also cost real time: killing `node` does **not** stop the database emulator (a Java process
+    holds port 9000), so a "restart" silently kept the old suite serving and the new one died with
+    `port taken`. And the RTDB emulator answers unauthenticated REST as **admin**, skipping rules
+    entirely — a REST probe can never confirm or deny a rules problem.
+  - All of the above now lives in the new **`e2e-gotchas` skill** as a symptom→cause→fix table, so
+    the next Tier B failure starts from a lookup instead of a re-derivation.
+  - **Account-play Tier B also passes now**, after two follow-on fixes:
+    - The test accounts in `local-test-accounts.md` are **production** accounts and had never
+      existed in the local Auth emulator. "Accounts exist locally" was a documented *manual*
+      prerequisite, which is a trap: that emulator is in-memory, so every suite restart wiped them
+      and the only symptom was two devices parked on the sign-in screen. The script now seeds them
+      itself via the Auth emulator's REST API (create-or-sign-in, then set `displayName`, which the
+      app reads as the username). Idempotent, and nothing is copied out of production.
+    - Moving to `127.0.0.1` broke Auth on its own: `network_security_config.xml` matches on the
+      exact host string, and `localhost` does **not** cover the literal `127.0.0.1`. Database kept
+      working the whole time because its WebSocket is exempt from that policy, so only half the app
+      failed - with `Cleartext HTTP traffic to 127.0.0.1 not permitted`.
+  - **Trade-off worth knowing:** debug emulator builds now *require* the `adb reverse` tunnels. The
+    Tier B scripts set them up; a `-PuseFirebaseEmulator=true` build launched from Android Studio's
+    Run button without them cannot reach the emulator at all.
+
+- **Replaced three hand-rolled repeating tickers in `MainActivity` with one `RepeatingPulse`.** The
+  host heartbeat and presence pulse were identical self-posting `Runnable`s — nullable field,
+  "already running?" guard, immediate first tick, `removeCallbacks` on stop — and neither could be
+  tested where it sat. `RepeatingPulse` reuses the same `DelayedRunner` seam
+  `HostDisconnectScheduler` already had, so the Activity supplies the real `Handler` and tests
+  supply a fake clock. 7 unit tests pin the semantics that actually matter, including the two easy
+  to lose in a tidy-up: the first tick fires **synchronously on start**, and a tick that stops its
+  own pulse (which the heartbeat does when the connection drops) must not be rescheduled.
+  - **The third ticker, the host-disconnect countdown, was deliberately not converted.** It is a
+    *terminating* countdown that stops rescheduling when the grace window closes while leaving its
+    field non-null, so a later start is a no-op until the explicit stop runs. Forcing it into the
+    shared abstraction would have quietly changed that, which is the opposite of the point.
+
+- **16 new Tier A tests** (API 99 → 115, 0 failures). `UnlockPolicyTest` includes a test that walks
+  the catalog and fails naming any voice no stat could ever earn — the exact shape of the original
+  bug, so it can't silently come back when a voice is added. Confirmed these can genuinely fail
+  rather than passing vacuously: temporarily deleting the `jokester` rule failed 4 tests including
+  that one by name, per the "confirm it can actually fail" rule.
+
+- **`CLAUDE.md` compressed 120 → 100 lines** by tightening §5/§6/§7 prose. Every rule is kept; what
+  went was narrative justification, which is what the bulk actually was. Judged compression the
+  better lever than moving more into skills: §6/§7/§9 are "don't write it the naive way" guards that
+  only work if they're already loaded when you're about to do the naive thing — the same reason the
+  never-commit rule had to come back out of the workflow skill.
+
 ## Archived Session: feature/vote-collection-and-room-cleanup
 
 - **Tier B was running against PRODUCTION, not the local emulator — root-caused and fixed.** Cade

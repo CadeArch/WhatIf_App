@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.view.View;
 import android.widget.TextView;
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.UnlockPolicy;
 import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
@@ -59,9 +60,13 @@ public class WaitingForHostFrag extends Fragment {
         }
 
         if (currentUser.accountPlay) {
-            userViewModel.unlockVoice(userViewModel.getUser(), "numGames");
-            if (currentUser.gamesPlayed == 5) {
-                UiMessenger.showSnackbar(view, "Unlocked backwords google voice!");
+            userViewModel.unlockEarnedVoices(userViewModel.getUser());
+            // Announce whatever this game's count actually earned, instead of hard-coding the one
+            // "5 games -> backwords" milestone. That literal both duplicated the threshold living
+            // in UnlockPolicy and stayed silent for every other games-played voice.
+            String justEarned = UnlockPolicy.voiceEarnedAtExactly(currentUser.gamesPlayed);
+            if (justEarned != null) {
+                UiMessenger.showSnackbar(view, "Unlocked " + justEarned + " google voice!");
             }
         }
 

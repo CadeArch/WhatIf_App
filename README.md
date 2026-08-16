@@ -195,13 +195,11 @@ Useful Logcat filters:
 - [ ] Add Firebase emulator or fake-repository tests for replay loops, late joins, player leaves, and stale room data.
 - [ ] Add manual QA steps for toggling airplane mode during submit, pass, vote, play again, and Home.
 - [ ] Add host controls for removing a player who stays disconnected too long but is not the host.
-- [ ] Remove the now-dead `e2eSignals` node from production. It is allow-listed in
-      `database.rules.json` and exists only for the Tier B room-code handoff, which was allow-listed
-      back when Tier B was unknowingly running against the live project. Tier B now runs entirely
-      against the local emulator, so this is read/write surface in production that nothing real
-      uses. Dropping the rule entry and re-deploying tightens prod with no functional change (there
-      may also be a stray leftover `e2eSignals` key in the live data to delete). Left in place only
-      because deleting production access is not something to do casually.
+- [x] Remove the now-dead `e2eSignals` node from `database.rules.json`. It was only allow-listed
+      while Tier B was unknowingly running against the live project; Tier B now runs against the
+      local emulator, where the app's namespace isn't governed by that file, so local runs are
+      unaffected. **Needs deploying** (`firebase deploy --only database`) for prod to tighten, and
+      there may still be a stray leftover `e2eSignals` key in the live data to delete separately.
 
 ### Publishing And Policy
 
@@ -281,22 +279,31 @@ after every branch is expensive. Options considered, in order of increasing cost
 - [x] Add focused unit tests for extracted logic, especially replay cleanup, reader turn advancement, assignment selection, and validation.
 - [ ] Standardize fragment setup patterns for binding views, observing ViewModels, handling submit clicks, and cleanup in `onDestroyView`. Started with shared UI message observer helpers.
 - [ ] Review listener ownership so every Firebase listener has one obvious attach/detach location.
-- [ ] **Break up the biggest files.** Current line counts, worst first:
-      - `UserViewModel` (1112) - auth, account/profile data, player presence, `onDisconnect`
-        registration, host heartbeat, unlockables and room-leave cleanup all in one class. The most
-        tangled file in the repo and the one most often edited for unrelated reasons.
-      - `RoomViewModel` (1111) - room lifecycle, round/assignment state, replay reset, reader turn
-        order, connection listeners and now maintenance cleanup.
-      - `ReadSentenceFrag` (652) - view binding, Firebase listeners, TTS/voice, turn mechanics and
-        navigation together.
-      - `MainActivity` (528) - insets, connection banner, host-disconnect grace timers, heartbeat
-        scheduling.
+- [~] **Break up the biggest files.** In progress, characterization-tests-first: write emulator
+      tests against the code where it lives, confirm green, move it, re-run the *same* tests
+      unmodified. Done so far:
+      - `RoomMaintenance` out of `RoomViewModel` (sweep + daily claim + tombstone prune).
+      - `AccountProgressRepository` out of `UserViewModel` (games played, unlockables, leaderboard
+        flags).
+      - `RoomPresenceRepository` out of `UserViewModel` (onDisconnect registration, host heartbeat,
+        host-connection listener), pinned first by tests driving a real socket drop.
+      - `RoundStateRepository` out of `RoomViewModel` (round/assignment creation, reader turn
+        order, `readingComplete`, replay reset), pinned by the existing `ReadingTurn`/
+        `RoundAssignment`/`ReplayLoop` emulator suites re-run byte-identical after the move.
+      - `UnlockPolicy` / `AuthErrorPolicy` (pure decisions) and `VoicePlayback` (TTS lifecycle out
+        of `ReadSentenceFrag`).
+      - `RepeatingPulse` replacing the duplicated heartbeat/presence tickers in `MainActivity`.
 
-      Split along the seams the repo already favours: pure decisions into policy classes
-      (`GameFlowPolicy`/`GameLogic`/`RoomCreationPolicy`), Firebase access behind `GameRepository`,
-      and per-feature collaborators for the rest. Do it as its own branch rather than as drive-by
-      edits - these files hold hard-won disconnect/replay behaviour, so each extraction wants Tier A
-      coverage of the moved logic before and after, and pairs naturally with the package
+      Both ViewModels still forward from their original methods, so no call sites changed. Current
+      counts: `RoomViewModel` 553 (was 1111), `UserViewModel` 827 (was 1112), `ReadSentenceFrag`
+      639, `MainActivity` 535. Still to do:
+      - `ReadSentenceFrag` (639) — still mixes view binding, Firebase listeners, turn mechanics and
+        navigation; `VoicePlayback` was the one clean seam.
+      - `MainActivity`'s host-disconnect countdown ticker, deliberately left hand-rolled because it
+        terminates rather than repeats (see `RepeatingPulse`'s javadoc).
+
+      Each wants its own characterization tests written *before* the move, the same way the
+      completed extractions did — not a drive-by refactor. Pairs naturally with the package
       reorganization item above.
 
 ### Sentence Formatting
@@ -321,25 +328,35 @@ after every branch is expensive. Options considered, in order of increasing cost
 
 ### Unlockables
 
-- [ ] **Give every unlockable a way to actually be unlocked.** `UserViewModel.fillUnlockables`
-      creates seven voices (`fuddify`, `pig latin`, `backwords`, `jokester`, `forgetful`, `shaggy`,
-      `disobedient`), but `unlockVoice` only has rules for three:
-      - `backwords` - 5+ games played
-      - `fuddify` - made the leaderboard
-      - `pig latin` - perfect leaderboard entry
-
-      So `jokester`, `forgetful`, `shaggy` and `disobedient` are written to every account with
-      `unlocked=false` and nothing in the app can ever flip them - dead rewards a player can see but
-      never earn. Either add a rule per remaining voice (games-played tiers, first win, N leaderboard
-      entries, voting participation, etc.) or stop creating the ones that aren't real yet.
-- [ ] **Tidy the unlock rules themselves while doing it.** They're currently a chain of `if`s in
-      `UserViewModel` that hard-code the voice name, the DB path and the condition together, keyed
-      off a stringly-typed `which` argument (`"numGames"` / `"leaderBoards"`) with each rule
-      re-writing its own `AccountPlayers/.../unlockables/<name>/unlocked` path by hand. The
-      condition part belongs in a pure policy class (see the `GameFlowPolicy`/`GameLogic` pattern)
-      so "what unlocks this" is unit-testable without Firebase, and the voice list belongs in one
-      place instead of being spelled out separately in `fillUnlockables` and again in `unlockVoice`.
-      There is currently no Tier A coverage of unlock rules at all.
+- [x] **Give every unlockable a way to actually be unlocked.** `fillUnlockables` seeded seven
+      voices but `unlockVoice` had rules for only three, so `jokester`, `forgetful`, `shaggy` and
+      `disobedient` were written to every account as `unlocked=false` with nothing able to flip
+      them. All seven are now earnable: the three original rules are unchanged (`backwords` 5
+      games, `fuddify` made the leaderboard, `pig latin` perfect leaderboard) and the rest extend a
+      games-played ladder (1 / 5 / 10 / 20 / 40). A Tier A test walks the catalog and fails naming
+      any voice no stat could earn, so a newly added voice can't silently be unreachable.
+- [x] **Tidy the unlock rules.** Catalog and rules unified in one pure `UnlockPolicy`; the
+      stringly-typed `unlockVoice(user, "numGames"|"leaderBoards")` became `unlockEarnedVoices(user)`,
+      which is idempotent and repairs a missed unlock instead of leaving the account short. 11 Tier
+      A tests, where there was previously no coverage of unlock rules at all.
+- [ ] Retune the games-played ladder if the pacing feels wrong — the thresholds are five constants
+      at the top of `UnlockPolicy` and nothing else needs to change. The current spacing is a first
+      proposal, not a considered design.
+- [ ] Consider unlock conditions beyond games-played and leaderboard placement. Those are the only
+      stats the `User` record currently tracks, which is why the ladder leans on one number; things
+      like first win, games hosted, or votes cast would need new fields plumbed through first.
+- [ ] Surface *why* a voice is locked in the profile/picker UI. `UnlockPolicy.Voice.getRequirement()`
+      already returns player-facing text ("Play 10 games") that nothing displays yet.
+- [ ] Have the Tier B scripts delete their `e2eSignals/<correlationId>` node when a run finishes.
+      Purely hygiene, not correctness: the RTDB emulator is in-memory (wiped on restart), each run
+      uses a fresh correlation ID so runs never collide, and the node is deliberately absent from
+      the production rules so it cannot ship. It just piles up within one long session.
+- [ ] Leave the local emulator on exactly **two** namespaces. `demo-mixedupgame-default-rtdb` is
+      Tier A/Robolectric (they set that project id explicitly) and `mixedupgame-default-rtdb` is
+      any real APK including Tier B (from `google-services.json`). Keeping them apart is what stops
+      JVM test data polluting the app's `leaderBoard`, so this is two by design, not redundancy —
+      any *other* namespaces are leftovers from passing a `--project` override to the emulator and
+      disappear on the next restart.
 
 ### UI And Accessibility
 

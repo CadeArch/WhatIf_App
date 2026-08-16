@@ -16,6 +16,8 @@ import com.CadeMixedUpGame.api.models.Room;
 import com.CadeMixedUpGame.api.models.User;
 import com.CadeMixedUpGame.api.repositories.FirebaseGameRepository;
 import com.CadeMixedUpGame.api.repositories.GameRepository;
+import com.CadeMixedUpGame.api.repositories.RoomMaintenance;
+import com.CadeMixedUpGame.api.repositories.RoundStateRepository;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
@@ -42,6 +44,8 @@ public class RoomViewModel extends ViewModel {
     public ArrayList<String> roomNames = new ArrayList<>();
     public DatabaseReference db;
     private final GameRepository repository;
+    private final RoomMaintenance maintenance;
+    private final RoundStateRepository round;
     public MutableLiveData<Boolean> inProgress = new MutableLiveData<Boolean>();
     public MutableLiveData<RoomJoinState> roomJoinState = new MutableLiveData<RoomJoinState>(RoomJoinState.IDLE);
     public MutableLiveData<String> databaseMessage = new MutableLiveData<String>();
@@ -56,16 +60,6 @@ public class RoomViewModel extends ViewModel {
     public MutableLiveData<String> activeReaderKey = new MutableLiveData<String>("");
     public MutableLiveData<List<String>> readOrder = new MutableLiveData<List<String>>(new ArrayList<String>());
     public MutableLiveData<String> expiredRoomMessage = new MutableLiveData<String>("");
-    private ValueEventListener activeReaderListener;
-    private String activeReaderListenerRoom;
-    private ValueEventListener readingCompleteListener;
-    private String readingCompleteListenerRoom;
-    private ValueEventListener assignmentListener;
-    private String assignmentListenerPath;
-    private ValueEventListener replayStateListener;
-    private String replayStateListenerRoom;
-    private ValueEventListener currentRoundListener;
-    private String currentRoundListenerRoom;
     private ValueEventListener connectionListener;
     private ValueEventListener expiredRoomListener;
     private String expiredRoomListenerRoom;
@@ -96,6 +90,10 @@ public class RoomViewModel extends ViewModel {
         }
         this.repository = repository;
         db = repository.root();
+        maintenance = new RoomMaintenance(db);
+        round = new RoundStateRepository(db, databaseMessage, currentAssignment, currentRoundId,
+                currentRoundLoaded, activeReaderIndex, activeReaderLoaded, activeReaderKey,
+                readOrder, readingComplete, replayState);
         if (rooms == null) {
             rooms = new ObservableArrayList<Room>();
             if (loadRoomsOnCreate) {
@@ -257,123 +255,17 @@ public class RoomViewModel extends ViewModel {
                 .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting expired room marker room=" + roomID, e));
     }
 
-    /** Runs the app's housekeeping at most once per MAINTENANCE_SWEEP_INTERVAL_MS across all
-     * clients - whichever device happens to launch first after it falls due does the work, and
-     * everyone else that day does nothing.
-     *
-     * <p>The claim is a transaction on a single shared value, so simultaneous launches can't all
-     * decide they are the one: exactly one commit wins and the rest abort. Without it every client
-     * swept on every launch, reading the entire rooms node each time - O(users x rooms) and a pile
-     * of clients racing to delete the same rooms, which is fine at small scale and untenable at
-     * real throughput. The proper long-term answer is a scheduled server-side sweep instead of
-     * doing this on clients at all; see README's Reliability roadmap. */
+    // Housekeeping lives in RoomMaintenance; these stay so the Activity keeps one entry point.
     public void runDailyMaintenanceIfDue(long nowMs) {
-        db.child("maintenance").child("lastSweepAt").runTransaction(new Transaction.Handler() {
-            @NonNull
-            @Override
-            public Transaction.Result doTransaction(@NonNull MutableData currentData) {
-                Long lastSweepAt = currentData.getValue(Long.class);
-                if (!GameFlowPolicy.isMaintenanceSweepDue(lastSweepAt, nowMs)) {
-                    return Transaction.abort();
-                }
-                currentData.setValue(nowMs);
-                return Transaction.success(currentData);
-            }
-
-            @Override
-            public void onComplete(DatabaseError error, boolean committed, DataSnapshot currentData) {
-                if (error != null) {
-                    AppLog.e(AppLog.FIREBASE, "Maintenance claim failed: " + error.getMessage());
-                    return;
-                }
-                if (!committed) {
-                    AppLog.d(AppLog.ROOM, "Maintenance sweep not due; another client already ran it");
-                    return;
-                }
-                AppLog.i(AppLog.ROOM, "Maintenance claim won; sweeping nowMs=" + nowMs);
-                cleanupAbandonedRooms(nowMs);
-                cleanupOldExpiredRoomMarkers(nowMs - GameFlowPolicy.EXPIRED_ROOM_TOMBSTONE_TTL_MS);
-            }
-        });
+        maintenance.runDailyMaintenanceIfDue(nowMs);
     }
 
-    /** Deletes rooms nobody is coming back to.
-     *
-     * <p>This is the only thing that ever removes an abandoned room. Every other deletion path
-     * ({@code EndFrag} home, {@code CreateGameFrag} back, the host-disconnect handler,
-     * {@code deleteRoomIfPlayersEmpty}) needs a live client to reach it, so a room whose host's
-     * process simply dies - crash, force-stop, swiped away, battery, a killed instrumented test -
-     * used to sit in the database forever. The {@code expiredRooms} tombstones are a different
-     * mechanism and were never a room cleaner: they flag "this room is dead" so a reconnecting
-     * host stops writing to it and other clients know to go home, and their own 24h prune only
-     * ever removed those flags, never the rooms themselves.
-     *
-     * <p>Safe to run from any client on startup: {@link GameFlowPolicy#isRoomAbandoned} keys off
-     * the host heartbeat, so a room with anyone actually playing in it is never a candidate. */
     public void cleanupAbandonedRooms(long nowMs) {
-        AppLog.i(AppLog.ROOM, "Cleaning abandoned rooms nowMs=" + nowMs);
-        // Tombstones first: a room the app already marked expired is deletable immediately, no
-        // matter how recently its host was seen. Read once here rather than per room.
-        db.child("expiredRooms").get().addOnCompleteListener(markersTask -> {
-            Set<String> expiredRoomIds = new HashSet<String>();
-            if (markersTask.isSuccessful() && markersTask.getResult() != null) {
-                for (DataSnapshot marker : markersTask.getResult().getChildren()) {
-                    if (marker.getKey() != null) {
-                        expiredRoomIds.add(marker.getKey());
-                    }
-                }
-            }
-            deleteAbandonedRooms(nowMs, expiredRoomIds);
-        });
-    }
-
-    private void deleteAbandonedRooms(long nowMs, Set<String> expiredRoomIds) {
-        db.child("rooms").get()
-                .addOnCompleteListener(task -> {
-                    if (!task.isSuccessful() || task.getResult() == null) {
-                        AppLog.e(AppLog.FIREBASE, "Failed loading rooms for cleanup", task.getException());
-                        return;
-                    }
-                    int deleted = 0;
-                    for (DataSnapshot snapshot : task.getResult().getChildren()) {
-                        Long hostLastSeenAt = snapshot.child("hostConnection").child("lastSeenAt").getValue(Long.class);
-                        Long createdAt = snapshot.child("createdAt").getValue(Long.class);
-                        boolean hasExpiredMarker = expiredRoomIds.contains(snapshot.getKey());
-                        if (!GameFlowPolicy.isRoomAbandoned(hostLastSeenAt, createdAt, hasExpiredMarker, nowMs)) {
-                            continue;
-                        }
-                        String abandonedRoomId = snapshot.getKey();
-                        AppLog.i(AppLog.ROOM, "Deleting abandoned room=" + abandonedRoomId
-                                + ", hostLastSeenAt=" + hostLastSeenAt + ", createdAt=" + createdAt);
-                        snapshot.getRef().removeValue()
-                                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting abandoned room=" + abandonedRoomId, e));
-                        // The room is gone, so its tombstone has nothing left to guard.
-                        db.child("expiredRooms").child(abandonedRoomId).removeValue();
-                        deleted += 1;
-                    }
-                    AppLog.i(AppLog.ROOM, "Abandoned room cleanup queued deleted=" + deleted);
-                });
+        maintenance.cleanupAbandonedRooms(nowMs);
     }
 
     public void cleanupOldExpiredRoomMarkers(long cutoffTimeMs) {
-        AppLog.i(AppLog.ROOM, "Cleaning old expired room markers cutoff=" + cutoffTimeMs);
-        db.child("expiredRooms").get()
-                .addOnCompleteListener(task -> {
-                    if (!task.isSuccessful() || task.getResult() == null) {
-                        AppLog.e(AppLog.FIREBASE, "Failed loading expired room markers for cleanup", task.getException());
-                        return;
-                    }
-                    int deleted = 0;
-                    for (DataSnapshot snapshot : task.getResult().getChildren()) {
-                        Long expiredAt = snapshot.child("expiredAt").getValue(Long.class);
-                        if (expiredAt != null && expiredAt < cutoffTimeMs) {
-                            snapshot.getRef().removeValue()
-                                    .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed deleting stale expired marker room=" + snapshot.getKey(), e));
-                            deleted += 1;
-                        }
-                    }
-                    AppLog.i(AppLog.ROOM, "Expired room marker cleanup queued deleted=" + deleted);
-                });
+        maintenance.cleanupOldExpiredRoomMarkers(cutoffTimeMs);
     }
 
     public void pushRoom(String id) {
@@ -560,552 +452,102 @@ public class RoomViewModel extends ViewModel {
         return room;
     }
 
+    // The round itself - assignments, reading turn, completion, replay signal - lives in
+    // RoundStateRepository. These forward so every existing call site and the reading/replay
+    // characterization tests are untouched.
     public void createRoundAssignments(String roomId, ObservableArrayList<User> users) {
-        createRoundAssignments(roomId, users, null);
+        round.createRoundAssignments(roomId, users);
     }
 
     public void createRoundAssignments(String roomId, ObservableArrayList<User> users, Runnable onSuccess) {
-        if (roomId == null || roomId.length() == 0 || users == null || users.size() == 0) {
-            AppLog.w(AppLog.GAME_FLOW, "Assignment map skipped: missing room or players");
-            return;
-        }
-
-        Map<String, User> usersByKey = buildUsersByKey(users);
-        List<String> playerKeys = new ArrayList<String>(usersByKey.keySet());
-        Collections.sort(playerKeys);
-        if (playerKeys.size() < 2) {
-            AppLog.w(AppLog.GAME_FLOW, "Assignment map skipped: fewer than two players room=" + roomId);
-            return;
-        }
-
-        long seed = System.currentTimeMillis();
-        String roundId = GameLogic.newRoundId();
-        List<String> ifOwners = GameLogic.randomizedAssignment(playerKeys, seed);
-        List<String> thenOwners = GameLogic.randomizedAssignment(playerKeys, seed + 9973L);
-        List<String> readerOrder = buildHostFirstReadOrder(usersByKey, playerKeys, seed + 19997L);
-        Map<String, RoundAssignment> assignments = new LinkedHashMap<String, RoundAssignment>();
-        for (int index = 0; index < playerKeys.size(); index++) {
-            String playerKey = playerKeys.get(index);
-            String ifOwnerKey = ifOwners.get(index);
-            String thenOwnerKey = thenOwners.get(index);
-            User ifOwner = usersByKey.get(ifOwnerKey);
-            User thenOwner = usersByKey.get(thenOwnerKey);
-            assignments.put(playerKey, new RoundAssignment(
-                    playerKey,
-                    ifOwnerKey,
-                    thenOwnerKey,
-                    displayName(ifOwner),
-                    displayName(thenOwner),
-                    contributorId(ifOwner),
-                    contributorId(thenOwner),
-                    seed,
-                    roundId,
-                    readerOrder.indexOf(playerKey)));
-        }
-
-        AppLog.i(AppLog.GAME_FLOW, "Creating round assignment map room=" + roomId + ", roundId=" + roundId + ", players=" + assignments.size());
-        Map<String, Object> roundUpdate = new HashMap<String, Object>();
-        roundUpdate.put("currentRoundId", roundId);
-        roundUpdate.put("roundAssignments", assignments);
-        roundUpdate.put("readOrder", readerOrder);
-        roundUpdate.put("activeReaderIndex", 0);
-        roundUpdate.put("activeReaderKey", readerOrder.get(0));
-        roundUpdate.put("activeReaderRoundId", roundId);
-        roundUpdate.put("readingComplete", false);
-        roundUpdate.put("readingCompleteRoundId", roundId);
-        db.child("rooms").child(roomId).updateChildren(roundUpdate)
-                .addOnSuccessListener(unused -> {
-                    currentRoundId.setValue(roundId);
-                    currentRoundLoaded.setValue(true);
-                    readOrder.setValue(readerOrder);
-                    activeReaderIndex.setValue(0);
-                    activeReaderKey.setValue(readerOrder.get(0));
-                    activeReaderLoaded.setValue(true);
-                    AppLog.i(AppLog.FIREBASE, "Round assignments written room=" + roomId + ", roundId=" + roundId);
-                    if (onSuccess != null) {
-                        onSuccess.run();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not prepare round pairings. Check your connection.");
-                    AppLog.e(AppLog.FIREBASE, "Failed writing round assignments room=" + roomId, e);
-                });
-    }
-
-    private Map<String, User> buildUsersByKey(ObservableArrayList<User> users) {
-        Map<String, User> usersByKey = new HashMap<String, User>();
-        for (User user : users) {
-            String key = GameLogic.playerKey(user);
-            if (key.length() > 1) {
-                usersByKey.put(key, user);
-            }
-        }
-        return usersByKey;
-    }
-
-    private List<String> buildHostFirstReadOrder(Map<String, User> usersByKey, List<String> playerKeys, long seed) {
-        List<String> hostKeys = new ArrayList<String>();
-        List<String> guestKeys = new ArrayList<String>();
-        for (String playerKey : playerKeys) {
-            User user = usersByKey.get(playerKey);
-            if (user != null && user.host) {
-                hostKeys.add(playerKey);
-            }
-            else {
-                guestKeys.add(playerKey);
-            }
-        }
-        Collections.shuffle(guestKeys, new Random(seed));
-        List<String> order = new ArrayList<String>();
-        if (hostKeys.size() > 0) {
-            Collections.sort(hostKeys);
-            order.add(hostKeys.get(0));
-        }
-        for (String playerKey : guestKeys) {
-            if (!order.contains(playerKey)) {
-                order.add(playerKey);
-            }
-        }
-        for (String playerKey : playerKeys) {
-            if (!order.contains(playerKey)) {
-                order.add(playerKey);
-            }
-        }
-        AppLog.i(AppLog.GAME_FLOW, "Read order built hostFirst=" + (hostKeys.size() > 0) + ", players=" + order.size());
-        return order;
-    }
-
-    private String displayName(User user) {
-        return user == null || user.userName == null ? "" : user.userName;
-    }
-
-    private String contributorId(User user) {
-        return user == null || user.uid == null ? "" : user.uid;
+        round.createRoundAssignments(roomId, users, onSuccess);
     }
 
     public void listenToAssignment(String roomId, String playerKey) {
-        if (roomId == null || roomId.length() == 0 || playerKey == null || playerKey.length() == 0) {
-            AppLog.w(AppLog.GAME_FLOW, "Assignment listener skipped: missing room or player key");
-            return;
-        }
-        String path = "rooms/" + roomId + "/roundAssignments/" + playerKey;
-        if (path.equals(assignmentListenerPath) && assignmentListener != null) {
-            return;
-        }
-
-        removeAssignmentListener();
-        currentAssignment.setValue(null);
-        assignmentListenerPath = path;
-        assignmentListener = new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                RoundAssignment assignment = snapshot.getValue(RoundAssignment.class);
-                if (assignment == null) {
-                    AppLog.d(AppLog.GAME_FLOW, "Waiting for assignment map path=" + path);
-                    return;
-                }
-                if (!GameLogic.isCurrentRound(currentRoundId.getValue(), assignment.roundId)) {
-                    AppLog.w(AppLog.GAME_FLOW, "Ignoring stale assignment playerKey=" + playerKey
-                            + ", eventRoundId=" + assignment.roundId
-                            + ", currentRoundId=" + currentRoundId.getValue());
-                    return;
-                }
-                currentAssignment.setValue(assignment);
-                AppLog.i(AppLog.GAME_FLOW, "Assignment loaded playerKey=" + playerKey
-                        + ", ifOwner=" + assignment.ifOwnerKey
-                        + ", thenOwner=" + assignment.thenOwnerKey);
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                databaseMessage.setValue("Could not load your round pairing. Check your connection.");
-                AppLog.e(AppLog.FIREBASE, "Assignment listener cancelled path=" + path + ": " + error.getMessage());
-            }
-        };
-        AppLog.i(AppLog.FIREBASE, "Attaching assignment listener path=" + path);
-        db.child(path).addValueEventListener(assignmentListener);
+        round.listenToAssignment(roomId, playerKey);
     }
 
     public void removeAssignmentListener() {
-        if (assignmentListener != null && assignmentListenerPath != null) {
-            AppLog.i(AppLog.FIREBASE, "Removing assignment listener path=" + assignmentListenerPath);
-            db.child(assignmentListenerPath).removeEventListener(assignmentListener);
-            assignmentListener = null;
-            assignmentListenerPath = null;
-        }
+        round.removeAssignmentListener();
     }
 
     public void deleteRoundAssignments(String roomId) {
-        deleteRoundAssignments(roomId, null);
+        round.deleteRoundAssignments(roomId);
     }
 
     public void deleteRoundAssignments(String roomId, Runnable onSuccess) {
-        if (roomId == null || roomId.length() == 0) {
-            return;
-        }
-        AppLog.i(AppLog.GAME_FLOW, "Deleting round assignments room=" + roomId);
-        db.child("rooms").child(roomId).child("roundAssignments").removeValue()
-                .addOnSuccessListener(unused -> {
-                    AppLog.i(AppLog.FIREBASE, "Round assignments deleted room=" + roomId);
-                    if (onSuccess != null) {
-                        onSuccess.run();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not clear round pairings. Check your connection.");
-                    AppLog.e(AppLog.FIREBASE, "Failed deleting round assignments room=" + roomId, e);
-                });
+        round.deleteRoundAssignments(roomId, onSuccess);
     }
 
     public void clearRoomRoundStateForReplay(String roomId, Runnable onSuccess) {
-        if (roomId == null || roomId.length() == 0) {
-            AppLog.w(AppLog.ROOM, "clearRoomRoundStateForReplay skipped: missing room id");
-            return;
-        }
-        AppLog.i(AppLog.GAME_FLOW, "Clearing room round state for replay room=" + roomId);
-        Map<String, Object> update = new HashMap<String, Object>();
-        update.put("roundAssignments", null);
-        update.put("currentRoundId", "");
-        update.put("readOrder", null);
-        update.put("activeReaderIndex", 0);
-        update.put("activeReaderKey", "");
-        update.put("activeReaderRoundId", "");
-        update.put("readingComplete", false);
-        update.put("readingCompleteRoundId", "");
-        db.child("rooms").child(roomId).updateChildren(update)
-                .addOnSuccessListener(unused -> {
-                    AppLog.i(AppLog.FIREBASE, "Room round state cleared for replay room=" + roomId);
-                    if (onSuccess != null) {
-                        onSuccess.run();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not clear old round state. Check your connection.");
-                    AppLog.e(AppLog.FIREBASE, "Failed clearing room round state room=" + roomId, e);
-                });
+        round.clearRoomRoundStateForReplay(roomId, onSuccess);
     }
 
     public void clearLocalRoundState() {
-        activeReaderIndex.setValue(0);
-        activeReaderLoaded.setValue(false);
-        activeReaderKey.setValue("");
-        readOrder.setValue(new ArrayList<String>());
-        readingComplete.setValue(false);
-        replayState.setValue("");
-        currentRoundId.setValue("");
-        currentRoundLoaded.setValue(false);
-        currentAssignment.setValue(null);
-        removeAssignmentListener();
-        removeReadingCompleteListener();
-        removeActiveReaderListener();
-        removeCurrentRoundListener();
-        removeReplayStateListener();
+        round.clearLocalRoundState();
+        // The expired-room listener is room lifecycle rather than round state, so it stayed here -
+        // but clearing local round state has always torn it down too, and that is preserved.
         removeExpiredRoomListener();
-        AppLog.i(AppLog.GAME_FLOW, "Cleared local room round state");
     }
 
     public void setActiveReaderIndex(String roomId, int index) {
-        setActiveReaderIndex(roomId, index, null);
+        round.setActiveReaderIndex(roomId, index);
     }
 
     public void setActiveReaderIndex(String roomId, int index, Runnable onSuccess) {
-        if (roomId == null || roomId.length() == 0) {
-            AppLog.w(AppLog.ROOM, "setActiveReaderIndex skipped: missing room id");
-            return;
-        }
-        AppLog.i(AppLog.ROOM, "Setting active reader room=" + roomId + ", index=" + index);
-        Map<String, Object> update = new HashMap<String, Object>();
-        update.put("activeReaderIndex", index);
-        update.put("activeReaderKey", activeReaderKeyForIndex(index));
-        update.put("activeReaderRoundId", currentRoundId.getValue() == null ? "" : currentRoundId.getValue());
-        db.child("rooms").child(roomId).updateChildren(update)
-                .addOnSuccessListener(unused -> {
-                    if (onSuccess != null) {
-                        onSuccess.run();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not pass reading turn. Check your connection.");
-                    AppLog.e(AppLog.FIREBASE, "Failed setting active reader room=" + roomId, e);
-                });
+        round.setActiveReaderIndex(roomId, index, onSuccess);
     }
 
     public void setReadingComplete(String roomId, boolean complete) {
-        setReadingComplete(roomId, complete, null);
+        round.setReadingComplete(roomId, complete);
     }
 
     public void setReadingComplete(String roomId, boolean complete, Runnable onSuccess) {
-        if (roomId == null || roomId.length() == 0) {
-            AppLog.w(AppLog.ROOM, "setReadingComplete skipped: missing room id");
-            return;
-        }
-        AppLog.i(AppLog.ROOM, "Setting reading complete room=" + roomId + ", complete=" + complete);
-        Map<String, Object> update = new HashMap<String, Object>();
-        update.put("readingComplete", complete);
-        update.put("readingCompleteRoundId", currentRoundId.getValue() == null ? "" : currentRoundId.getValue());
-        db.child("rooms").child(roomId).updateChildren(update)
-                .addOnSuccessListener(unused -> {
-                    if (onSuccess != null) {
-                        onSuccess.run();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not finish the reading round. Check your connection.");
-                    AppLog.e(AppLog.FIREBASE, "Failed setting reading complete room=" + roomId, e);
-                });
+        round.setReadingComplete(roomId, complete, onSuccess);
     }
 
     public void completeReadingAfterFinalPass(String roomId, int completedIndex, Runnable onSuccess) {
-        if (roomId == null || roomId.length() == 0) {
-            AppLog.w(AppLog.ROOM, "completeReadingAfterFinalPass skipped: missing room id");
-            return;
-        }
-        AppLog.i(AppLog.ROOM, "Completing reading after final pass room=" + roomId + ", completedIndex=" + completedIndex);
-        Map<String, Object> update = new HashMap<String, Object>();
-        update.put("activeReaderIndex", completedIndex);
-        update.put("activeReaderKey", "");
-        update.put("activeReaderRoundId", currentRoundId.getValue() == null ? "" : currentRoundId.getValue());
-        update.put("readingComplete", true);
-        update.put("readingCompleteRoundId", currentRoundId.getValue() == null ? "" : currentRoundId.getValue());
-        db.child("rooms").child(roomId).updateChildren(update)
-                .addOnSuccessListener(unused -> {
-                    if (onSuccess != null) {
-                        onSuccess.run();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not finish the reading round. Check your connection.");
-                    AppLog.e(AppLog.FIREBASE, "Failed completing reading after final pass room=" + roomId, e);
-                });
+        round.completeReadingAfterFinalPass(roomId, completedIndex, onSuccess);
     }
 
     public void setReplayState(String roomId, String state) {
-        setReplayState(roomId, state, null);
+        round.setReplayState(roomId, state);
     }
 
     public void setReplayState(String roomId, String state, Runnable onSuccess) {
-        if (roomId == null || roomId.length() == 0) {
-            AppLog.w(AppLog.ROOM, "setReplayState skipped: missing room id");
-            return;
-        }
-        String safeState = state == null ? "" : state;
-        AppLog.i(AppLog.ROOM, "Setting replay state room=" + roomId + ", state=" + safeState);
-        db.child("rooms").child(roomId).child("replayState").setValue(safeState)
-                .addOnSuccessListener(unused -> {
-                    if (onSuccess != null) {
-                        onSuccess.run();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not update play-again state. Check your connection.");
-                    AppLog.e(AppLog.FIREBASE, "Failed setting replay state room=" + roomId, e);
-                });
+        round.setReplayState(roomId, state, onSuccess);
     }
 
     public void listenToActiveReader(String roomId) {
-        if (roomId == null || roomId.length() == 0) {
-            AppLog.w(AppLog.ROOM, "listenToActiveReader skipped: missing room id");
-            return;
-        }
-        if (roomId.equals(activeReaderListenerRoom) && activeReaderListener != null) {
-            return;
-        }
-        removeActiveReaderListener();
-        activeReaderLoaded.setValue(false);
-        activeReaderListenerRoom = roomId;
-        activeReaderListener = new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                String eventRoundId = snapshot.child("activeReaderRoundId").getValue(String.class);
-                if (!GameLogic.isCurrentRound(currentRoundId.getValue(), eventRoundId)) {
-                    AppLog.w(AppLog.ROOM, "Ignoring stale active reader room=" + roomId
-                            + ", eventRoundId=" + eventRoundId
-                            + ", currentRoundId=" + currentRoundId.getValue());
-                    return;
-                }
-                Integer index = snapshot.child("activeReaderIndex").getValue(Integer.class);
-                String readerKey = snapshot.child("activeReaderKey").getValue(String.class);
-                List<String> order = readStringList(snapshot.child("readOrder"));
-                activeReaderIndex.setValue(index == null ? 0 : index);
-                activeReaderKey.setValue(readerKey == null ? "" : readerKey);
-                readOrder.setValue(order);
-                activeReaderLoaded.setValue(true);
-                AppLog.d(AppLog.ROOM, "Active reader updated room=" + roomId + ", index=" + activeReaderIndex.getValue() + ", key=" + activeReaderKey.getValue());
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                databaseMessage.setValue("Could not listen for reading turns. Check your connection.");
-                AppLog.e(AppLog.FIREBASE, "Active reader listener cancelled room=" + roomId + ": " + error.getMessage());
-            }
-        };
-        db.child("rooms").child(roomId).addValueEventListener(activeReaderListener);
-    }
-
-    private List<String> readStringList(DataSnapshot snapshot) {
-        List<String> values = new ArrayList<String>();
-        if (snapshot == null || !snapshot.exists()) {
-            return values;
-        }
-        for (DataSnapshot child : snapshot.getChildren()) {
-            String value = child.getValue(String.class);
-            if (value != null && value.length() > 0) {
-                values.add(value);
-            }
-        }
-        return values;
-    }
-
-    private String activeReaderKeyForIndex(int index) {
-        List<String> order = readOrder.getValue();
-        if (order == null || index < 0 || index >= order.size()) {
-            return "";
-        }
-        return order.get(index);
+        round.listenToActiveReader(roomId);
     }
 
     public void listenToReadingComplete(String roomId) {
-        if (roomId == null || roomId.length() == 0) {
-            AppLog.w(AppLog.ROOM, "listenToReadingComplete skipped: missing room id");
-            return;
-        }
-        if (roomId.equals(readingCompleteListenerRoom) && readingCompleteListener != null) {
-            return;
-        }
-        removeReadingCompleteListener();
-        readingComplete.setValue(false);
-        readingCompleteListenerRoom = roomId;
-        readingCompleteListener = new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                String eventRoundId = snapshot.child("readingCompleteRoundId").getValue(String.class);
-                if (!GameLogic.isCurrentRound(currentRoundId.getValue(), eventRoundId)) {
-                    AppLog.w(AppLog.ROOM, "Ignoring stale reading complete room=" + roomId
-                            + ", eventRoundId=" + eventRoundId
-                            + ", currentRoundId=" + currentRoundId.getValue());
-                    return;
-                }
-                Boolean complete = snapshot.child("readingComplete").getValue(Boolean.class);
-                readingComplete.setValue(complete != null && complete);
-                AppLog.d(AppLog.ROOM, "Reading complete updated room=" + roomId + ", complete=" + readingComplete.getValue());
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                databaseMessage.setValue("Could not listen for reading completion. Check your connection.");
-                AppLog.e(AppLog.FIREBASE, "Reading completion listener cancelled room=" + roomId + ": " + error.getMessage());
-            }
-        };
-        db.child("rooms").child(roomId).addValueEventListener(readingCompleteListener);
+        round.listenToReadingComplete(roomId);
     }
 
     public void listenToCurrentRoundId(String roomId) {
-        if (roomId == null || roomId.length() == 0) {
-            AppLog.w(AppLog.ROOM, "listenToCurrentRoundId skipped: missing room id");
-            return;
-        }
-        if (roomId.equals(currentRoundListenerRoom) && currentRoundListener != null) {
-            return;
-        }
-        removeCurrentRoundListener();
-        currentRoundLoaded.setValue(false);
-        currentRoundId.setValue("");
-        currentRoundListenerRoom = roomId;
-        currentRoundListener = new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                String roundId = snapshot.getValue(String.class);
-                currentRoundLoaded.setValue(true);
-                currentRoundId.setValue(roundId == null ? "" : roundId);
-                AppLog.i(AppLog.GAME_FLOW, "Current round updated room=" + roomId + ", roundId=" + currentRoundId.getValue());
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                databaseMessage.setValue("Could not load the current round. Check your connection.");
-                AppLog.e(AppLog.FIREBASE, "Current round listener cancelled room=" + roomId + ": " + error.getMessage());
-            }
-        };
-        db.child("rooms").child(roomId).child("currentRoundId").addValueEventListener(currentRoundListener);
+        round.listenToCurrentRoundId(roomId);
     }
 
     public void listenToReplayState(String roomId) {
-        if (roomId == null || roomId.length() == 0) {
-            AppLog.w(AppLog.ROOM, "listenToReplayState skipped: missing room id");
-            return;
-        }
-        if (roomId.equals(replayStateListenerRoom) && replayStateListener != null) {
-            return;
-        }
-        removeReplayStateListener();
-        replayState.setValue("");
-        replayStateListenerRoom = roomId;
-        replayStateListener = new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                String value = snapshot.getValue(String.class);
-                replayState.setValue(value == null ? "" : value);
-                AppLog.d(AppLog.ROOM, "Replay state updated room=" + roomId + ", state=" + replayState.getValue());
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                databaseMessage.setValue("Could not listen for play-again state. Check your connection.");
-                AppLog.e(AppLog.FIREBASE, "Replay state listener cancelled room=" + roomId + ": " + error.getMessage());
-            }
-        };
-        db.child("rooms").child(roomId).child("replayState").addValueEventListener(replayStateListener);
+        round.listenToReplayState(roomId);
     }
 
     public void removeActiveReaderListener() {
-        if (activeReaderListener != null && activeReaderListenerRoom != null) {
-            AppLog.i(AppLog.FIREBASE, "Removing active reader listener room=" + activeReaderListenerRoom);
-            db.child("rooms").child(activeReaderListenerRoom).removeEventListener(activeReaderListener);
-            activeReaderListener = null;
-            activeReaderListenerRoom = null;
-        }
+        round.removeActiveReaderListener();
     }
 
     public void removeReadingCompleteListener() {
-        if (readingCompleteListener != null && readingCompleteListenerRoom != null) {
-            AppLog.i(AppLog.FIREBASE, "Removing reading complete listener room=" + readingCompleteListenerRoom);
-            db.child("rooms").child(readingCompleteListenerRoom).removeEventListener(readingCompleteListener);
-            readingCompleteListener = null;
-            readingCompleteListenerRoom = null;
-        }
+        round.removeReadingCompleteListener();
     }
 
     public void removeReplayStateListener() {
-        if (replayStateListener != null && replayStateListenerRoom != null) {
-            AppLog.i(AppLog.FIREBASE, "Removing replay state listener room=" + replayStateListenerRoom);
-            db.child("rooms").child(replayStateListenerRoom).child("replayState").removeEventListener(replayStateListener);
-            replayStateListener = null;
-            replayStateListenerRoom = null;
-        }
+        round.removeReplayStateListener();
     }
 
     public void removeCurrentRoundListener() {
-        if (currentRoundListener != null && currentRoundListenerRoom != null) {
-            AppLog.i(AppLog.FIREBASE, "Removing current round listener room=" + currentRoundListenerRoom);
-            db.child("rooms").child(currentRoundListenerRoom).child("currentRoundId").removeEventListener(currentRoundListener);
-            currentRoundListener = null;
-            currentRoundListenerRoom = null;
-        }
+        round.removeCurrentRoundListener();
     }
 
-    @Override
-    protected void onCleared() {
-        removeAssignmentListener();
-        removeReadingCompleteListener();
-        removeActiveReaderListener();
-        removeReplayStateListener();
-        removeCurrentRoundListener();
-        removeExpiredRoomListener();
-        removeConnectionListener();
-        super.onCleared();
-    }
-
-    //    public void updateNumInRoom(User user) {
-//
-//    }
 }

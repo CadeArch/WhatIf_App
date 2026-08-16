@@ -23,6 +23,7 @@ import android.widget.TextView;
 import com.CadeMixedUpGame.api.AppLog;
 import com.CadeMixedUpGame.api.GameFlowPolicy;
 import com.CadeMixedUpGame.api.HostDisconnectScheduler;
+import com.CadeMixedUpGame.api.RepeatingPulse;
 import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 import com.CadeMixedUpGame.api.models.User;
@@ -41,6 +42,17 @@ public class MainActivity extends AppCompatActivity {
     private boolean deviceNetworkAvailable = true;
     private boolean handlingHostDisconnect = false;
     private final Handler connectionHandler = new Handler(Looper.getMainLooper());
+    private final HostDisconnectScheduler.DelayedRunner pulseRunner = new HostDisconnectScheduler.DelayedRunner() {
+        @Override
+        public void postDelayed(Runnable runnable, long delayMs) {
+            connectionHandler.postDelayed(runnable, delayMs);
+        }
+
+        @Override
+        public void cancel(Runnable runnable) {
+            connectionHandler.removeCallbacks(runnable);
+        }
+    };
     private final HostDisconnectScheduler hostDisconnectScheduler = new HostDisconnectScheduler(
             new HostDisconnectScheduler.DelayedRunner() {
                 @Override
@@ -55,8 +67,13 @@ public class MainActivity extends AppCompatActivity {
             },
             reason -> expireHostDisconnectedRoom(reason));
     private Runnable hostConnectionCountdownRunnable;
-    private Runnable hostHeartbeatRunnable;
-    private Runnable presencePulseRunnable;
+    // The heartbeat and presence tickers are the same self-rescheduling shape, so they share
+    // RepeatingPulse. hostConnectionCountdownRunnable deliberately stays hand-rolled: it is a
+    // *terminating* countdown that stops rescheduling once the grace window closes while leaving
+    // its field non-null, so a later start() is a no-op until stopHostConnectionCountdown() runs.
+    // Forcing it into RepeatingPulse would quietly change that.
+    private RepeatingPulse hostHeartbeatPulse;
+    private RepeatingPulse presencePulse;
     private boolean hostLocalGraceExpired = false;
     private String pendingExpiredRoomMessage = "";
 
@@ -451,50 +468,40 @@ public class MainActivity extends AppCompatActivity {
 
     private void startHostHeartbeatIfNeeded() {
         User currentUser = userViewModel == null ? null : userViewModel.getUser().getValue();
-        if (currentUser == null || !currentUser.host || hostHeartbeatRunnable != null) {
+        if (currentUser == null || !currentUser.host || (hostHeartbeatPulse != null && hostHeartbeatPulse.isRunning())) {
             return;
         }
-        hostHeartbeatRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (!firebaseConnected || !deviceNetworkAvailable) {
-                    stopHostHeartbeat();
-                    return;
-                }
-                userViewModel.writeHostHeartbeat();
-                connectionHandler.postDelayed(this, GameFlowPolicy.HOST_HEARTBEAT_INTERVAL_MS);
+        hostHeartbeatPulse = new RepeatingPulse(pulseRunner, GameFlowPolicy.HOST_HEARTBEAT_INTERVAL_MS, () -> {
+            if (!firebaseConnected || !deviceNetworkAvailable) {
+                stopHostHeartbeat();
+                return;
             }
-        };
-        hostHeartbeatRunnable.run();
+            userViewModel.writeHostHeartbeat();
+        });
+        hostHeartbeatPulse.start();
     }
 
     private void stopHostHeartbeat() {
-        if (hostHeartbeatRunnable != null) {
-            connectionHandler.removeCallbacks(hostHeartbeatRunnable);
-            hostHeartbeatRunnable = null;
+        if (hostHeartbeatPulse != null) {
+            hostHeartbeatPulse.stop();
         }
     }
 
     private void startPresencePulse() {
-        if (presencePulseRunnable != null) {
+        if (presencePulse != null && presencePulse.isRunning()) {
             return;
         }
-        presencePulseRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (firebaseConnected && deviceNetworkAvailable) {
-                    markCurrentPlayerConnectedIfNeeded();
-                }
-                connectionHandler.postDelayed(this, GameFlowPolicy.HOST_HEARTBEAT_INTERVAL_MS);
+        presencePulse = new RepeatingPulse(pulseRunner, GameFlowPolicy.HOST_HEARTBEAT_INTERVAL_MS, () -> {
+            if (firebaseConnected && deviceNetworkAvailable) {
+                markCurrentPlayerConnectedIfNeeded();
             }
-        };
-        presencePulseRunnable.run();
+        });
+        presencePulse.start();
     }
 
     private void stopPresencePulse() {
-        if (presencePulseRunnable != null) {
-            connectionHandler.removeCallbacks(presencePulseRunnable);
-            presencePulseRunnable = null;
+        if (presencePulse != null) {
+            presencePulse.stop();
         }
     }
 
