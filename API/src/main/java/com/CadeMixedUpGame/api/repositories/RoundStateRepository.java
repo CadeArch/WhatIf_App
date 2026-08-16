@@ -6,6 +6,7 @@ import androidx.databinding.ObservableArrayList;
 import androidx.lifecycle.MutableLiveData;
 
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.GameFlowPolicy;
 import com.CadeMixedUpGame.api.GameLogic;
 import com.CadeMixedUpGame.api.models.RoundAssignment;
 import com.CadeMixedUpGame.api.models.User;
@@ -160,9 +161,44 @@ public class RoundStateRepository {
                 });
     }
 
+    /**
+     * Flags a player as removed instead of deleting their record.
+     *
+     * <p>Deleting would take their If and Then with them, and during reading those are already
+     * woven into sentences <em>other</em> players are about to read - so the people who stayed
+     * would lose content. The flag stops them counting for progression, votes and the roster while
+     * leaving what they wrote intact.
+     */
+    public void markPlayerRemoved(String roomId, String playerKey, Runnable onSuccess) {
+        if (roomId == null || roomId.length() == 0 || playerKey == null || playerKey.length() == 0) {
+            AppLog.w(AppLog.ROOM, "Remove player skipped: missing room or player key");
+            return;
+        }
+        Map<String, Object> update = new HashMap<String, Object>();
+        update.put("removed", true);
+        db.child("rooms").child(roomId).child("players").child(playerKey).updateChildren(update)
+                .addOnSuccessListener(unused -> {
+                    AppLog.i(AppLog.ROOM, "Player removed from round room=" + roomId + ", player=" + playerKey);
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                })
+                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE,
+                        "Failed removing player room=" + roomId + ", player=" + playerKey, e));
+    }
+
+    /**
+     * Removed players are skipped, so a rebuilt round never references someone who has left - no
+     * stranded If waiting on a Then that will never be written, and no reader slot for an absent
+     * player. This is the single place that guarantees it, rather than every caller remembering to
+     * filter first.
+     */
     private Map<String, User> buildUsersByKey(ObservableArrayList<User> users) {
         Map<String, User> usersByKey = new HashMap<String, User>();
         for (User user : users) {
+            if (!GameFlowPolicy.isActivePlayer(user)) {
+                continue;
+            }
             String key = GameLogic.playerKey(user);
             if (key.length() > 1) {
                 usersByKey.put(key, user);

@@ -23,6 +23,54 @@ often, repeated here because they make a run *look* green or *look* like a code 
   `10.0.2.2` NAT delivers writes and initial reads while dropping server pushes, so one device sits
   forever on data that is already in the database. The app targets `127.0.0.1` and the Tier B
   scripts `adb reverse` ports 9000/9099 for this reason - see `e2e-gotchas`.
+## 0c. Robolectric does not run the main looper - idle it or every Firebase wait deadlocks
+
+The Firebase SDK delivers **every** completion callback on the main looper, and Robolectric only
+runs that looper when you tell it to. So this deadlocks:
+
+```java
+latch.await(10, TimeUnit.SECONDS);   // blocks the test thread...
+                                     // ...while the callback that would release it never runs
+```
+
+The symptom is a timeout - "join timed out", "write timed out" - which reads exactly like the
+emulator being unreachable, so it sends you off checking ports and rules. It is not. Cost a full
+round of debugging on `PlayerRemovalEmulatorTest`, where all six tests failed this way while the
+emulator was up and a neighbouring test class passed.
+
+Every wait in an emulator test must pump the looper:
+
+```java
+private void pump() throws InterruptedException {
+    Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+    Thread.sleep(50);
+}
+
+private boolean awaitLatch(CountDownLatch latch) throws InterruptedException {
+    long deadline = System.currentTimeMillis() + WAIT_SECONDS * 1000L;
+    while (latch.getCount() > 0 && System.currentTimeMillis() < deadline) {
+        pump();
+    }
+    return latch.getCount() == 0;
+}
+```
+
+That includes bare `Thread.sleep()` settle periods - use a pumping equivalent, or the callbacks you
+are waiting to *not* happen cannot happen either, and the test passes vacuously. Copy the helpers
+from `CollectingPhaseEmulatorTest` or `PlayerRemovalEmulatorTest` rather than writing fresh ones.
+
+## 0d. Make time pass with data, not with a test-only threshold
+
+Every timing rule in this app is evaluated against stored data - `canKickPlayer` reads
+`player.disconnectedAt`, the host-away deadline reads `hostConnection/lastSeenAt`. So a test makes
+someone look long-gone by **writing a timestamp from ten minutes ago**, and production code agrees
+instantly with its real clock and real policy.
+
+Do not add an overridable threshold, a debug flag, or a shortened constant for tests. It proves the
+app behaves correctly *in test mode*, which is not the thing anyone needs to know - and it is the
+same pattern already rejected once here (routing production database calls through a test-aware
+helper). See `PlayerRemovalEmulatorTest.makeLongGone`.
+
 ## 8. Testability seam: depend on `GameRepository`, not `DatabaseReference`, for anything you want to unit test
 
 `API/.../repositories/GameRepository.java` is a clean interface (`root()`, `room(id)`,
@@ -40,8 +88,17 @@ behavior, multi-client scenarios), use the local Firebase Emulator Suite (`fireb
 `.firebaserc`, README's "Local Firebase Emulator" section) rather than the live project — manual
 runs and tests against production have already polluted real room/leaderboard data at least once.
 
-**Call `FirebaseDatabase.getInstance(app).getReference()` exactly once per `FirebaseApp` in these
-tests, and reuse that one `DatabaseReference`.** A second `.getReference()` call for the same app
+**One `DatabaseReference` root per `FirebaseApp` - and this is a PRODUCTION rule, not only a test
+one.** `API/.../FirebaseRoot.java` now owns the app's single root; call `FirebaseRoot.get()` rather
+than `FirebaseDatabase.getInstance().getReference()`. The app previously created three (one in
+`FirebaseGameRepository`, two in `UserViewModel`), and only the first behaves: a write through a
+later one reaches the database but its completion listener may never fire, and **an unresolved local
+write masks server updates at that path**. That is how two ViewModels in the same process ended up
+disagreeing about the same room - a host stuck reading its own stale `activeReaderIndex=1` while the
+guest had moved to 2, each waiting on the other, with reading deadlocked between them. Only tests
+that deliberately want a separate connection pass their own reference in.
+
+**The same rule in tests:** A second `.getReference()` call for the same app
 produces a reference whose writes silently never deliver their completion callback in this
 Robolectric/JVM environment (confirmed multiple times this session, including once by writing this
 same bug into a second test file after already having found and documented it in the first — not a

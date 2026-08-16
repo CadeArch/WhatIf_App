@@ -21,11 +21,14 @@
 #      Username |" markdown table format this script parses below.
 #
 # Usage: .\scripts\run-tier-b-account-play.ps1 [-Rounds 3] [-Headless]
-# -TestClass is not exposed as a param here (unlike run-tier-b.ps1) since this script is
+# -TestClass is now exposed (as in run-tier-b.ps1) so account-play *variants* can reuse this whole
+# orchestration - credential lookup, account seeding, the two-role launch - instead of duplicating
+# it. Defaults to the full game loop. Originally omitted because this script is
 # specifically for TwoDeviceAccountPlayGameLoopTest's role/email/password contract - a different
 # test class would need different credential-role wiring anyway.
 
 param(
+    [string]$TestClass = "com.CadeMixedUpGame.phoneapp.TwoDeviceAccountPlayGameLoopTest",
     [int]$Rounds = 0,
     [switch]$Headless,
     [switch]$SkipBuild
@@ -42,7 +45,7 @@ $credentialsFile = Join-Path $repoRoot "local-test-accounts.md"
 $packageName = "com.CadeMixedUpGame.phoneapp"
 $testPackageName = "com.CadeMixedUpGame.phoneapp.test"
 $testRunner = "androidx.test.runner.AndroidJUnitRunner"
-$testClass = "com.CadeMixedUpGame.phoneapp.TwoDeviceAccountPlayGameLoopTest"
+$testClass = $TestClass
 $hostAvd = "Test_API35"
 $guestAvd = "Test_API35_B"
 $hostSerial = "emulator-5554"

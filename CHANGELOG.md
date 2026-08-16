@@ -17,6 +17,98 @@ for stack/build/roadmap; this file is the "what changed and why" log.
 ## Current Session Changes
 
 
+## Archived Session: feature/back-navigation-and-lifecycle-safety
+
+- **Players are now assumed to be coming back. Nothing is removed automatically.** The old model
+  deleted a room twenty seconds after a host went quiet, which measurement showed is routine: a
+  locked phone freezes the app and its heartbeat stops for over two minutes while the socket stays
+  up and `onDisconnect` never fires. Rooms are no longer ended by disconnection at all - they hold,
+  indefinitely, and the maintenance sweep remains the only automatic deletion. Removing someone is a
+  deliberate act by the host.
+  - `CONNECTION_GRACE_MS` 20s -> 90s, and the host's own "give up on my room" countdown is gone
+    entirely along with the eject-on-reconnect bookkeeping that served it.
+  - Progression no longer requires everyone to be connected. That rule froze the collecting screen
+    for everybody the moment one phone locked, and could never resolve - an offline player cannot
+    submit. It now waits on missing *work*, not on connection state.
+  - `handleHostConnectionRecovered` used to expire the room if the host came back "too late", so a
+    host returning from a call destroyed the game by the act of returning.
+  - **"Connected" is not evidence a host is present.** A frozen app keeps its socket while its
+    heartbeat goes stale, and treating that as recovery cancelled the very deadline meant to catch
+    it - the host could then never be shown as away at all. Only a fresh heartbeat counts.
+
+- **Removal is a flag, not a delete, and the round is repaired around it.** A removed player's If and
+  Then are already woven into *other* players' sentences, so deleting the record would blow holes in
+  content belonging to people who stayed.
+  - Before reading: the round is rebuilt from the remaining players, so their writing is dropped
+    cleanly rather than stranding an If with no Then (four Ifs, three Thens). `buildUsersByKey` skips
+    removed players, so a rebuilt round is structurally incapable of referencing someone who left.
+  - During reading: no rebuild - re-pairing would reshuffle sentences people have already heard.
+    Their slot stays and the **host covers that turn**, which is what removes the need to resequence
+    `readerOrder` and fix up `activeReaderIndex` mid-round.
+  - Below two players the round ends rather than stranding someone alone in it; in the lobby, one
+    player is just a host waiting for joins.
+
+- **Room controls that work on every screen**, in the Activity's chrome rather than sixteen layouts:
+  a host's Remove control (90s, re-checked at tap time in case they reconnected), a guest's "Leave
+  game" when the host is away, and a confirmation before a host ends everyone's game.
+
+- **Back navigation was dead for every user on Android 13+.** `enableOnBackInvokedCallback="true"`
+  with `appcompat:1.2.0` meant the platform used the new back API that this AndroidX never registers
+  with, so **every** `OnBackPressedCallback` was skipped and back fell through to "finish the
+  activity" - including the app-wide block that was supposed to stop players backing out mid-round.
+  Verified on a real Pixel 9. Now `false`; re-enable only with the dependency upgrade.
+  - With leaving now safe, back means "leave the room" everywhere, with a confirmation. The blanket
+    block only trapped people: a player who joined the wrong room had no way out, and force-quitting
+    did not release them either.
+
+- **The app had three database roots, and it deadlocked a game.** `FirebaseGameRepository` and
+  `UserViewModel` each called `getReference()`; only the first behaves, and an unresolved local write
+  **masks server updates at that path**. Two ViewModels in one process therefore disagreed about the
+  same room - a host reading its own stale `activeReaderIndex=1` while the guest had moved to 2, each
+  waiting on the other. Now one `FirebaseRoot` for the whole app.
+
+- **Reading advanced from the wrong index.** `currentUserReadIndex + 1` is the same number as the
+  active turn in the ordinary case, and wrong the moment the host covers for someone: host at 0,
+  active turn at 1, so passing set the round back to the turn it was completing. A perfect no-op
+  loop.
+
+- **Three counting bugs that hang a round**, all the same shape - counting players who cannot act:
+  voting (`playerCount` included removed players, so the total was unreachable), `EndFrag`'s
+  all-accounts check, and `VoteFrag`'s vote listener.
+
+- **Nobody handled *being* removed**, so a removed player sat in a room that no longer counted them.
+  They are now told and sent home.
+
+- **Fixed three bugs found by testing on a real device**: Leader Boards showing in free play (the XML
+  default disagreed with the other account-only controls, and `applyUserMode` returned early on a
+  null user); "User is not loaded yet. Go back and try again." on a screen where back is blocked -
+  a dead end, now routed to the landing screen; and a `FragmentManager is already executing
+  transactions` crash from committing synchronously inside `onViewCreated`.
+
+- **Ten new end-to-end suites, one per flow** (208 Tier A tests, 0 skipped). Time is made to pass by
+  writing a timestamp from ten minutes ago rather than shortening a threshold, so production code,
+  its real clock and its real policy are what get exercised - no test-only branches. Where the test
+  is about *this* device's UI, the other player is written straight into the room; two real devices
+  are used only where the assertion is about what the other player experiences.
+  - Mid-round removal proves the *survivors finish the round*, with the removed player having
+    already written an If - the weaker "silent player leaves" version would not have caught the
+    content-dropping path at all.
+  - `GuestLeavesWhenHostAwayTest` and `HostCoversReadingTurnTest` each failed first and found real
+    bugs (the stale-heartbeat detection, and the deadlock above).
+
+
+- **Corrected the Tier B root-cause wording from PR #19.** That PR said qemu's user-mode NAT
+  "drops server-initiated frames", which is wrong as a general claim and Cade rightly challenged it
+  — the emulator had used that NAT for months. What is actually true: the `10.0.2.2` host-loopback
+  *redirect* does not reliably carry RTDB's inbound pushes to the **local** emulator, and that path
+  had never really been exercised before. Every earlier "passing" Tier B run was silently writing to
+  **production** (the `sold-full` room in the live console); the app only started genuinely reaching
+  the local emulator once `FirebaseInitProvider` removal + an emulator `databaseUrl` landed at the
+  end of the previous session. So this was newly-exercised, not newly-broken. Ruled out as causes:
+  an emulator/qemu version change (binaries date to 2026-06-16, two months untouched) and ordinary
+  NAT traffic (all internet traffic uses it fine). The `adb reverse` fix stands; only the
+  explanation was wrong. Updated in the `e2e-gotchas` skill.
+
 ## Archived Session: feature/unlockables-and-file-cleanup
 
 - **Every unlockable can now actually be earned.** `fillUnlockables` seeded seven voices but

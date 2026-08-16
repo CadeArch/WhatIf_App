@@ -6,7 +6,10 @@ import androidx.databinding.ObservableArrayList;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.FirebaseRoot;
 import com.CadeMixedUpGame.api.AuthErrorPolicy;
+import com.CadeMixedUpGame.api.GameFlowPolicy;
+import com.CadeMixedUpGame.api.GameLogic;
 import com.CadeMixedUpGame.api.ChildEventListenerAdapter;
 import com.CadeMixedUpGame.api.UnlockPolicy;
 import com.CadeMixedUpGame.api.models.GamePhase;
@@ -38,6 +41,19 @@ public class UserViewModel extends ViewModel {
     public MutableLiveData<String> hostDisconnectedMessage = new MutableLiveData<String>();
     public MutableLiveData<Long> hostDisconnectedAt = new MutableLiveData<Long>(0L);
     public MutableLiveData<Long> hostLastSeenAt = new MutableLiveData<Long>(0L);
+    /** True while the host has gone quiet for longer than the grace window.
+     *
+     * <p>Replaces the old behaviour of deleting the room outright. Screens observe this to explain
+     * the pause ("Host is away") and to offer guests a way out, rather than the game simply ending
+     * under them because someone's phone locked. */
+    public MutableLiveData<Boolean> hostAway = new MutableLiveData<Boolean>(false);
+    /** Set when *this* player is the one who was removed from the round.
+     *
+     * <p>Removal is a flag on the player record rather than a deletion, so nothing else tells a
+     * removed player anything has happened - without this they sit in a room that no longer counts
+     * them, watching a game they cannot take part in. Most often they find out on returning from
+     * whatever took them away in the first place. */
+    public MutableLiveData<String> removedFromRoomMessage = new MutableLiveData<String>("");
     public MutableLiveData<GamePhase> gamePhase = new MutableLiveData<GamePhase>();
     ObservableArrayList<User> users;
     public MutableLiveData<User> host = new MutableLiveData<User>();
@@ -67,7 +83,7 @@ public class UserViewModel extends ViewModel {
     private String hostConnectionListenerRoom;
 
     public UserViewModel() {
-        this(FirebaseDatabase.getInstance().getReference(), FirebaseAuth.getInstance(), true);
+        this(FirebaseRoot.get(), FirebaseAuth.getInstance(), true);
     }
 
     public UserViewModel(DatabaseReference db, FirebaseAuth auth) {
@@ -108,7 +124,7 @@ public class UserViewModel extends ViewModel {
 
     public void reset() {
         if (db == null) {
-            db = FirebaseDatabase.getInstance().getReference();
+            db = FirebaseRoot.get();
         }
 
         localRandIf = "";
@@ -327,6 +343,19 @@ public class UserViewModel extends ViewModel {
         db.child("rooms").child(gameRoom).child("players").addChildEventListener(listener);
     }
 
+    /** Tells this device when the removed player is itself, so it can leave rather than linger. */
+    private void notifyIfThisPlayerWasRemoved(User updated) {
+        User currentUser = user.getValue();
+        if (updated == null || currentUser == null || GameFlowPolicy.isActivePlayer(updated)) {
+            return;
+        }
+        if (!GameLogic.playerKey(updated).equals(GameLogic.playerKey(currentUser))) {
+            return;
+        }
+        AppLog.w(AppLog.ROOM, "This player was removed from room=" + currentUser.gameRoom);
+        removedFromRoomMessage.setValue("You were removed from the game.");
+    }
+
     private void addUsersFromSnapshot(@NonNull DataSnapshot snapshot, String reason) {
         User user = readPlayerSnapshot(snapshot);
         int added = 0;
@@ -341,6 +370,7 @@ public class UserViewModel extends ViewModel {
 
     private void updateUsersFromSnapshot(@NonNull DataSnapshot snapshot) {
         User user = readPlayerSnapshot(snapshot);
+        notifyIfThisPlayerWasRemoved(user);
         int changed = 0;
         if (shouldReplaceUser(user)) {
             users.remove(user);
@@ -651,6 +681,12 @@ public class UserViewModel extends ViewModel {
     public void markCurrentPlayerConnected() {
         presence.markCurrentPlayerConnected();
     }
+
+    /** Call from Activity onResume - see RoomPresenceRepository.reconnectAfterResume. */
+    public void reconnectAfterResume() {
+        presence.reconnectAfterResume();
+    }
+
 
     public void writeHostHeartbeat() {
         presence.writeHostHeartbeat();

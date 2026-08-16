@@ -55,7 +55,11 @@ public class ProfileFrag extends Fragment {
         perfectLeader.setText(perfectLeader.getText() + Boolean.toString(userViewModel.getUser().getValue().perfectLeaderBoard));
 
         //giving the profile back button functionality
-        view.findViewById(R.id.back_profile).setOnClickListener(v -> {
+                // System back / predictive gesture do what the Back button does; without this they
+        // are swallowed by MainActivity's app-wide block.
+        Utils.wireSystemBackTo(this, StartFragment.class);
+
+view.findViewById(R.id.back_profile).setOnClickListener(v -> {
             //moving to the leaderboards fragment
             getActivity().getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, StartFragment.class, null)

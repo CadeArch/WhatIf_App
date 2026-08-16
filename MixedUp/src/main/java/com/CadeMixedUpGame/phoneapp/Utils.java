@@ -31,6 +31,30 @@ public class Utils {
         return Math.max(1, Math.min(GRID_MAX_SPAN_COUNT, span));
     }
 
+    /**
+     * Makes the system back button and predictive back gesture do the same thing as this screen's
+     * own back button.
+     *
+     * <p>For screens with no room state to protect (join, profile, leaderboard, account). Back is
+     * blocked app-wide in MainActivity so a player cannot back out of a live round; that block was
+     * applied to every screen, so even these had a visible Back button while the hardware/gesture
+     * back silently did nothing. Fragment-scoped callbacks take precedence over the Activity's
+     * while the fragment is showing, and disappear with its view.
+     *
+     * <p>Deliberately does <b>not</b> clean up room membership - use {@link RoomExit} for screens
+     * where the player is actually in a room.
+     */
+    public static void wireSystemBackTo(Fragment fragment, Class<? extends Fragment> destination) {
+        fragment.requireActivity().getOnBackPressedDispatcher().addCallback(
+                fragment.getViewLifecycleOwner(),
+                new androidx.activity.OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        navigateToFragment(fragment.getActivity(), destination);
+                    }
+                });
+    }
+
     public static void navigateToFragment(FragmentActivity activity, Class<? extends Fragment> fragmentClass) {
         if (activity != null) {
             activity.getSupportFragmentManager().beginTransaction()

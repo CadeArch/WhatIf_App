@@ -39,6 +39,11 @@ public class WaitingForHostFrag extends Fragment {
         roomViewModel = new ViewModelProvider(getActivity()).get(RoomViewModel.class);
         userViewModel.gamePhase.setValue(GamePhase.LOBBY);
         onWaitingForHost = true;
+        // The lobby is the one in-room screen where leaving is harmless - no round has started, so
+        // there is nothing half-collected to corrupt. Without this a player who joined the wrong
+        // room was stuck: back was swallowed app-wide, and force-quitting only marked them
+        // disconnected, leaving them sitting in the room as a phantom player.
+        new RoomExit(this, userViewModel, roomViewModel).wireSystemBack();
         roomViewModel.databaseMessage.observe(getViewLifecycleOwner(), message -> {
             if (message != null && message.length() > 0) {
                 UiMessenger.showSnackbar(view, message);

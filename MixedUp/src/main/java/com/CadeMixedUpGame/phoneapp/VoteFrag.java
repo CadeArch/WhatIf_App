@@ -1,4 +1,5 @@
 package com.CadeMixedUpGame.phoneapp;
+import com.CadeMixedUpGame.api.GameFlowPolicy;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
@@ -53,7 +54,10 @@ public class VoteFrag extends Fragment {
         setupVotingItemList(potentialLBIlist);
 
         if (userViewModel.getUser().getValue().host) {
-            leaderBoardViewModel.castVoteListener(userViewModel.getUsers().size());
+            // Active players only - a removed player never votes, so counting them leaves the host
+            // waiting for a vote that cannot arrive.
+            leaderBoardViewModel.castVoteListener(
+                    GameFlowPolicy.activePlayerCount(userViewModel.getUsers()));
         }
 
 

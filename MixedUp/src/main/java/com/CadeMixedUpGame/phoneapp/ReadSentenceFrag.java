@@ -37,6 +37,7 @@ public class ReadSentenceFrag extends Fragment {
     private final VoicePlayback voicePlayback = new VoicePlayback();
     private SpinnerAdapter voiceAdapter;
     private ObservableList.OnListChangedCallback<ObservableList<Unlockable>> voiceListCallback;
+    private ObservableList.OnListChangedCallback<ObservableList<User>> readerPlayersCallback;
     DiffGoogleVoice selectedItemOnSpinner;
     View readButton;
     View doneButton;
@@ -139,6 +140,38 @@ public class ReadSentenceFrag extends Fragment {
             }
         });
         roomViewModel.readingComplete.observe(getViewLifecycleOwner(), this::handleReadingComplete);
+        // Whether this device may read depends on the *other players* too, not only on the active
+        // reader index moving: once the active reader is removed (or has been gone long enough), the
+        // host takes their turn. Nothing about the round itself changes at that moment - the index
+        // and key stay exactly where they were - so without watching the player list the host's
+        // controls never re-evaluate and the round sits on a turn nobody can take.
+        readerPlayersCallback = new ObservableList.OnListChangedCallback<ObservableList<User>>() {
+            @Override
+            public void onChanged(ObservableList<User> sender) {
+                updateActiveReaderControls();
+            }
+
+            @Override
+            public void onItemRangeChanged(ObservableList<User> sender, int start, int count) {
+                updateActiveReaderControls();
+            }
+
+            @Override
+            public void onItemRangeInserted(ObservableList<User> sender, int start, int count) {
+                updateActiveReaderControls();
+            }
+
+            @Override
+            public void onItemRangeMoved(ObservableList<User> sender, int from, int to, int count) {
+                updateActiveReaderControls();
+            }
+
+            @Override
+            public void onItemRangeRemoved(ObservableList<User> sender, int start, int count) {
+                updateActiveReaderControls();
+            }
+        };
+        userViewModel.getUsers().addOnListChangedCallback(readerPlayersCallback);
     }
 
     private void startRoundListeners(User currentUser) {
@@ -516,6 +549,19 @@ public class ReadSentenceFrag extends Fragment {
         return currentUser != null && Boolean.TRUE.equals(currentUser.accountPlay);
     }
 
+    /** The player behind the active reader key, or null if they are no longer in the room list. */
+    private User findUserByPlayerKey(String playerKey) {
+        if (playerKey == null || playerKey.length() == 0) {
+            return null;
+        }
+        for (User user : userViewModel.getUsers()) {
+            if (playerKey.equals(GameLogic.playerKey(user))) {
+                return user;
+            }
+        }
+        return null;
+    }
+
     private int findCurrentUserIndexInReadOrder() {
         if (roomViewModel.readOrder.getValue() == null) {
             return -1;
@@ -549,6 +595,16 @@ public class ReadSentenceFrag extends Fragment {
         boolean isCurrentReader = currentUserPlayerKey.length() > 0
                 && currentUserPlayerKey.equals(activeReaderKey)
                 && currentUserReadIndex >= 0;
+        // Reading advances by key match alone, so a reader who left (or has been gone long enough to
+        // be removable) stops the round for everyone - nobody else can move it on. The host covers
+        // that turn instead. This is what makes it safe to leave a departed player's slot in the
+        // reading order rather than resequencing it, which would mean fixing up activeReaderIndex
+        // mid-round.
+        if (!isCurrentReader && GameFlowPolicy.hostMayCoverReadingTurn(
+                currentUser, findUserByPlayerKey(activeReaderKey), System.currentTimeMillis())) {
+            isCurrentReader = true;
+            AppLog.i(AppLog.GAME_FLOW, "Host covering absent reader's turn key=" + activeReaderKey);
+        }
         currentReaderTurn = isCurrentReader;
         boolean canReadAloud = isCurrentReader && sentenceRevealed;
         // The mic is only meaningful once you can actually speak your own revealed sentence. It
@@ -599,7 +655,15 @@ public class ReadSentenceFrag extends Fragment {
             return;
         }
         readTurnPassed = true;
-        int nextReaderIndex = currentUserReadIndex + 1;
+        // Advance from the turn actually being played, not from this player's own slot in the read
+        // order. Those are the same number for an ordinary turn, and different the moment the host
+        // covers for someone who has left: the host sits at index 0 while the active turn is 1, so
+        // "my index + 1" set the round straight back to the turn it was trying to finish. That is a
+        // perfect no-op, and it deadlocked reading - the host could take the absent player's turn
+        // and then never get past it, with everyone else waiting on a turn that kept resetting.
+        Integer activeIndexValue = roomViewModel.activeReaderIndex.getValue();
+        int activeIndex = activeIndexValue == null ? currentUserReadIndex : activeIndexValue;
+        int nextReaderIndex = activeIndex + 1;
         setReadingActionSaving(true);
         if (GameFlowPolicy.finalReaderPassed(nextReaderIndex, roomViewModel.readOrder.getValue().size())) {
             roomViewModel.completeReadingAfterFinalPass(currentUser.gameRoom, nextReaderIndex, () -> setReadingActionSaving(false));
@@ -661,6 +725,10 @@ public class ReadSentenceFrag extends Fragment {
         roomViewModel.removeCurrentRoundListener();
         // Registered against the ViewModel's list, which outlives this view - without this the
         // callback stack grows on every rotation/re-entry and each copy touches a dead adapter.
+        if (readerPlayersCallback != null) {
+            userViewModel.getUsers().removeOnListChangedCallback(readerPlayersCallback);
+            readerPlayersCallback = null;
+        }
         if (voiceListCallback != null) {
             userViewModel.userUnlocked.removeOnListChangedCallback(voiceListCallback);
             voiceListCallback = null;

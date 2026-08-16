@@ -20,6 +20,17 @@ public class User implements Comparable<User>{
     public String hostPlayedAgain;
     public Boolean connected;
     public Long disconnectedAt;
+    /** Set when the host removes this player, or the player leaves, mid-round.
+     *
+     * <p>A flag rather than deleting the record, because during reading this player's If/Then are
+     * already woven into sentences <em>other</em> players are about to read - deleting the row would
+     * blow holes in content belonging to people who stayed. Everything that counts players
+     * (progression gates, votes, the roster) skips removed ones; the reading order keeps their slot
+     * and the host covers that turn. Cleared when the next round starts.
+     *
+     * <p>Nullable on purpose: rooms created before this field existed have no value for it, and
+     * absent must read as "still here". */
+    public Boolean removed;
     public int gamesPlayed;
     public boolean madeLeaderBoard;
     public boolean perfectLeaderBoard;

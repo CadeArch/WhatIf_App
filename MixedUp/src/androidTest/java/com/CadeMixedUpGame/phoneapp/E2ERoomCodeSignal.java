@@ -216,6 +216,11 @@ final class E2ERoomCodeSignal {
         return signalDatabase;
     }
 
+    /** Shared with E2ERoomFixture so the whole harness uses one connection, not one per class. */
+    static DatabaseReference testRoot() {
+        return root();
+    }
+
     private static DatabaseReference signalRef(String correlationId) {
         return root().child("e2eSignals").child(correlationId).child("roomCode");
     }

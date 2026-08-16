@@ -31,6 +31,7 @@ import com.google.firebase.database.ValueEventListener;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import com.CadeMixedUpGame.api.models.GamePhase;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -469,6 +470,59 @@ public class RoomViewModel extends ViewModel {
 
     public void removeAssignmentListener() {
         round.removeAssignmentListener();
+    }
+
+    /**
+     * Removes a player from the round: the host kicking someone who has been gone too long, or a
+     * player leaving mid-game (which is the same operation, self-initiated).
+     *
+     * <p>Flags them rather than deleting, then either rebuilds the round or leaves it alone
+     * depending on the phase - see {@link GameFlowPolicy#shouldRegenerateAfterRemoval}. Rebuilding
+     * skips flagged players automatically, so the new plan cannot reference someone who has left.
+     *
+     * <p>{@code onRoundUnviable} fires when fewer than two players remain, which no round can
+     * continue with; the caller ends the game rather than leaving one person alone in it.
+     */
+    public void removePlayerFromRound(String roomId, String playerKey,
+                                      ObservableArrayList<User> users, GamePhase phase,
+                                      Runnable onRemoved, Runnable onRoundUnviable) {
+        round.markPlayerRemoved(roomId, playerKey, () -> {
+            markUserRemovedLocally(users, playerKey);
+            boolean roundUnderway = phase != null && phase != GamePhase.LOBBY;
+            if (GameFlowPolicy.roundCannotContinue(users, roundUnderway)) {
+                AppLog.w(AppLog.ROOM, "Round cannot continue after removal room=" + roomId
+                        + ", activePlayers=" + GameFlowPolicy.activePlayerCount(users));
+                if (onRoundUnviable != null) {
+                    onRoundUnviable.run();
+                }
+                return;
+            }
+            if (GameFlowPolicy.shouldRegenerateAfterRemoval(phase)) {
+                AppLog.i(AppLog.GAME_FLOW, "Rebuilding round after removal room=" + roomId
+                        + ", phase=" + phase);
+                createRoundAssignments(roomId, users, onRemoved);
+                return;
+            }
+            AppLog.i(AppLog.GAME_FLOW, "Keeping assignments after removal room=" + roomId
+                    + ", phase=" + phase + " (reading already under way)");
+            if (onRemoved != null) {
+                onRemoved.run();
+            }
+        });
+    }
+
+    /** Mirrors the flag locally so the very next policy check sees it, without waiting for the
+     * players listener to echo the write back. */
+    private void markUserRemovedLocally(ObservableArrayList<User> users, String playerKey) {
+        if (users == null || playerKey == null) {
+            return;
+        }
+        for (User user : users) {
+            if (playerKey.equals(GameLogic.playerKey(user))) {
+                user.removed = true;
+                return;
+            }
+        }
     }
 
     public void deleteRoundAssignments(String roomId) {

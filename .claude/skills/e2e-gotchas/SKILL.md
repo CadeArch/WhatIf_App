@@ -12,7 +12,7 @@ failures in this repo look like network flakiness and almost never are.
 
 | Symptom | Actual cause | Fix |
 |---|---|---|
-| Writes commit, initial reads work, but **pushes never arrive**. Host sits on "1 player" while the guest's join is already in the DB. Transactions fail at ~15.09s with `aborted due to a network disconnect`. | The Android emulator's `10.0.2.2` host-loopback alias routes through qemu's user-mode NAT, which passes outbound traffic but **drops server-initiated frames**. The 15s is Firebase's health timeout firing because the server's reply never arrived. | App targets `127.0.0.1`; scripts run `adb reverse tcp:9000 tcp:9000` and `tcp:9099`. Already wired into both Tier B scripts + `FirebaseEmulatorConfig`. |
+| Writes commit, initial reads work, but **pushes never arrive**. Host sits on "1 player" while the guest's join is already in the DB. Transactions fail at ~15.09s with `aborted due to a network disconnect`. | The `10.0.2.2` host-loopback *redirect* does not reliably carry RTDB's inbound push traffic to the local emulator. The 15s is Firebase's health timeout firing because the server's reply never arrived. **This is not a regression and 10.0.2.2 is not "broken" in general** — ordinary internet traffic uses the same NAT fine. Tier B only started genuinely talking to the *local* emulator once `FirebaseInitProvider` removal + an emulator `databaseUrl` landed; before that every "passing" run was silently hitting production, so this path had never actually been exercised. | App targets `127.0.0.1`; scripts run `adb reverse tcp:9000 tcp:9000` and `tcp:9099`. Already wired into both Tier B scripts + `FirebaseEmulatorConfig`. |
 | `BUILD SUCCESSFUL`, zero failures, and nothing was actually tested. | Emulator tests `assumeTrue(emulatorReachable())` and **skip** when it's down; JUnit reports skips as success. Gradle then caches that result and **replays it** — a second run prints `BUILD SUCCESSFUL in 1s` without executing anything. | Check `skipped="0"` in the XML, not the banner. Force real execution: `rm -rf */build/test-results/testDebugUnitTest` first. |
 | Restarted the Firebase emulator, but old rules/behavior persist. Log says `All emulators ready` — or nothing at all. | Killing `node` does **not** stop the database emulator; a **Java** process holds port 9000. The new suite dies with `Could not start Database Emulator, port taken` while the old one keeps serving. | Kill the actual port owner (`Get-NetTCPConnection -LocalPort 9000` → `OwningProcess`), then confirm `All emulators ready` in the log before trusting anything. |
 | A listener's initial `onDataChange` fires, so the client "is connected" — but no update ever follows. | **An initial snapshot proves nothing.** Firebase serves it from cache; an unconnected client reports `exists=false` identically to a connected one on an empty path. This assumption sent two whole investigations down the wrong path. | Prove connectivity with that client's own `.info/connected`. Never infer it from a snapshot. |
@@ -26,6 +26,32 @@ failures in this repo look like network flakiness and almost never are.
 | App sits on "Connection lost" forever; `Provided authentication credentials are invalid`. | Stale persisted Firebase Auth session — the Auth emulator is in-memory, so a restart deletes the account the device still holds a refresh token for. Survives `install -r`. | `pm clear` before every run (both scripts do). Free play is just as vulnerable as account play. |
 | A write's completion callback never fires, though the value reaches the database. | A second `getReference()` on the same `FirebaseApp`. Only the first root reliably delivers callbacks. Real on-device, not just under Robolectric. | One root per FirebaseApp, created once, reused. |
 | An Espresso retry helper gives up immediately instead of retrying. | `matches(...)` failures are `AssertionError`-derived. | `EspressoWaitUtils.waitFor` must catch `Throwable`, not `RuntimeException`. |
+
+## Writing two-device tests
+
+**Fabricate the other player instead of driving a second device, when the test is about *this*
+device's UI.** Most membership flows hinge on someone being absent, removed, or stale - that is
+*state*, and `E2ERoomFixture` writes it straight into the room. Producing the same state with a real
+device means launching it, joining, then killing it at exactly the right instant. The app cannot
+tell the difference: same room, same listeners, same policy. Keep two real devices only where the
+assertion is about what the *other* player experiences (`HostEndsGameMidRoundTest`).
+
+**Budget reading/turn loops by time, not by iteration count.** A step count is really a budget for
+waiting on the *other* device, and it runs out while the round is progressing perfectly well - a
+generous-looking 8 steps expired on the guest seconds before its turn arrived, leaving it sitting
+passively at the exact moment it needed to click. Use a wall-clock deadline (~180s for a three-reader
+round across two devices) and `fail()` with what was stuck.
+
+**Do not name a test helper after a statically imported Espresso matcher.** A member
+`isDisplayed(int)` shadows the imported `isDisplayed()`, and every existing `matches(isDisplayed())`
+in the file stops compiling with "method isDisplayed cannot be applied to given types" - which reads
+as a problem with the calls, not the helper. Name them `isShowing` / `isTappable`.
+
+**A persistent snackbar does not stay.** Snackbars are a queue, so anything else the app shows
+displaces `LENGTH_INDEFINITE` permanently. Any bar a test waits for must be re-shown by the app
+(check `isShownOrQueued()` and re-evaluate on a tick) or the test will look for something that
+existed a minute ago. This was a real product bug, not just a test problem: the host's Remove
+control vanished on reaching the reading screen.
 
 ## Method notes
 

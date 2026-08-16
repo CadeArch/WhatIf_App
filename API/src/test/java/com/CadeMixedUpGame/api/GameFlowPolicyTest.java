@@ -1,5 +1,6 @@
 package com.CadeMixedUpGame.api;
 
+import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.User;
 
 import org.junit.Test;
@@ -45,12 +46,15 @@ public class GameFlowPolicyTest {
     }
 
     @Test
-    public void allPlayersFinishedIfsRequiresStableConnections() {
+    public void allPlayersFinishedIfsNoLongerRequiresEveryoneConnected() {
+        // Deliberate change: connection state is no longer part of this gate. It used to return
+        // false whenever anyone was offline, which froze the collecting screen for everybody the
+        // moment one player's phone locked - permanently, since an offline player can never submit.
         User connected = player("connected", true, false, false);
         User disconnected = player("disconnected", true, false, false);
         disconnected.connected = false;
 
-        assertFalse(GameFlowPolicy.allPlayersFinishedIfs(Arrays.asList(connected, disconnected)));
+        assertTrue(GameFlowPolicy.allPlayersFinishedIfs(Arrays.asList(connected, disconnected)));
     }
 
     @Test
@@ -66,12 +70,12 @@ public class GameFlowPolicyTest {
     }
 
     @Test
-    public void allPlayersFinishedThensRequiresStableConnections() {
+    public void allPlayersFinishedThensNoLongerRequiresEveryoneConnected() {
         User connected = player("connected", false, true, false);
         User disconnected = player("disconnected", false, true, false);
         disconnected.connected = false;
 
-        assertFalse(GameFlowPolicy.allPlayersFinishedThens(Arrays.asList(connected, disconnected)));
+        assertTrue(GameFlowPolicy.allPlayersFinishedThens(Arrays.asList(connected, disconnected)));
     }
 
     @Test
@@ -110,14 +114,18 @@ public class GameFlowPolicyTest {
 
     @Test
     public void hostHeartbeatExpiresAfterGraceWindow() {
-        long now = 50000L;
+        // Expressed relative to CONNECTION_GRACE_MS on purpose. This used to hardcode the
+        // arithmetic for a 20s window, so raising the grace broke it even though the countdown
+        // behaviour it describes was unchanged.
+        long grace = GameFlowPolicy.CONNECTION_GRACE_MS;
+        long now = grace * 10L;
 
-        assertEquals(GameFlowPolicy.CONNECTION_GRACE_MS, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, 0L));
-        assertEquals(5000L, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, 35000L));
-        assertEquals(0L, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, 30000L));
-        assertEquals(0L, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, 25000L));
-        assertFalse(GameFlowPolicy.hostHeartbeatExpired(now, 35000L));
-        assertTrue(GameFlowPolicy.hostHeartbeatExpired(now, 30000L));
+        assertEquals(grace, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, 0L));
+        assertEquals(5000L, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, now - (grace - 5000L)));
+        assertEquals(0L, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, now - grace));
+        assertEquals(0L, GameFlowPolicy.millisUntilHostHeartbeatExpires(now, now - grace - 5000L));
+        assertFalse(GameFlowPolicy.hostHeartbeatExpired(now, now - (grace - 5000L)));
+        assertTrue(GameFlowPolicy.hostHeartbeatExpired(now, now - grace));
     }
 
     @Test
@@ -232,6 +240,206 @@ public class GameFlowPolicyTest {
         // and can only be junk from before this cleanup existed.
         assertTrue(GameFlowPolicy.isRoomAbandoned(null, null, 1_000_000_000L));
         assertTrue(GameFlowPolicy.isRoomAbandoned(0L, 0L, 1_000_000_000L));
+    }
+
+    // --- Disconnection never advances the round on its own ---
+    // Earlier today this skipped players who had been gone past a grace window. That was wrong:
+    // measurement showed a merely-locked phone freezes the app for over two minutes, so any
+    // automatic "they're gone" rule ends games that were only interrupted, and throws away the
+    // sentence the player was mid-way through writing. The round now waits indefinitely and only a
+    // deliberate host kick removes someone.
+
+    private static final long NOW = 1_000_000_000L;
+
+    @Test
+    public void aDisconnectedPlayerWhoHasNotWrittenBlocksTheRoundIndefinitely() {
+        User present = player("present", true, true, false);
+        User goneAges = player("goneAges", false, false, false);
+        goneAges.connected = false;
+        goneAges.disconnectedAt = NOW - (60L * 60L * 1000L);   // an hour
+
+        assertFalse("the round waits for them, however long it takes",
+                GameFlowPolicy.allPlayersFinishedIfs(Arrays.asList(present, goneAges), NOW));
+        assertFalse(GameFlowPolicy.allPlayersFinishedThens(Arrays.asList(present, goneAges), NOW));
+    }
+
+    @Test
+    public void aDisconnectedPlayerWhoAlreadyWroteDoesNotBlock() {
+        // Being offline is not itself a reason to hold the round - only missing work is.
+        User present = player("present", true, true, false);
+        User goneButDone = player("goneButDone", true, true, false);
+        goneButDone.connected = false;
+        goneButDone.disconnectedAt = NOW - 5000L;
+
+        assertTrue(GameFlowPolicy.allPlayersFinishedIfs(Arrays.asList(present, goneButDone), NOW));
+        assertTrue(GameFlowPolicy.allPlayersFinishedThens(Arrays.asList(present, goneButDone), NOW));
+    }
+
+    // --- Kick eligibility ---
+
+    @Test
+    public void aPlayerGoneLongEnoughIsKickable() {
+        User gone = player("gone", false, false, false);
+        gone.connected = false;
+        gone.disconnectedAt = NOW - GameFlowPolicy.KICK_ELIGIBLE_AFTER_MS - 1L;
+
+        assertTrue(GameFlowPolicy.canKickPlayer(gone, NOW));
+    }
+
+    @Test
+    public void aPlayerWhoJustDroppedIsNotKickableYet() {
+        User justGone = player("justGone", false, false, false);
+        justGone.connected = false;
+        justGone.disconnectedAt = NOW - 5000L;
+
+        assertFalse(GameFlowPolicy.canKickPlayer(justGone, NOW));
+    }
+
+    @Test
+    public void aConnectedPlayerIsNeverKickable() {
+        // Guards the race where they reconnect between the button being drawn and tapped.
+        User back = player("back", false, false, false);
+        back.connected = true;
+        back.disconnectedAt = NOW - (10L * 60L * 1000L);
+
+        assertFalse(GameFlowPolicy.canKickPlayer(back, NOW));
+    }
+
+    @Test
+    public void theHostIsNeverKickable() {
+        User host = player("host", false, false, false);
+        host.host = true;
+        host.connected = false;
+        host.disconnectedAt = NOW - (10L * 60L * 1000L);
+
+        assertFalse("kicking the host would leave nobody to run the room",
+                GameFlowPolicy.canKickPlayer(host, NOW));
+    }
+
+    @Test
+    public void aPlayerWithNoDisconnectTimestampIsNotKickable() {
+        // Older room records predate the field; absent evidence is not evidence of absence.
+        User unknown = player("unknown", false, false, false);
+        unknown.connected = false;
+        unknown.disconnectedAt = null;
+
+        assertFalse(GameFlowPolicy.canKickPlayer(unknown, NOW));
+        assertFalse(GameFlowPolicy.canKickPlayer(null, NOW));
+    }
+
+    @Test
+    public void hostGraceSurvivesTheMeasuredBackgroundDisconnect() {
+        // Measured on a real device: a host's heartbeat freezes for over two minutes from nothing
+        // worse than a locked phone. Pins the requirement rather than the number.
+        long measuredBackgroundDropMs = 38000L;
+        assertTrue("a host taking a short call must not lose the room",
+                GameFlowPolicy.CONNECTION_GRACE_MS > measuredBackgroundDropMs);
+    }
+
+    // --- Removal: active players, viability, and the phase split ---
+
+    @Test
+    public void removedPlayersStopCountingForProgression() {
+        User present = player("present", true, true, false);
+        User left = player("left", false, false, false);
+        left.removed = true;
+
+        assertTrue("a player who left must not hold the round",
+                GameFlowPolicy.allPlayersFinishedIfs(Arrays.asList(present, left), NOW));
+        assertEquals(1, GameFlowPolicy.activePlayerCount(Arrays.asList(present, left)));
+    }
+
+    @Test
+    public void aMissingRemovedFlagMeansStillPlaying() {
+        // Rooms created before the field existed have no value for it.
+        User older = player("older", false, false, false);
+        older.removed = null;
+
+        assertTrue(GameFlowPolicy.isActivePlayer(older));
+    }
+
+    @Test
+    public void aRemovedPlayerIsNotKickableAgain() {
+        User left = player("left", false, false, false);
+        left.removed = true;
+        left.connected = false;
+        left.disconnectedAt = NOW - (10L * 60L * 1000L);
+
+        assertFalse(GameFlowPolicy.canKickPlayer(left, NOW));
+    }
+
+    @Test
+    public void aRoundCannotContinueWithFewerThanTwoPlayers() {
+        User alone = player("alone", false, false, false);
+        User left = player("left", false, false, false);
+        left.removed = true;
+
+        assertTrue(GameFlowPolicy.roundCannotContinue(Arrays.asList(alone, left), true));
+        // ...but one player sitting in the lobby is just a host waiting for people to arrive.
+        assertFalse(GameFlowPolicy.roundCannotContinue(Arrays.asList(alone, left), false));
+    }
+
+    @Test
+    public void assignmentsAreRebuiltOnlyBeforeReadingStarts() {
+        // Before reading, assignments are just a plan and rebuilding costs nothing anyone has seen.
+        assertTrue(GameFlowPolicy.shouldRegenerateAfterRemoval(GamePhase.LOBBY));
+        assertTrue(GameFlowPolicy.shouldRegenerateAfterRemoval(GamePhase.WRITING_IF));
+        assertTrue(GameFlowPolicy.shouldRegenerateAfterRemoval(GamePhase.COLLECTING_IFS));
+        assertTrue(GameFlowPolicy.shouldRegenerateAfterRemoval(GamePhase.WRITING_THEN));
+        assertTrue(GameFlowPolicy.shouldRegenerateAfterRemoval(GamePhase.COLLECTING_THENS));
+
+        // Once reading starts, re-pairing would reshuffle sentences people have already heard.
+        assertFalse(GameFlowPolicy.shouldRegenerateAfterRemoval(GamePhase.READING));
+        assertFalse(GameFlowPolicy.shouldRegenerateAfterRemoval(GamePhase.VOTING));
+        assertFalse(GameFlowPolicy.shouldRegenerateAfterRemoval(GamePhase.COLLECTING_VOTES));
+        assertFalse(GameFlowPolicy.shouldRegenerateAfterRemoval(GamePhase.ENDED));
+        assertFalse("unknown phase must not reshuffle a possibly-live reading round",
+                GameFlowPolicy.shouldRegenerateAfterRemoval(null));
+    }
+
+    // --- The host covering an absent reader's turn ---
+
+    @Test
+    public void theHostCoversAReaderWhoHasBeenRemoved() {
+        User host = player("host", false, false, false);
+        host.host = true;
+        User gone = player("gone", false, false, false);
+        gone.removed = true;
+
+        assertTrue(GameFlowPolicy.hostMayCoverReadingTurn(host, gone, NOW));
+    }
+
+    @Test
+    public void theHostCoversAReaderGoneLongEnoughToBeRemovable() {
+        User host = player("host", false, false, false);
+        host.host = true;
+        User away = player("away", false, false, false);
+        away.connected = false;
+        away.disconnectedAt = NOW - GameFlowPolicy.KICK_ELIGIBLE_AFTER_MS - 1L;
+
+        assertTrue(GameFlowPolicy.hostMayCoverReadingTurn(host, away, NOW));
+    }
+
+    @Test
+    public void theHostDoesNotStealATurnFromSomeoneWhoJustDropped() {
+        // They are probably seconds from reading; waiting beats hijacking.
+        User host = player("host", false, false, false);
+        host.host = true;
+        User blip = player("blip", false, false, false);
+        blip.connected = false;
+        blip.disconnectedAt = NOW - 3000L;
+
+        assertFalse(GameFlowPolicy.hostMayCoverReadingTurn(host, blip, NOW));
+    }
+
+    @Test
+    public void aGuestNeverCoversSomeoneElsesTurn() {
+        User guest = player("guest", false, false, false);
+        User gone = player("gone", false, false, false);
+        gone.removed = true;
+
+        assertFalse(GameFlowPolicy.hostMayCoverReadingTurn(guest, gone, NOW));
+        assertFalse(GameFlowPolicy.hostMayCoverReadingTurn(null, gone, NOW));
     }
 
     private User player(String name, boolean ifFinished, boolean thenFinished, boolean accountPlay) {
