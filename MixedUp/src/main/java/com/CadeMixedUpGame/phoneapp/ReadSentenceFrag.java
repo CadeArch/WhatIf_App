@@ -3,7 +3,6 @@ package com.CadeMixedUpGame.phoneapp;
 import android.content.res.Resources;
 import android.graphics.Typeface;
 import android.os.Bundle;
-import android.speech.tts.TextToSpeech;
 import android.util.TypedValue;
 import android.view.View;
 import android.widget.AdapterView;
@@ -28,7 +27,6 @@ import com.CadeMixedUpGame.api.viewmodels.RoomViewModel;
 import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 
 import java.util.ArrayList;
-import java.util.Locale;
 
 public class ReadSentenceFrag extends Fragment {
     UserViewModel userViewModel;
@@ -36,8 +34,9 @@ public class ReadSentenceFrag extends Fragment {
     LeaderBoardViewModel leaderBoardViewModel;
     String myRandomIf;
     String myRandomThen = "";
-    TextToSpeech tts;
-    String code = "0";
+    private final VoicePlayback voicePlayback = new VoicePlayback();
+    private SpinnerAdapter voiceAdapter;
+    private ObservableList.OnListChangedCallback<ObservableList<Unlockable>> voiceListCallback;
     DiffGoogleVoice selectedItemOnSpinner;
     View readButton;
     View doneButton;
@@ -414,19 +413,20 @@ public class ReadSentenceFrag extends Fragment {
         loadUnlockedVoicesForAccountPlayers();
         Spinner spinner = (Spinner) spinnerObject;
         Resources res = getResources();
-        SpinnerAdapter adapter = new SpinnerAdapter(getContext(), R.layout.read_method_item, voicesUnlocked, res);
+        voiceAdapter = new SpinnerAdapter(getContext(), R.layout.read_method_item, voicesUnlocked, res);
+        SpinnerAdapter adapter = voiceAdapter;
         spinner.setAdapter(adapter);
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedItemOnSpinner = (DiffGoogleVoice) parent.getItemAtPosition(position);
-                code = selectedItemOnSpinner.getVoiceCode();
-                AppLog.d(AppLog.TTS, "Voice selected: " + selectedItemOnSpinner.getVoice() + ", code=" + code);
+                voicePlayback.setVoiceCode(selectedItemOnSpinner.getVoiceCode());
+                AppLog.d(AppLog.TTS, "Voice selected: " + selectedItemOnSpinner.getVoice() + ", code=" + voicePlayback.getVoiceCode());
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
-                code = "0";
+                voicePlayback.setVoiceCode("0");
                 AppLog.d(AppLog.TTS, "No voice selected; using regular voice");
             }
         });
@@ -435,33 +435,57 @@ public class ReadSentenceFrag extends Fragment {
     private ArrayList<DiffGoogleVoice> buildVoiceList() {
         ArrayList<DiffGoogleVoice> voicesUnlocked = new ArrayList<DiffGoogleVoice>();
         voicesUnlocked.add(new DiffGoogleVoice("regular", "0"));
-        userViewModel.userUnlocked.addOnListChangedCallback(new ObservableList.OnListChangedCallback<ObservableList<Unlockable>>() {
+        // The rows arrive from Firebase *after* the adapter is built, so every insert has to
+        // notify the adapter. Adding straight to the backing ArrayList (which is what this used to
+        // do) leaves the Spinner showing only "regular" no matter how many voices the account has
+        // earned - the unlockables were unreachable in the picker even once unlocked.
+        voiceListCallback = new ObservableList.OnListChangedCallback<ObservableList<Unlockable>>() {
             @Override
             public void onChanged(ObservableList<Unlockable> sender) {
+                rebuildVoiceOptions(sender, voicesUnlocked);
             }
 
             @Override
             public void onItemRangeChanged(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
+                rebuildVoiceOptions(sender, voicesUnlocked);
             }
 
             @Override
             public void onItemRangeInserted(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
-                Unlockable unlockable = sender.get(positionStart);
-                if (unlockable.isUnlocked()) {
-                    voicesUnlocked.add(new DiffGoogleVoice(unlockable.getVoiceType(), unlockable.getVoiceCode()));
-                    AppLog.d(AppLog.TTS, "Unlocked voice added: " + unlockable.getVoiceType());
-                }
+                rebuildVoiceOptions(sender, voicesUnlocked);
             }
 
             @Override
             public void onItemRangeMoved(ObservableList<Unlockable> sender, int fromPosition, int toPosition, int itemCount) {
+                rebuildVoiceOptions(sender, voicesUnlocked);
             }
 
             @Override
             public void onItemRangeRemoved(ObservableList<Unlockable> sender, int positionStart, int itemCount) {
+                rebuildVoiceOptions(sender, voicesUnlocked);
             }
-        });
+        };
+        userViewModel.userUnlocked.addOnListChangedCallback(voiceListCallback);
         return voicesUnlocked;
+    }
+
+    /**
+     * Rebuilds the picker from the whole unlocked list rather than appending the one row that just
+     * arrived. Appending assumed exactly one insert at {@code positionStart}, so a multi-row insert
+     * silently dropped everything after the first, and a re-delivered list added duplicates.
+     */
+    private void rebuildVoiceOptions(ObservableList<Unlockable> sender, ArrayList<DiffGoogleVoice> voicesUnlocked) {
+        voicesUnlocked.clear();
+        voicesUnlocked.add(new DiffGoogleVoice("regular", "0"));
+        for (Unlockable unlockable : sender) {
+            if (unlockable != null && unlockable.isUnlocked()) {
+                voicesUnlocked.add(new DiffGoogleVoice(unlockable.getVoiceType(), unlockable.getVoiceCode()));
+            }
+        }
+        AppLog.d(AppLog.TTS, "Voice picker rebuilt with " + voicesUnlocked.size() + " option(s)");
+        if (voiceAdapter != null) {
+            voiceAdapter.notifyDataSetChanged();
+        }
     }
 
     private void loadUnlockedVoicesForAccountPlayers() {
@@ -476,10 +500,7 @@ public class ReadSentenceFrag extends Fragment {
         doneButton = view.findViewById(R.id.pass_reading_turn);
         doneButton.setVisibility(View.GONE);
         if (currentUserHasAccount()) {
-            tts = new TextToSpeech(getContext(), status -> {
-                tts.setLanguage(Locale.getDefault());
-                AppLog.i(AppLog.TTS, "TextToSpeech initialized status=" + status);
-            });
+            voicePlayback.start(requireContext());
             readButton.setOnClickListener(v -> speakCurrentSentence());
         }
         else {
@@ -629,10 +650,7 @@ public class ReadSentenceFrag extends Fragment {
             AppLog.w(AppLog.TTS, "Speak blocked: sentence not visible");
             return;
         }
-        String sentence = GameLogic.formatIfSentence(myRandomIf) + ", " + GameLogic.formatThenSentence(myRandomThen);
-        String spokenSentence = "0".equals(code) ? sentence : GameLogic.mutateVoiceText(sentence, code);
-        AppLog.i(AppLog.TTS, "Speaking read sentence with voiceCode=" + code);
-        tts.speak(spokenSentence, TextToSpeech.QUEUE_FLUSH, null, "readIfThen");
+        voicePlayback.speak(myRandomIf, myRandomThen);
     }
 
     @Override
@@ -641,11 +659,14 @@ public class ReadSentenceFrag extends Fragment {
         roomViewModel.removeReadingCompleteListener();
         roomViewModel.removeActiveReaderListener();
         roomViewModel.removeCurrentRoundListener();
-        if (tts != null) {
-            tts.stop();
-            tts.shutdown();
-            tts = null;
+        // Registered against the ViewModel's list, which outlives this view - without this the
+        // callback stack grows on every rotation/re-entry and each copy touches a dead adapter.
+        if (voiceListCallback != null) {
+            userViewModel.userUnlocked.removeOnListChangedCallback(voiceListCallback);
+            voiceListCallback = null;
         }
+        voiceAdapter = null;
+        voicePlayback.release();
         soundHelper.release();
         super.onDestroyView();
     }

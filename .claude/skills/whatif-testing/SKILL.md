@@ -11,6 +11,18 @@ the live Firebase project while logging that it was using the emulator, and anot
 auth session that looked exactly like a flaky network. Check the specific traps here before
 forming a theory.
 
+## 0. Before debugging a Tier B / two-device failure, load the `e2e-gotchas` skill
+
+It is a symptom-to-cause table for exactly these failures and it is short. The two that bite most
+often, repeated here because they make a run *look* green or *look* like a code bug:
+
+- **`BUILD SUCCESSFUL` is not evidence.** Emulator tests `assumeTrue(emulatorReachable())` and skip
+  when it is down; JUnit counts skips as success, and Gradle then replays that cached result on the
+  next run without executing anything. Check `skipped="0"` in the XML, never the banner.
+- **Writes committing does not mean the connection works.** RTDB over the Android emulator's
+  `10.0.2.2` NAT delivers writes and initial reads while dropping server pushes, so one device sits
+  forever on data that is already in the database. The app targets `127.0.0.1` and the Tier B
+  scripts `adb reverse` ports 9000/9099 for this reason - see `e2e-gotchas`.
 ## 8. Testability seam: depend on `GameRepository`, not `DatabaseReference`, for anything you want to unit test
 
 `API/.../repositories/GameRepository.java` is a clean interface (`root()`, `room(id)`,

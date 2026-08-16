@@ -1,0 +1,55 @@
+// LOCAL EMULATOR ONLY - never deployed. `firebase deploy` reads firebase.json, which points at
+// database.rules.json; this file is only loaded via `--config firebase.emulator.json`.
+//
+// Identical to database.rules.json plus e2eSignals, the room-code handoff Tier B uses to get the
+// host's generated code across to the guest device. e2eSignals is deliberately absent from the
+// production rules: it is a test-harness node, and a world-writable node in production is exactly
+// the kind of thing that should not ship. Keeping two files is what lets both be true at once.
+//
+// Any new top-level root added to database.rules.json must be mirrored here too, or it will work
+// in production and fail locally.
+//
+// Only line comments are allowed - the parser rejects a top-level object with anything other than
+// a "rules" property, so JSON-style "//" keys will not load.
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      ".read": true,
+      ".write": true
+    },
+    "leaderBoard": {
+      ".read": true,
+      ".write": true
+    },
+    "AccountPlayers": {
+      ".read": true,
+      ".write": true
+    },
+    "expiredRooms": {
+      ".read": true,
+      ".write": true
+    },
+    "phoneAppVerified": {
+      ".read": true,
+      ".write": true
+    },
+    "watchAppVerified": {
+      ".read": true,
+      ".write": true
+    },
+    "errorLogs": {
+      ".read": true,
+      ".write": true
+    },
+    "maintenance": {
+      ".read": true,
+      ".write": true
+    },
+    "e2eSignals": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}

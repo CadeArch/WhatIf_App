@@ -11,9 +11,12 @@
 #   1. Firebase Emulator Suite running: firebase emulators:start --only database,auth
 #   2. App built with the emulator flag: .\gradlew.bat :MixedUp:assembleDebug -PuseFirebaseEmulator=true
 #   3. Test APK built: .\gradlew.bat :MixedUp:assembleDebugAndroidTest
-#   4. Both accounts in local-test-accounts.md already exist as Firebase Auth users in the LOCAL
-#      emulator's Auth instance (separate from production) - sign up each once manually if a run
-#      fails with "no user record" / sign-in stuck at AccountFrag.
+#   4. (automated) Both accounts exist as Firebase Auth users in the LOCAL emulator. This used to be
+#      a manual step, but the Auth emulator is in-memory - every suite restart deleted them and the
+#      only symptom was two devices sitting on the sign-in screen. The script now seeds them from
+#      local-test-accounts.md via the Auth emulator's REST API (idempotent). The credentials are
+#      PRODUCTION accounts; nothing is ever copied out of production, they are simply recreated
+#      locally with the same email/password/displayName.
 #   5. local-test-accounts.md exists at the repo root with the same "| Role | Email | Password |
 #      Username |" markdown table format this script parses below.
 #
@@ -76,6 +79,36 @@ $guestCreds = Get-CredentialsByRole "Guest"
 Write-Host "Host credentials: $($hostCreds.Email) (username $($hostCreds.Username))"
 Write-Host "Guest credentials: $($guestCreds.Email) (username $($guestCreds.Username))"
 
+# Seed both accounts into the LOCAL Auth emulator.
+#
+# This used to be a manual prerequisite, which is a trap: the Auth emulator is IN-MEMORY, so every
+# suite restart silently deletes both accounts and the next run fails with two devices parked on
+# the sign-in screen and no obvious reason. The credentials in local-test-accounts.md are real
+# PRODUCTION accounts - they do not exist here until seeded, and nothing about the failure says so.
+#
+# Idempotent: create, or sign in if it already exists, then set displayName either way. The app
+# reads FirebaseUser.getDisplayName() as the username, so an account without one signs in and then
+# behaves as a nameless player.
+function Ensure-EmulatorAccount([string]$email, [string]$password, [string]$displayName) {
+    $authBase = "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1"
+    $key = "fake-api-key"   # the Auth emulator accepts any API key
+    $body = @{ email = $email; password = $password; returnSecureToken = $true } | ConvertTo-Json
+    $idToken = $null
+    try {
+        $created = Invoke-RestMethod -Method Post -Uri "$authBase/accounts:signUp?key=$key" -Body $body -ContentType "application/json" -TimeoutSec 20
+        $idToken = $created.idToken
+        Write-Host "  created $email in the Auth emulator"
+    }
+    catch {
+        $existing = Invoke-RestMethod -Method Post -Uri "$authBase/accounts:signInWithPassword?key=$key" -Body $body -ContentType "application/json" -TimeoutSec 20
+        $idToken = $existing.idToken
+        Write-Host "  $email already present in the Auth emulator"
+    }
+    $update = @{ idToken = $idToken; displayName = $displayName; returnSecureToken = $true } | ConvertTo-Json
+    Invoke-RestMethod -Method Post -Uri "$authBase/accounts:update?key=$key" -Body $update -ContentType "application/json" -TimeoutSec 20 | Out-Null
+}
+
+
 Write-Host "Running $testClass (correlationId=$correlationId, $(if ($Headless) { 'headless' } else { 'visible' }))"
 Write-Host "Checking Firebase Emulator Suite is reachable on 127.0.0.1:9000..."
 try {
@@ -84,8 +117,16 @@ try {
     $tcp.Close()
 }
 catch {
-    throw "Firebase Emulator Suite is not reachable on 127.0.0.1:9000. Start it first with: firebase emulators:start --only database,auth"
+    throw "Firebase Emulator Suite is not reachable on 127.0.0.1:9000. Start it first with: firebase emulators:start --config firebase.emulator.json --only database,auth"
 }
+
+Write-Host "Seeding test accounts into the local Auth emulator..."
+Ensure-EmulatorAccount $hostCreds.Email $hostCreds.Password $hostCreds.Username
+Ensure-EmulatorAccount $guestCreds.Email $guestCreds.Password $guestCreds.Username
+
+# See run-tier-b.ps1: no REST probe of e2eSignals/ here on purpose - the emulator answers
+# unauthenticated REST as admin and skips rules, so such a probe always passes. The enforced
+# check is in E2ERoomCodeSignal.publish().
 
 function Test-DeviceConnected([string]$serial) {
     $connected = & $adb devices | Select-String "`tdevice$" | ForEach-Object { ($_ -split "\s+")[0] }
@@ -174,6 +215,11 @@ foreach ($serial in @($hostSerial, $guestSerial)) {
     # does not remove either APK, only MixedUp's user data/prefs).
     & $adb -s $serial shell pm clear $packageName
     & $adb -s $serial shell am force-stop $packageName
+
+    # See run-tier-b.ps1: qemu's 10.0.2.2 NAT drops server-initiated RTDB frames (writes work,
+    # pushes never arrive), so the app targets 127.0.0.1 and we tunnel the ports over adb.
+    & $adb -s $serial reverse tcp:9000 tcp:9000
+    & $adb -s $serial reverse tcp:9099 tcp:9099
 }
 
 Write-Host "Launching host role on $hostSerial (account: $($hostCreds.Email))..."

@@ -13,10 +13,19 @@ import com.google.firebase.database.FirebaseDatabase;
  * USE_FIREBASE_EMULATOR flag.
  */
 public final class FirebaseEmulatorConfig {
-    // Real device/emulator: 10.0.2.2 is the special host-loopback alias. Robolectric JVM tests
-    // run directly on the host machine (no virtual device network layer), so "localhost" is
-    // correct there instead - see configureIfEnabled(FirebaseApp, String, boolean).
-    private static final String EMULATOR_HOST = "10.0.2.2";
+    // Device/emulator: 127.0.0.1 plus `adb reverse tcp:9000 tcp:9000` (and 9099), which the Tier B
+    // scripts set up on every run.
+    //
+    // This used to be 10.0.2.2, the Android emulator's host-loopback alias, which routes through
+    // qemu's user-mode NAT. That path turned out to deliver outbound traffic fine while dropping
+    // *server-initiated* frames: writes committed and initial reads returned, but RTDB pushes never
+    // arrived, so a host sat on "1 player" forever while the guest's join was already in the
+    // database. `adb reverse` tunnels the port over the adb connection instead of the NAT, which
+    // keeps the websocket's inbound direction working.
+    //
+    // Robolectric JVM tests run on the host machine with no virtual device network at all, so they
+    // pass "localhost" explicitly - see configureIfEnabled(FirebaseApp, String, boolean).
+    private static final String EMULATOR_HOST = "127.0.0.1";
     private static final int DATABASE_EMULATOR_PORT = 9000;
     private static final int AUTH_EMULATOR_PORT = 9099;
 

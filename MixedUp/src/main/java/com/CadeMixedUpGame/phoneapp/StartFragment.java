@@ -79,7 +79,7 @@ public class StartFragment extends Fragment {
                             Objects.equals(lbi.getThenContributorID(), currentUser.getUid())) {
                         if (!currentUser.perfectLeaderBoard) {
                             currentUser.perfectLeaderBoard = true;
-                            userViewModel.unlockVoice(userViewModel.getUser(), "leaderBoards");
+                            userViewModel.unlockEarnedVoices(userViewModel.getUser());
                             UiMessenger.showSnackbar(view, "Unlocked pig latin google voice!");
                             AppLog.i(AppLog.AUTH, "Perfect leaderboard unlock triggered");
                         }
@@ -87,7 +87,7 @@ public class StartFragment extends Fragment {
                             Objects.equals(lbi.getThenContributorID(), currentUser.getUid())) {
                         if (!currentUser.madeLeaderBoard) {
                             currentUser.madeLeaderBoard = true;
-                            userViewModel.unlockVoice(userViewModel.getUser(), "leaderBoards");
+                            userViewModel.unlockEarnedVoices(userViewModel.getUser());
                             UiMessenger.showSnackbar(view, "Unlocked fuddify google voice!");
 //                        System.out.println("on Leader Board");
                         }

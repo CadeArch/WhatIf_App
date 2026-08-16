@@ -13,9 +13,15 @@
 # so you can watch the run. Pass -Headless (-no-window) for an unattended/faster run.
 #
 # Prerequisites (this script checks/fails fast, does not attempt to fix):
-#   1. Firebase Emulator Suite running: firebase emulators:start --only database,auth
+#   1. Firebase Emulator Suite running:
+#        firebase emulators:start --config firebase.emulator.json --only database,auth
+#      The --config matters: firebase.json points at the PRODUCTION rules, which deliberately do
+#      not allow-list the test-only e2eSignals node the room-code handoff writes to.
 #   2. Nothing else - the script builds both APKs itself with -PuseFirebaseEmulator=true and
-#      refuses to run if the app APK turns out to be a production build.
+#      refuses to run if the app APK turns out to be a production build. It also sets up the
+#      `adb reverse` port tunnels the app depends on (see the install step below and the
+#      `e2e-gotchas` skill: qemu's 10.0.2.2 NAT silently drops RTDB's server-to-client pushes,
+#      which is what made every earlier two-device run fail).
 #
 # Usage: .\scripts\run-tier-b.ps1 [-TestClass com.CadeMixedUpGame.phoneapp.TwoDeviceFullGameLoopTest] [-Rounds 3] [-Headless]
 # Defaults to the minimal join-only smoke test, visible. Any test class following the same
@@ -65,8 +71,15 @@ try {
     $tcp.Close()
 }
 catch {
-    throw "Firebase Emulator Suite is not reachable on 127.0.0.1:9000. Start it first with: firebase emulators:start --only database,auth"
+    throw "Firebase Emulator Suite is not reachable on 127.0.0.1:9000. Start it first with: firebase emulators:start --config firebase.emulator.json --only database,auth"
 }
+
+# NOTE: there is deliberately no REST probe of e2eSignals/ here. The RTDB emulator treats
+# unauthenticated REST requests as ADMIN and skips rule evaluation entirely, so a curl/
+# Invoke-RestMethod write succeeds even against a root that denies everything - such a probe would
+# pass no matter which rules file was loaded and would be worse than nothing. The real check lives
+# where rules are actually enforced: E2ERoomCodeSignal.publish() now fails the host's test with the
+# permission error and the fix command when the handoff write is rejected.
 
 function Test-DeviceConnected([string]$serial) {
     $connected = & $adb devices | Select-String "`tdevice$" | ForEach-Object { ($_ -split "\s+")[0] }
@@ -165,6 +178,14 @@ foreach ($serial in @($hostSerial, $guestSerial)) {
     # free-play test is just as vulnerable as the account-play one even though it never signs in.
     & $adb -s $serial shell pm clear $packageName
     & $adb -s $serial shell am force-stop $packageName
+
+    # Tunnel the emulator-suite ports over adb instead of qemu's 10.0.2.2 NAT alias. The NAT path
+    # delivers outbound traffic but silently drops server-initiated frames, so RTDB writes commit
+    # and initial reads return while *pushes never arrive* - a host sits on "1 player" forever with
+    # the guest's join already in the database. FirebaseEmulatorConfig points the app at 127.0.0.1
+    # for exactly this reason; without these two lines the app has nothing to talk to.
+    & $adb -s $serial reverse tcp:9000 tcp:9000
+    & $adb -s $serial reverse tcp:9099 tcp:9099
 }
 
 Write-Host "Launching host role on $hostSerial..."

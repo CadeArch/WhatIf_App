@@ -6,16 +6,18 @@ import androidx.databinding.ObservableArrayList;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.AuthErrorPolicy;
 import com.CadeMixedUpGame.api.ChildEventListenerAdapter;
+import com.CadeMixedUpGame.api.UnlockPolicy;
 import com.CadeMixedUpGame.api.models.GamePhase;
 import com.CadeMixedUpGame.api.models.Unlockable;
 import com.CadeMixedUpGame.api.models.User;
+import com.CadeMixedUpGame.api.repositories.AccountProgressRepository;
+import com.CadeMixedUpGame.api.repositories.RoomPresenceRepository;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
-import com.google.firebase.FirebaseNetworkException;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.database.ChildEventListener;
@@ -53,8 +55,10 @@ public class UserViewModel extends ViewModel {
     FirebaseAuth auth;
     MutableLiveData<User> user = new MutableLiveData<User>();
     public ObservableArrayList<Unlockable> userUnlocked = new ObservableArrayList<Unlockable>();
+    private final AccountProgressRepository accountProgress;
     public ChildEventListener listener;
     private String listenerRoom;
+    private final RoomPresenceRepository presence;
     private DatabaseReference onDisconnectPlayerRef;
     private String onDisconnectPlayerPath;
     private DatabaseReference onDisconnectHostConnectionRef;
@@ -72,6 +76,9 @@ public class UserViewModel extends ViewModel {
 
     public UserViewModel(DatabaseReference db, FirebaseAuth auth, boolean listenForAuthChanges) {
         this.db = db;
+        this.accountProgress = new AccountProgressRepository(db, userUnlocked);
+        this.presence = new RoomPresenceRepository(db, user, hostDisconnectedAt, hostLastSeenAt,
+                databaseMessage, hostDisconnectedMessage);
         gamePhase.setValue(GamePhase.LOBBY);
         if (users == null) {
             users = new ObservableArrayList<User>();
@@ -160,21 +167,10 @@ public class UserViewModel extends ViewModel {
                     });
                 }
                 else {
-                    // If sign in fails, display a message to the user.
-                    String message = task.getException() == null ? "" : task.getException().getMessage();
-                    if (message.equals("The email address is badly formatted.")) {
-                        signInMessage.setValue("Email Badly Formatted");
-                        AppLog.w(AppLog.AUTH, "Sign up failed: badly formatted email");
-                    } else if (message.equals("The given password is invalid. [ Password should be at least 6 characters ]")) {
-                        signInMessage.setValue("Weak Password");
-                        AppLog.w(AppLog.AUTH, "Sign up failed: weak password");
-                    } else if (message.equals("The email address is already in use by another account.")) {
-                        signInMessage.setValue("Email in Use");
-                        AppLog.w(AppLog.AUTH, "Sign up failed: email already in use");
-                    } else {
-                        AppLog.w(AppLog.AUTH, "Sign up failed: " + message);
-                        signInMessage.setValue("Error");
-                    }
+                    String shown = AuthErrorPolicy.signUpMessageFor(task.getException());
+                    signInMessage.setValue(shown);
+                    AppLog.w(AppLog.AUTH, "Sign up failed: " + shown
+                            + " (" + (task.getException() == null ? "no exception" : task.getException().getMessage()) + ")");
                 }
 
             }
@@ -200,36 +196,10 @@ public class UserViewModel extends ViewModel {
                     signInMessage.setValue("Sign in Complete");
 
                 } else {
-                    // If sign in fails, display a message to the user.
-                    String message = task.getException() == null ? "" : task.getException().getMessage();
-                    if (message.equals("The password is invalid or the user does not have a password.")) {
-                        signInMessage.setValue("Invalid Password");
-                        AppLog.w(AppLog.AUTH, "Sign in failed: invalid password");
-                    }
-                    else if (message.equals("There is no user record corresponding to this identifier. The user may have been deleted.")) {
-                        signInMessage.setValue("Invalid Email");
-                        AppLog.w(AppLog.AUTH, "Sign in failed: invalid email");
-
-                    }
-                    else if (message.equals("The email address is badly formatted.")) {
-                        signInMessage.setValue("Email Badly Formatted");
-                        AppLog.w(AppLog.AUTH, "Sign in failed: badly formatted email");
-                    }
-                    else if (task.getException() instanceof FirebaseNetworkException) {
-                        // A transient connectivity blip, not an account problem - must not be
-                        // reported as "User Disabled", which falsely alarms a real player.
-                        signInMessage.setValue("Network Error");
-                        AppLog.w(AppLog.AUTH, "Sign in failed: network error");
-                    }
-                    else if (task.getException() instanceof FirebaseAuthInvalidUserException
-                            && "ERROR_USER_DISABLED".equals(((FirebaseAuthInvalidUserException) task.getException()).getErrorCode())) {
-                        signInMessage.setValue("User Disabled");
-                        AppLog.w(AppLog.AUTH, "Sign in failed: user disabled");
-                    }
-                    else {
-                        signInMessage.setValue("Sign In Failed");
-                        AppLog.w(AppLog.AUTH, "Sign in failed: unknown auth error - " + message);
-                    }
+                    String shown = AuthErrorPolicy.signInMessageFor(task.getException());
+                    signInMessage.setValue(shown);
+                    AppLog.w(AppLog.AUTH, "Sign in failed: " + shown
+                            + " (" + (task.getException() == null ? "no exception" : task.getException().getMessage()) + ")");
                 }
             }
         });
@@ -660,229 +630,40 @@ public class UserViewModel extends ViewModel {
         });
     }
 
+    // Presence, onDisconnect registration and the host heartbeat live in RoomPresenceRepository;
+    // these forward so call sites and the characterization tests are untouched.
     private void registerOnDisconnectCleanup(User user, DatabaseReference ref) {
-        String path = playerPath(user);
-        if (path.length() == 0 || ref == null) {
-            AppLog.w(AppLog.FIREBASE, "onDisconnect registration skipped: missing player path");
-            return;
-        }
-        if (path.equals(onDisconnectPlayerPath)) {
-            AppLog.d(AppLog.FIREBASE, "onDisconnect already registered path=" + path);
-            registerHostConnectionOnDisconnect(user);
-            return;
-        }
-        cancelOnDisconnectCleanup();
-        onDisconnectPlayerRef = ref;
-        onDisconnectPlayerPath = path;
-        ref.onDisconnect().updateChildren(disconnectedUpdate())
-                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Registered onDisconnect player cleanup path=" + path))
-                .addOnFailureListener(e -> {
-                    databaseMessage.setValue("Could not set disconnect cleanup. If someone drops, the host may need to recreate the room.");
-                    AppLog.e(AppLog.FIREBASE, "Failed registering onDisconnect cleanup path=" + path, e);
-                });
-        registerHostConnectionOnDisconnect(user);
+        presence.registerOnDisconnectCleanup(user, ref);
     }
 
     private void cancelOnDisconnectCleanup() {
-        if (onDisconnectPlayerRef != null && onDisconnectPlayerPath != null) {
-            String path = onDisconnectPlayerPath;
-            onDisconnectPlayerRef.onDisconnect().cancel()
-                    .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Cancelled onDisconnect player cleanup path=" + path))
-                    .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed cancelling onDisconnect cleanup path=" + path, e));
-            onDisconnectPlayerRef = null;
-            onDisconnectPlayerPath = null;
-        }
-        cancelHostConnectionOnDisconnect();
-    }
-
-    private void registerHostConnectionOnDisconnect(User user) {
-        if (user == null || !user.host || user.gameRoom == null || user.gameRoom.length() == 0) {
-            return;
-        }
-        if (user.gameRoom.equals(onDisconnectHostConnectionRoom) && onDisconnectHostConnectionRef != null) {
-            AppLog.d(AppLog.FIREBASE, "Host connection onDisconnect already registered room=" + user.gameRoom);
-            return;
-        }
-        cancelHostConnectionOnDisconnect();
-        onDisconnectHostConnectionRoom = user.gameRoom;
-        onDisconnectHostConnectionRef = hostConnectionRef(user.gameRoom);
-        onDisconnectHostConnectionRef.onDisconnect().updateChildren(disconnectedUpdate())
-                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Registered host connection onDisconnect room=" + user.gameRoom))
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed registering host connection onDisconnect room=" + user.gameRoom, e));
-    }
-
-    private void cancelHostConnectionOnDisconnect() {
-        if (onDisconnectHostConnectionRef == null || onDisconnectHostConnectionRoom == null) {
-            return;
-        }
-        String room = onDisconnectHostConnectionRoom;
-        onDisconnectHostConnectionRef.onDisconnect().cancel()
-                .addOnSuccessListener(unused -> AppLog.i(AppLog.FIREBASE, "Cancelled host connection onDisconnect room=" + room))
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed cancelling host connection onDisconnect room=" + room, e));
-        onDisconnectHostConnectionRef = null;
-        onDisconnectHostConnectionRoom = null;
-    }
-
-    public void markCurrentPlayerConnected() {
-        User currentUser = user.getValue();
-        if (currentUser == null || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0 || currentUser.userName == null) {
-            return;
-        }
-        if (currentUser.host) {
-            markHostConnectedIfRoomActive(currentUser);
-            return;
-        }
-        markUserConnectedLocally(currentUser);
-        listenToHostConnection(currentUser.gameRoom);
-        playerRef(currentUser).updateChildren(connectedUpdate())
-                .addOnSuccessListener(unused -> AppLog.d(AppLog.FIREBASE, "Marked player connected room=" + currentUser.gameRoom))
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed marking player connected room=" + currentUser.gameRoom, e));
-        markHostConnectionConnectedIfNeeded(currentUser);
-    }
-
-    private void markHostConnectionConnectedIfNeeded(User currentUser) {
-        if (currentUser == null || !currentUser.host || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0) {
-            return;
-        }
-        hostConnectionRef(currentUser.gameRoom).updateChildren(hostConnectedUpdate())
-                .addOnSuccessListener(unused -> AppLog.d(AppLog.FIREBASE, "Marked host connection online room=" + currentUser.gameRoom))
-                .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed marking host connection online room=" + currentUser.gameRoom, e));
-    }
-
-    public void writeHostHeartbeat() {
-        User currentUser = user.getValue();
-        if (currentUser == null || !currentUser.host || currentUser.gameRoom == null || currentUser.gameRoom.length() == 0) {
-            return;
-        }
-        runIfHostRoomActive(currentUser, () ->
-                hostConnectionRef(currentUser.gameRoom).updateChildren(hostConnectedUpdate())
-                        .addOnSuccessListener(unused -> AppLog.d(AppLog.FIREBASE, "Host heartbeat written room=" + currentUser.gameRoom))
-                        .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed writing host heartbeat room=" + currentUser.gameRoom, e)));
-    }
-
-    private void markHostConnectedIfRoomActive(User currentUser) {
-        runIfHostRoomActive(currentUser, () -> {
-            markUserConnectedLocally(currentUser);
-            listenToHostConnection(currentUser.gameRoom);
-            playerRef(currentUser).updateChildren(connectedUpdate())
-                    .addOnSuccessListener(unused -> AppLog.d(AppLog.FIREBASE, "Marked host player connected room=" + currentUser.gameRoom))
-                    .addOnFailureListener(e -> AppLog.e(AppLog.FIREBASE, "Failed marking host player connected room=" + currentUser.gameRoom, e));
-            markHostConnectionConnectedIfNeeded(currentUser);
-        });
-    }
-
-    private void runIfHostRoomActive(User currentUser, Runnable activeRoomAction) {
-        db.child("expiredRooms").child(currentUser.gameRoom).get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
-                        AppLog.w(AppLog.ROOM, "Host room already expired; blocking room writes room=" + currentUser.gameRoom);
-                        hostDisconnectedMessage.setValue("Game room ended while connection was lost. Create a new game!");
-                        return;
-                    }
-                    db.child("rooms").child(currentUser.gameRoom).get()
-                            .addOnCompleteListener(roomTask -> {
-                                if (!roomTask.isSuccessful() || roomTask.getResult() == null || !roomTask.getResult().exists()) {
-                                    AppLog.w(AppLog.ROOM, "Host room missing; blocking room writes room=" + currentUser.gameRoom);
-                                    hostDisconnectedMessage.setValue("Game room ended while connection was lost. Create a new game!");
-                                    return;
-                                }
-                                activeRoomAction.run();
-                            });
-                });
-    }
-
-    public void listenToHostConnection(String room) {
-        if (room == null || room.length() == 0) {
-            return;
-        }
-        if (room.equals(hostConnectionListenerRoom) && hostConnectionListener != null) {
-            return;
-        }
-        removeHostConnectionListener();
-        hostConnectionListenerRoom = room;
-        hostConnectionListener = new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                handleHostConnectionSnapshot(room, snapshot);
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                AppLog.e(AppLog.FIREBASE, "Host connection listener cancelled room=" + room + ": " + error.getMessage());
-            }
-        };
-        AppLog.i(AppLog.FIREBASE, "Attaching host connection listener room=" + room);
-        hostConnectionRef(room).addValueEventListener(hostConnectionListener);
-    }
-
-    public void removeHostConnectionListener() {
-        if (hostConnectionListener != null && hostConnectionListenerRoom != null) {
-            AppLog.i(AppLog.FIREBASE, "Removing host connection listener room=" + hostConnectionListenerRoom);
-            hostConnectionRef(hostConnectionListenerRoom).removeEventListener(hostConnectionListener);
-            hostConnectionListener = null;
-            hostConnectionListenerRoom = null;
-        }
-    }
-
-    private void handleHostConnectionSnapshot(String room, DataSnapshot snapshot) {
-        User currentUser = user.getValue();
-        if (currentUser == null || currentUser.host) {
-            return;
-        }
-        if (snapshot == null || !snapshot.exists()) {
-            hostDisconnectedAt.setValue(0L);
-            hostLastSeenAt.setValue(0L);
-            return;
-        }
-        Long lastSeenAtValue = snapshot.child("lastSeenAt").getValue(Long.class);
-        if (lastSeenAtValue != null && lastSeenAtValue > 0L) {
-            hostLastSeenAt.setValue(lastSeenAtValue);
-        }
-        Boolean connected = snapshot.child("connected").getValue(Boolean.class);
-        if (Boolean.FALSE.equals(connected)) {
-            Long disconnectedAtValue = snapshot.child("disconnectedAt").getValue(Long.class);
-            long safeDisconnectedAt = disconnectedAtValue == null ? System.currentTimeMillis() : disconnectedAtValue;
-            AppLog.w(AppLog.ROOM, "Room host connection marked offline room=" + room + ", disconnectedAt=" + safeDisconnectedAt);
-            hostDisconnectedAt.setValue(safeDisconnectedAt);
-            return;
-        }
-        if (hostDisconnectedAt.getValue() != null && hostDisconnectedAt.getValue() > 0L) {
-            AppLog.i(AppLog.ROOM, "Room host connection recovered room=" + room);
-        }
-        hostDisconnectedAt.setValue(0L);
+        presence.cancelOnDisconnectCleanup();
     }
 
     private void markUserConnectedLocally(User user) {
-        if (user == null) {
-            return;
-        }
-        user.connected = true;
-        user.disconnectedAt = 0L;
+        presence.markUserConnectedLocally(user);
     }
 
-    private Map<String, Object> connectedUpdate() {
-        Map<String, Object> update = new HashMap<String, Object>();
-        update.put("connected", true);
-        update.put("disconnectedAt", 0L);
-        return update;
+    private void markHostConnectionConnectedIfNeeded(User currentUser) {
+        presence.markHostConnectionConnectedIfNeeded(currentUser);
     }
 
-    private Map<String, Object> hostConnectedUpdate() {
-        Map<String, Object> update = connectedUpdate();
-        update.put("lastSeenAt", ServerValue.TIMESTAMP);
-        return update;
+    public void markCurrentPlayerConnected() {
+        presence.markCurrentPlayerConnected();
     }
 
-    private Map<String, Object> disconnectedUpdate() {
-        Map<String, Object> update = new HashMap<String, Object>();
-        update.put("connected", false);
-        update.put("disconnectedAt", ServerValue.TIMESTAMP);
-        return update;
+    public void writeHostHeartbeat() {
+        presence.writeHostHeartbeat();
     }
 
-    private DatabaseReference hostConnectionRef(String room) {
-        return db.child("rooms").child(room).child("hostConnection");
+    public void listenToHostConnection(String room) {
+        presence.listenToHostConnection(room);
     }
+
+    public void removeHostConnectionListener() {
+        presence.removeHostConnectionListener();
+    }
+
 
     public void deleteRoom(User userLeft) {
         deleteRoom(userLeft, null);
@@ -1007,98 +788,32 @@ public class UserViewModel extends ViewModel {
         return update;
     }
 
+    // Account progression (games played, unlockables, leaderboard flags) lives in
+    // AccountProgressRepository; these forward so call sites and tests are untouched.
     public void fillUnlockables(MutableLiveData<User> user) {
-        Unlockable v1 = new Unlockable("fuddify", "1", false);
-        Unlockable v2 = new Unlockable("pig latin", "2", false);
-        Unlockable v3 = new Unlockable("backwords", "3", false);
-        Unlockable v4 = new Unlockable("jokester", "4", false);
-        Unlockable v5 = new Unlockable("forgetful", "5", false);
-        Unlockable v6 = new Unlockable("shaggy", "6", false);
-        Unlockable v7 = new Unlockable("disobedient", "7", false);
-
-        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v1.getVoiceType()).setValue(v1);
-        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v2.getVoiceType()).setValue(v2);
-        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v3.getVoiceType()).setValue(v3);
-        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v4.getVoiceType()).setValue(v4);
-        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v5.getVoiceType()).setValue(v5);
-        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v6.getVoiceType()).setValue(v6);
-        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child(v7.getVoiceType()).setValue(v7);
-
+        accountProgress.fillUnlockables(user);
     }
 
     public void fillGamesPlayed(MutableLiveData<User> user) {
-        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("gamesPlayed").setValue(0);
+        accountProgress.fillGamesPlayed(user);
     }
 
     public void getGamesPlayed(MutableLiveData<User> user, boolean increment) {
-        Task<DataSnapshot> gamesPlayed = db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("gamesPlayed").get();
-        gamesPlayed.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
-            @Override
-            public void onComplete(@NonNull Task<DataSnapshot> task) {
-                if (!task.isSuccessful()) {
-                    AppLog.e(AppLog.FIREBASE, "Failed to load gamesPlayed", task.getException());
-                    return;
-                }
-                DataSnapshot snapshot = gamesPlayed.getResult();
-                Integer totalPlayed = snapshot.getValue(Integer.class);
-                if (totalPlayed == null || user.getValue() == null) {
-                    return;
-                }
-                user.getValue().gamesPlayed = totalPlayed;
-                AppLog.d(AppLog.AUTH, "Loaded gamesPlayed=" + user.getValue().gamesPlayed);
-                if (increment) {
-                    incrementGamesPlayed(user);
-                }
-            }
-        });
+        accountProgress.getGamesPlayed(user, increment);
     }
 
     public void incrementGamesPlayed(MutableLiveData<User> user) {
-        user.getValue().gamesPlayed += 1;
-        db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("gamesPlayed").setValue(user.getValue().gamesPlayed);
+        accountProgress.incrementGamesPlayed(user);
     }
 
-    public void unlockVoice(MutableLiveData<User> user, String which) {
-        if (user.getValue().gamesPlayed >= 5 && which.equals("numGames")) {
-            db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child("backwords").child("unlocked").setValue(true);
-            AppLog.i(AppLog.AUTH, "Unlocked backwords voice");
-        }
-        if (user.getValue().madeLeaderBoard && which.equals("leaderBoards")) {
-            db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child("fuddify").child("unlocked").setValue(true);
-            accountPlayerRef(user.getValue()).child("madeLeaderBoard").setValue(true);
-            AppLog.i(AppLog.AUTH, "Unlocked fuddify voice");
-        }
-        if (user.getValue().perfectLeaderBoard && which.equals("leaderBoards")) {
-            db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").child("pig latin").child("unlocked").setValue(true);
-            accountPlayerRef(user.getValue()).child("perfectLeaderBoard").setValue(true);
-            AppLog.i(AppLog.AUTH, "Unlocked pig latin voice");
-
-        }
-
+    public void unlockEarnedVoices(MutableLiveData<User> user) {
+        accountProgress.unlockEarnedVoices(user);
     }
 
     public void getUnlocked(MutableLiveData<User> user) {
-        Task<DataSnapshot> unlocked = db.child("AccountPlayers").child(user.getValue().uid).child(user.getValue().userName).child("unlockables").get();
-        unlocked.addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
-            @Override
-            public void onComplete(@NonNull Task<DataSnapshot> task) {
-                if (!task.isSuccessful()) {
-                    AppLog.e(AppLog.FIREBASE, "Failed to load unlockables", task.getException());
-                    return;
-                }
-                DataSnapshot snapshot = unlocked.getResult();
-//                System.out.println(snapshot);
-                userUnlocked.clear();
-                for (DataSnapshot ds:snapshot.getChildren()) {
-//                    System.out.println(ds);
-                    Unlockable unlockable = ds.getValue(Unlockable.class);
-                    if (unlockable != null) {
-                        userUnlocked.add(unlockable);
-                    }
-                }
-            }
-        });
+        accountProgress.getUnlocked(user);
     }
+
 
     @Override
     protected void onCleared() {

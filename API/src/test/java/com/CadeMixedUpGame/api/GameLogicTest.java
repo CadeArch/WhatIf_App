@@ -220,4 +220,63 @@ public class GameLogicTest {
         assertEquals("if, then", GameLogic.mutateVoiceText("if, then", "unknown"));
         assertEquals("if, then", GameLogic.mutateVoiceText("if, then", null));
     }
+
+    @Test
+    public void mutateVoiceText_jokesterLaughsThroughTheSentence() {
+        assertEquals("if, heh heh, then ha ha ha!", GameLogic.mutateVoiceText("if, then", "4"));
+    }
+
+    @Test
+    public void mutateVoiceText_forgetfulTrailsOffOnlyOnLongerWords() {
+        // "if" and "the" stay intact; "elephant" is long enough to lose the thread on.
+        assertEquals("if the ele... uh... what was it... elephant",
+                GameLogic.mutateVoiceText("if the elephant", "5"));
+    }
+
+    @Test
+    public void mutateVoiceText_forgetfulIsDeterministic() {
+        // A voice that read differently each time would feel broken, not funny.
+        assertEquals(GameLogic.mutateVoiceText("if the elephant sneezes", "5"),
+                GameLogic.mutateVoiceText("if the elephant sneezes", "5"));
+    }
+
+    @Test
+    public void mutateVoiceText_shaggyAddsZoinksAndLikes() {
+        assertEquals("Zoinks! Like, if, like, then", GameLogic.mutateVoiceText("if, then", "6"));
+    }
+
+    @Test
+    public void mutateVoiceText_disobedientRefusesThenReadsAnyway() {
+        assertEquals("No. I'm not reading that. if, then. There, happy?",
+                GameLogic.mutateVoiceText("if, then", "7"));
+    }
+
+    @Test
+    public void everyUnlockableVoiceActuallyChangesTheText() {
+        // The structural guard, and the reason this test exists: codes 4-7 were in the catalog with
+        // no branch in mutateVoiceText, so they fell through to `return ifThen`. While those voices
+        // were permanently locked nobody could notice; the moment they became earnable they were
+        // four rewards that sound exactly like no reward. Any new voice added to the catalog
+        // without a mutation fails here by name instead of shipping silent.
+        String sample = "if the elephant sneezes, then everybody runs away";
+        List<String> silent = new ArrayList<>();
+        for (UnlockPolicy.Voice voice : UnlockPolicy.catalog()) {
+            if (sample.equals(GameLogic.mutateVoiceText(sample, voice.getVoiceCode()))) {
+                silent.add(voice.getVoiceType() + " (code " + voice.getVoiceCode() + ")");
+            }
+        }
+        assertTrue("these unlockable voices leave the sentence unchanged, so earning them does "
+                + "nothing the player can hear: " + silent, silent.isEmpty());
+    }
+
+    @Test
+    public void everyUnlockableVoiceHasAUniqueCode() {
+        // Two voices sharing a code means the second is unreachable in mutateVoiceText.
+        List<String> codes = new ArrayList<>();
+        for (UnlockPolicy.Voice voice : UnlockPolicy.catalog()) {
+            assertFalse("duplicate voice code " + voice.getVoiceCode() + " on " + voice.getVoiceType(),
+                    codes.contains(voice.getVoiceCode()));
+            codes.add(voice.getVoiceCode());
+        }
+    }
 }

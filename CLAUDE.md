@@ -26,6 +26,7 @@ every rule in them exists because the "obvious" approach shipped a real bug firs
 |---|---|
 | edit any `res/layout/*.xml`, add/restyle a view, change the visibility of a view others are constrained to, touch a drawable/background, or do portrait/landscape/tablet work | `whatif-android-ui` |
 | write or run any test, run a Tier B script, touch `FirebaseEmulatorConfig`/the emulator build flag, or debug "Client is offline" / "Connection lost" / data not appearing in the local emulator | `whatif-testing` |
+| debug **any** Tier B / two-device failure, or "the write worked but the other device never saw it" — load this *first*, it is a short symptom→cause table and these failures never look like what they are | `e2e-gotchas` |
 
 Everything below applies to any Java change and stays loaded.
 
@@ -38,57 +39,37 @@ a feature/bug — opportunistic, not a sweep.
 
 ## 5. Keep business logic in pure, static, testable classes — this repo already has the right model
 
-`API/.../GameFlowPolicy.java`, `GameLogic.java`, and `RoomCreationPolicy.java` are `public final
-class`es of `public static` pure functions with zero Android/Firebase dependencies (no `Context`,
-no `DatabaseReference`) — connection-grace timing, sentence formatting, randomized assignment,
-vote tallying, room-code retry logic. They're also this repo's best-tested code: ~75 JUnit test
-methods across `API/src/test`, all plain JVM tests with no emulator/mocking needed, because the
-functions are pure. **When you add new game-flow logic, put it here, not in a Fragment or
-Activity** — that's what makes it fast to test and safe to change.
+`GameFlowPolicy`, `GameLogic`, `RoomCreationPolicy`, `UnlockPolicy`, `AuthErrorPolicy` in `API/`
+are `public final` classes of `public static` pure functions with **zero Android/Firebase
+dependencies** (no `Context`, no `DatabaseReference`, and no Firebase exception types — those
+belong in a thin adapter). That purity is why they hold the bulk of this repo's tests as plain JVM
+tests needing no emulator or mocking. **Put new game-flow decisions there, not in a Fragment,
+Activity or ViewModel** — the ViewModel should keep the Firebase writes and ask a policy what to do.
 
-The counter-example already in this repo: `ReadSentenceFrag.java` (~620 lines) mixes view binding,
-Firebase listener setup, TTS/voice logic, and navigation/game-phase decisions in one class, and
-`MainActivity.java` (~520 lines) implements the host-disconnect grace timer and heartbeat
-expiration directly with `Handler.postDelayed` — even though `GameFlowPolicy` already owns the
-*constants* those timers use (`CONNECTION_GRACE_MS`, `millisUntilHostHeartbeatExpires(...)`), the
-scheduling logic itself lives in the `Activity` and can't be unit tested there. Don't treat this as
-a mandate to refactor those files outright (that's real, working, hard-won reliability code — see
-`CHANGELOG.md`'s archived session notes for how much iteration went into the disconnect/heartbeat
-behavior specifically); but if you're already in one of them for a feature, look for a chunk of
-decision-making that could move to a policy class as you go, rather than adding more inline logic
-next to what's already there.
+The counter-examples: `UserViewModel`/`RoomViewModel` (~1100 lines each), `ReadSentenceFrag` and
+`MainActivity` still mix several concerns, and `MainActivity`'s disconnect/heartbeat scheduling
+can't be unit tested where it sits. Breaking them up is its own roadmap item — this is hard-won
+reliability code, so don't refactor it as a drive-by. When you're already in one for a feature,
+move one chunk of decision-making out to a policy class rather than adding more inline logic.
 
 ## 6. Encapsulation — match Firebase's actual requirement, not "everything public"
 
-Firebase Realtime Database's POJO mapper needs a no-arg constructor plus **either** public fields
-**or** public getter/setter pairs — it does not require public fields.
+Firebase's POJO mapper needs a no-arg constructor plus **either** public fields **or**
+getter/setter pairs — not public fields.
 
-`API/.../models/LeaderBoardItem.java` and `Unlockable.java` already do this correctly: package-private
-fields, real getter/setter pairs, and (verified by grep) every one of those accessors is actually
-called somewhere in the app — this is the pattern to follow for new model classes.
-
-`API/.../models/User.java` used to have both public fields *and* redundant getters/setters for a
-subset of the same fields — grepped every getter/setter for real call sites and found only
-`getUid()` plus 5 setters (`setHostPlayedAgain`, `setIfFinished`, `setIfSentence`, `setThenFinished`,
-`setThenSentence`) were ever actually called; the other ~18 were dead API surface nobody used
-(callers always mutated the public fields directly instead). Deleted the unused ones — kept the 6
-real accessors, `User.java`'s fields stay public. `Room.java`/`RoundAssignment.java` are plain
-public-field POJOs with no getters/setters at all, so they don't have this "two competing paths"
-problem in the first place.
-
-- **New model classes**: private/package-private fields + public getters/setters only, matching
-  `LeaderBoardItem`/`Unlockable` — fully Firebase-compatible, and every mutation is a method call
-  you could add validation/logging to later.
-- **Existing public-field models** (`User`, `Room`, `RoundAssignment`): don't do a mass
-  field-privatization pass unprompted — every direct field access across every Fragment/ViewModel
-  would need to become a method call, a large, high-risk, mechanical change with no behavior
-  benefit on its own. Do the cheap, safe part opportunistically instead: if you add a getter/setter
-  to one of these classes, grep for real callers before assuming it needs to stay — as `User.java`
-  showed, "someone might call this" often isn't true here, only unit tests exercising the accessor
-  in isolation, which don't need it to exist for the app to work (rewrite the test to use the field
-  directly, as `UserTest.java` now does).
+- **New model classes**: private/package-private fields + public getters/setters, like
+  `LeaderBoardItem`/`Unlockable`.
+- **Existing public-field models** (`User`, `Room`, `RoundAssignment`): leave them; a mass
+  field-privatization pass is high-risk mechanical churn with no behavior benefit. If you *add* an
+  accessor to one, grep for real callers first — `User` once carried ~18 getters/setters nobody
+  called, and deleting them broke nothing but a test that existed only to exercise them.
 
 ## 7. Reusability — look for the shared shape before writing another one-off
+
+**Use `API/.../ChildEventListenerAdapter.java` for any new `ChildEventListener`** instead of
+implementing the raw interface — it defaults the callbacks you don't need and bakes in the
+"cancelled" logging. It replaced five near-identical hand-rolled listeners across `RoomViewModel`,
+`UserViewModel` and `LeaderBoardViewModel`; see any of those for the pattern.
 
 `API/src/main` used to have five independently hand-rolled `ChildEventListener` anonymous classes
 with the same shape — `RoomViewModel.loadRooms()`, `UserViewModel`'s player listener, and three in
