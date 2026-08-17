@@ -29,6 +29,8 @@ import com.CadeMixedUpGame.api.viewmodels.UserViewModel;
 import java.util.ArrayList;
 
 public class ReadSentenceFrag extends Fragment {
+    /** How far the mic dims while it is talking - visibly busy, still tappable to stop. */
+    private static final float SPEAKING_ALPHA = 0.5f;
     UserViewModel userViewModel;
     RoomViewModel roomViewModel;
     LeaderBoardViewModel leaderBoardViewModel;
@@ -61,6 +63,8 @@ public class ReadSentenceFrag extends Fragment {
     boolean readingActionInProgress = false;
     boolean turnPromptShown = false;
     String observedActiveReaderKey = "";
+    /** What the reading controls were last built from, so an unchanged update does nothing. */
+    private String lastControlsSignature = "";
     SoundHelper soundHelper = new SoundHelper();
 
     public ReadSentenceFrag() {
@@ -518,7 +522,37 @@ public class ReadSentenceFrag extends Fragment {
         AppLog.d(AppLog.TTS, "Voice picker rebuilt with " + voicesUnlocked.size() + " option(s)");
         if (voiceAdapter != null) {
             voiceAdapter.notifyDataSetChanged();
+            restoreVoiceSelection(voicesUnlocked);
         }
+    }
+
+    /**
+     * Puts the player's chosen voice back after a rebuild.
+     *
+     * <p>A Spinner resets its selection to position 0 whenever its adapter's contents change, and
+     * position 0 here is "regular" - so any re-delivery of the unlockables list silently switched
+     * the player back to the plain voice, firing {@code onItemSelected(0)} on the way and taking
+     * {@code voicePlayback}'s code with it. The only visible symptom was the next tap of the mic
+     * reading in a voice nobody picked, which is indistinguishable from the mutation being broken.
+     * Observed live: a sentence chosen to be read in "pig latin" spoke with {@code voiceCode=0}
+     * after an unrelated write re-delivered the list.
+     *
+     * <p>Matched on voice code rather than list position, because the rebuilt list is not
+     * guaranteed to hold the same voices in the same order.
+     */
+    private void restoreVoiceSelection(ArrayList<DiffGoogleVoice> voicesUnlocked) {
+        if (selectedItemOnSpinner == null || !(spinnerObject instanceof Spinner)) {
+            return;
+        }
+        String chosenCode = selectedItemOnSpinner.getVoiceCode();
+        for (int index = 0; index < voicesUnlocked.size(); index++) {
+            if (voicesUnlocked.get(index).getVoiceCode().equals(chosenCode)) {
+                ((Spinner) spinnerObject).setSelection(index);
+                voicePlayback.setVoiceCode(chosenCode);
+                return;
+            }
+        }
+        AppLog.d(AppLog.TTS, "Previously selected voice code=" + chosenCode + " is no longer in the picker");
     }
 
     private void loadUnlockedVoicesForAccountPlayers() {
@@ -535,6 +569,15 @@ public class ReadSentenceFrag extends Fragment {
         if (currentUserHasAccount()) {
             voicePlayback.start(requireContext());
             readButton.setOnClickListener(v -> speakCurrentSentence());
+            // Dimmed while it talks, so a tap visibly registers even when a neural voice takes a
+            // second to produce its first sample - and so it is obvious that the next tap will stop
+            // it rather than start it again. Alpha only: the button must stay tappable, since
+            // stopping is exactly what it is for while this state is showing.
+            voicePlayback.setPlaybackListener(speaking -> {
+                if (readButton != null) {
+                    readButton.setAlpha(speaking ? SPEAKING_ALPHA : 1.0f);
+                }
+            });
         }
         else {
             readButton.setVisibility(View.GONE);
@@ -606,6 +649,22 @@ public class ReadSentenceFrag extends Fragment {
             AppLog.i(AppLog.GAME_FLOW, "Host covering absent reader's turn key=" + activeReaderKey);
         }
         currentReaderTurn = isCurrentReader;
+        // Everything above is derived state; below this line the views get touched. This screen's
+        // listeners fire far more often than anything on it actually changes - the room heartbeat
+        // rewrites a player record roughly once a second, every rewrite lands as a child-changed
+        // event, and each one ran this method three times over. Measured on a live round: 6-9 full
+        // control refreshes per second, indefinitely, with nothing on screen changing. That is
+        // constant needless re-layout of the picker and both buttons, and it drowned the AppLog
+        // breadcrumb trail - the 40 lines that errorLogs/ captures before a crash were all this one
+        // line, which is exactly the diagnostic the trail exists to provide.
+        String signature = activeIndex + "|" + activeReaderKey + "|" + currentUserPlayerKey + "|"
+                + currentUserReadIndex + "|" + readOrderSize + "|" + isCurrentReader + "|"
+                + sentenceReady + "|" + sentenceRevealed + "|" + readTurnPassed + "|"
+                + readingActionInProgress + "|" + everyoneHasRead + "|" + myRandomIf + "|" + myRandomThen;
+        if (signature.equals(lastControlsSignature)) {
+            return;
+        }
+        lastControlsSignature = signature;
         boolean canReadAloud = isCurrentReader && sentenceRevealed;
         // The mic is only meaningful once you can actually speak your own revealed sentence. It
         // used to merely dim to alpha 0.35 while waiting for someone else to read, which still
@@ -714,7 +773,26 @@ public class ReadSentenceFrag extends Fragment {
             AppLog.w(AppLog.TTS, "Speak blocked: sentence not visible");
             return;
         }
-        voicePlayback.speak(myRandomIf, myRandomThen);
+        // The engine can take seconds to bind on a cold start, and a tap during that window used to
+        // vanish without a sound or a word of explanation - the reported "the mic just stops
+        // working, then works later if you wait". It is now held and spoken automatically, and the
+        // player is told that rather than being left tapping a dead button.
+        VoicePlayback.SpeakResult result = voicePlayback.speak(myRandomIf, myRandomThen);
+        if (result == VoicePlayback.SpeakResult.IGNORED) {
+            // Silently dropped on purpose - saying anything about it would itself be the spam.
+            return;
+        }
+        if (result == VoicePlayback.SpeakResult.STOPPED) {
+            // No message: the audio cutting out is the feedback, and a snackbar for something the
+            // player just did deliberately is noise.
+            AppLog.d(AppLog.TTS, "Reader stopped playback");
+        }
+        else if (result == VoicePlayback.SpeakResult.WARMING_UP) {
+            UiMessenger.showTopSnackbar(requireView(), "Warming up the voice - it will read in a moment");
+        }
+        else if (result == VoicePlayback.SpeakResult.UNAVAILABLE) {
+            UiMessenger.showTopSnackbar(requireView(), "This device cannot read aloud - read it yourself!");
+        }
     }
 
     @Override

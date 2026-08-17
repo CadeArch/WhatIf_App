@@ -41,7 +41,18 @@ public final class UnlockPolicy {
     public static final String VOICE_DISOBEDIENT = "disobedient";
 
     /** The voice codes are what SpinnerAdapter/DiffGoogleVoice match on, so they must keep their
-     * original values ("regular" is 0 and is not an unlockable). */
+     * original values ("regular" is 0 and is not an unlockable). Named here because two other
+     * places switch on them - {@code GameLogic.mutateVoiceText} for the words and
+     * {@link VoiceStyle} for the delivery - and a bare literal in three files is a typo waiting to
+     * silently drop a voice back to plain narration. */
+    public static final String VOICE_FUDDIFY_CODE = "1";
+    public static final String VOICE_PIG_LATIN_CODE = "2";
+    public static final String VOICE_BACKWORDS_CODE = "3";
+    public static final String VOICE_JOKESTER_CODE = "4";
+    public static final String VOICE_FORGETFUL_CODE = "5";
+    public static final String VOICE_SHAGGY_CODE = "6";
+    public static final String VOICE_DISOBEDIENT_CODE = "7";
+
     private static final List<Voice> CATALOG = Collections.unmodifiableList(buildCatalog());
 
     private UnlockPolicy() {
@@ -80,13 +91,13 @@ public final class UnlockPolicy {
 
     private static List<Voice> buildCatalog() {
         List<Voice> voices = new ArrayList<Voice>();
-        voices.add(new Voice(VOICE_FUDDIFY, "1", "Make the leaderboard"));
-        voices.add(new Voice(VOICE_PIG_LATIN, "2", "Get a perfect leaderboard sentence"));
-        voices.add(new Voice(VOICE_BACKWORDS, "3", "Play " + BACKWORDS_GAMES + " games"));
-        voices.add(new Voice(VOICE_JOKESTER, "4", "Play your first game"));
-        voices.add(new Voice(VOICE_FORGETFUL, "5", "Play " + FORGETFUL_GAMES + " games"));
-        voices.add(new Voice(VOICE_SHAGGY, "6", "Play " + SHAGGY_GAMES + " games"));
-        voices.add(new Voice(VOICE_DISOBEDIENT, "7", "Play " + DISOBEDIENT_GAMES + " games"));
+        voices.add(new Voice(VOICE_FUDDIFY, VOICE_FUDDIFY_CODE, "Make the leaderboard"));
+        voices.add(new Voice(VOICE_PIG_LATIN, VOICE_PIG_LATIN_CODE, "Get a perfect leaderboard sentence"));
+        voices.add(new Voice(VOICE_BACKWORDS, VOICE_BACKWORDS_CODE, "Play " + BACKWORDS_GAMES + " games"));
+        voices.add(new Voice(VOICE_JOKESTER, VOICE_JOKESTER_CODE, "Play your first game"));
+        voices.add(new Voice(VOICE_FORGETFUL, VOICE_FORGETFUL_CODE, "Play " + FORGETFUL_GAMES + " games"));
+        voices.add(new Voice(VOICE_SHAGGY, VOICE_SHAGGY_CODE, "Play " + SHAGGY_GAMES + " games"));
+        voices.add(new Voice(VOICE_DISOBEDIENT, VOICE_DISOBEDIENT_CODE, "Play " + DISOBEDIENT_GAMES + " games"));
         return voices;
     }
 

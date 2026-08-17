@@ -5,6 +5,7 @@ import static org.junit.Assert.fail;
 import androidx.annotation.NonNull;
 
 import com.CadeMixedUpGame.api.AppLog;
+import com.CadeMixedUpGame.api.UnlockPolicy;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -142,6 +143,31 @@ final class E2ERoomFixture {
 
     static String playerKey(String userName, int userID) {
         return userName + "-" + userID;
+    }
+
+    /**
+     * Unlocks every voice in {@link UnlockPolicy#catalog()} for a signed-in account.
+     *
+     * <p>Written straight to the account's unlockables rather than earned, because earning them for
+     * real means playing forty games. Driven off the catalog rather than a list of names here, so a
+     * voice added to the policy is automatically unlocked by anything using this instead of
+     * silently missing from the picker.
+     *
+     * <p>Matches what {@code AccountProgressRepository} writes - {@code AccountPlayers/<uid>/<userName>/
+     * unlockables/<voiceType>} holding a whole {@code Unlockable} - so the app reads these exactly
+     * as it would read genuinely earned ones.
+     */
+    static void unlockAllVoices(String uid, String userName) {
+        for (UnlockPolicy.Voice voice : UnlockPolicy.catalog()) {
+            Map<String, Object> row = new HashMap<String, Object>();
+            row.put("voiceType", voice.getVoiceType());
+            row.put("voiceCode", voice.getVoiceCode());
+            row.put("unlocked", true);
+            write(E2ERoomCodeSignal.testRoot().child("AccountPlayers").child(uid).child(userName)
+                    .child("unlockables").child(voice.getVoiceType()), row, "unlock " + voice.getVoiceType());
+        }
+        AppLog.i(AppLog.TTS, "E2E fixture: unlocked all " + UnlockPolicy.catalog().size()
+                + " voices for " + userName);
     }
 
     /** Waits for a player to be gone from the room - either flagged removed, or deleted outright. */

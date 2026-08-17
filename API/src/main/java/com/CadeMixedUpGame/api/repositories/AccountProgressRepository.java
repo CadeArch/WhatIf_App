@@ -13,6 +13,9 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseReference;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * The account progression record: games played, the unlockable voice rows, and the leaderboard
  * flags that both drive unlocks and live on the player.
@@ -133,15 +136,21 @@ public class AccountProgressRepository {
                     return;
                 }
                 DataSnapshot snapshot = unlocked.getResult();
-//                System.out.println(snapshot);
-                userUnlocked.clear();
-                for (DataSnapshot ds:snapshot.getChildren()) {
-//                    System.out.println(ds);
+                // Collected first, then published in one go. Adding straight into the observable
+                // list one row at a time fires a separate change event per voice, and every
+                // observer does its full rebuild on each - the voice picker was rebuilding and
+                // re-notifying its adapter eight times in five milliseconds for a single load
+                // ("Voice picker rebuilt with 4/5/6/7/8 option(s)" back to back in the log).
+                // clear() + addAll() is two events regardless of how many voices exist.
+                List<Unlockable> loaded = new ArrayList<Unlockable>();
+                for (DataSnapshot ds : snapshot.getChildren()) {
                     Unlockable unlockable = ds.getValue(Unlockable.class);
                     if (unlockable != null) {
-                        userUnlocked.add(unlockable);
+                        loaded.add(unlockable);
                     }
                 }
+                userUnlocked.clear();
+                userUnlocked.addAll(loaded);
             }
         });
     }

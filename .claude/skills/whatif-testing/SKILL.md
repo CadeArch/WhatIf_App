@@ -161,6 +161,24 @@ Confirmed this harness can genuinely fail, not just always pass, by running the 
 deliberately wrong room code and confirming a real `NoMatchingViewException` timeout — same
 discipline as the Tier A "confirm it can actually fail" rule above.
 
+**A hold-open harness must not put `ActivityScenario` in a try-with-resources.** `VoiceAuditionTest`
+(run via `scripts/run-voice-audition.ps1`) exists to *park* the app on the reading screen so the
+unlockable voices can actually be listened to, and every other test in this repo launches its
+scenario in a try-with-resources — copy that shape here and the block exits at the end of the
+method, `close()` finishes the Activity, and the screen you were holding disappears the instant the
+harness reports success. Launch it, keep the reference in a field, never close it, and sleep at the
+end. The sleep belongs on the instrumentation thread, which is *not* the app's main thread, so the
+UI stays fully interactive while it waits — `Thread.sleep` in a test method does not freeze the app
+under test. There's no runner timeout to fight (`AndroidJUnitRunner` defaults to none), so the hold
+length is just the sleep.
+
+**Driving the UI by hand with `uiautomator dump` reads the topmost window, not the Activity.** When
+a Spinner popup is open, the dump contains the *popup's* hierarchy — so `next_frag`'s label and the
+paper's text come back as whatever was last laid out underneath, producing contradictory readings
+("Your turn to read" next to a button labelled "pass") that look like a real UI bug. Screenshot
+before believing a dump that disagrees with itself, and dismiss popups before reading state. This is
+only a hazard for ad-hoc adb driving; Espresso doesn't have it.
+
 **Tier B policy**: only run Tier B when explicitly asked (it's slow and uses real emulators) —
 don't auto-run it after every change the way Tier A/Robolectric tests should be. Tier A tests
 should still run routinely to catch regressions fast.
