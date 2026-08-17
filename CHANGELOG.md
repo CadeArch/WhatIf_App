@@ -17,6 +17,24 @@ for stack/build/roadmap; this file is the "what changed and why" log.
 ## Current Session Changes
 
 
+## Archived Session: chore/release-notes-tracking
+
+- **Release boundaries are now recorded as `v<versionName>` git tags, created when an AAB is
+  actually uploaded** - not when the version is bumped. There was no way to know what shipped in a
+  given release: PR #19 merged *after* the commit that bumped to 2.0.5, so whether it went out in
+  2.0.5 or 2.0.6 could only be answered by Cade remembering (it was 2.0.6). Tagged retroactively
+  from that answer: `v2.0.5` at `ae0c217`, `v2.0.6` at `369a7e3`. The next release's scope is now
+  just `git log v2.0.6..HEAD --merges`, with nothing to reconstruct.
+- **New `release-notes` skill** covering the whole job: find the boundary (tag, falling back to the
+  previous `versionName` bump), take the substance from `CHANGELOG.md`'s `Archived Session` bullets
+  rather than commit subjects, translate engineering language into player-facing copy, and tag
+  afterwards. Routed from `CLAUDE.md`.
+- The Play Console release-notes field caps at **500 characters per language** and rejects longer
+  text outright - confirmed by having a longer draft rejected. The skill now requires measuring the
+  count rather than estimating it, targets ~430 to leave editing room, avoids em-dashes (non-ASCII
+  punctuation inflates the count unexpectedly), and requires saying explicitly when a longer
+  variant will not fit the field.
+
 ## Archived Session: feature/voice-polish-and-audition-harness
 
 - Version bumped to 2.0.6 (versionCode 13) for release.
