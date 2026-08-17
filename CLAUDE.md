@@ -27,6 +27,7 @@ every rule in them exists because the "obvious" approach shipped a real bug firs
 | edit any `res/layout/*.xml`, add/restyle a view, change the visibility of a view others are constrained to, touch a drawable/background, or do portrait/landscape/tablet work | `whatif-android-ui` |
 | write or run any test, run a Tier B script, touch `FirebaseEmulatorConfig`/the emulator build flag, or debug "Client is offline" / "Connection lost" / data not appearing in the local emulator | `whatif-testing` |
 | debug **any** Tier B / two-device failure, or "the write worked but the other device never saw it" — load this *first*, it is a short symptom→cause table and these failures never look like what they are | `e2e-gotchas` |
+| write release notes, answer "what changed since the last release", or bump the version for a Play Console upload | `release-notes` |
 
 **When you hit a testing gotcha, write it into the skill before moving on.** Any behaviour that
 made a test lie - pass vacuously, fail for a reason unrelated to the code, or point at the wrong
