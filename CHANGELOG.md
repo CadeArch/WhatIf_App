@@ -17,6 +17,110 @@ for stack/build/roadmap; this file is the "what changed and why" log.
 ## Current Session Changes
 
 
+## Archived Session: feature/voice-polish-and-audition-harness
+
+- Version bumped to 2.0.6 (versionCode 13) for release.
+- **The mic button that "sometimes stopped working" was a Text-To-Speech init race, not lag.**
+  `new TextToSpeech(...)` returns immediately but the engine is unusable until its init callback
+  fires - it binds a separate service process, which takes anywhere from a moment to several seconds
+  on a cold start. `VoicePlayback` treated "the object exists" as "the engine works" and ignored
+  `speak()`'s return code, so a tap inside that window returned `ERROR` and was thrown away with no
+  sound, no exception and no callback - exactly the reported "wait a bit and try again and it
+  works".
+  - Readiness is now tracked from the init callback, and a request that arrives early is **held and
+    spoken when the engine comes up** rather than dropped.
+  - `speak()` returns a `SpeakResult` so `ReadSentenceFrag` can say "Warming up the voice - it will
+    read in a moment" instead of leaving a dead-looking button.
+  - A ready engine that rejects an utterance (the TTS service is a separate process the system may
+    kill while the app is backgrounded) is rebuilt once and the utterance re-queued, so one dead
+    engine costs a pause rather than a mic that never works again for the rest of the round.
+  - `setLanguage` now falls back to US English when the device locale has no voice data, and the
+    unused `isReady()` was deleted.
+- **Choosing a voice no longer silently reverts to "regular".** A Spinner resets its selection to
+  position 0 whenever its adapter's contents change, and position 0 is "regular" - so any
+  re-delivery of the unlockables list switched the player back and took `voicePlayback`'s code with
+  it, firing `onItemSelected(0)` on the way. Observed live: a sentence chosen to read in "pig latin"
+  spoke with `voiceCode=0` after an unrelated write re-delivered the list. `rebuildVoiceOptions` now
+  restores the chosen voice by code (not by position - the rebuilt list is not guaranteed to hold
+  the same voices in the same order).
+- **`backwords` reverses word order instead of letters.** It used to reverse the letters inside each
+  word, which is a fine joke to read and a terrible one to hear: text-to-speech pronounces "etov" as
+  noise, leaving no sentence underneath for the listener to work back to. It now says the words
+  themselves intact, last-word-first - and reverses the If half and the Then half **separately**,
+  keeping the halves in order, because reversing the whole thing as one run delivered the punchline
+  before the setup. Sentence punctuation is dropped (a reversed full stop lands in front of the
+  first word spoken); apostrophes are kept so contractions still say themselves.
+- **`disobedient` now draws from 8 openers and 8 closers, paired independently.** One fixed
+  complaint either side is a joke that lands once, and this voice gets picked repeatedly within a
+  round. `mutateVoiceText` gained a `Random`-taking overload (same `null`-means-real shape as
+  `randomRoomCode`) so the only random voice stays assertable; `forgetful` is deliberately still
+  deterministic, since it mangles the words themselves and a listener needs to hear the same thing
+  twice.
+- **`VoiceAuditionTest` + `scripts/run-voice-audition.ps1`: a hands-on harness for listening to the
+  voices.** Drives the real app to the reading screen with every voice in `UnlockPolicy.catalog()`
+  unlocked and three absent account players written in (so one person walks four sentences via
+  "pass"), then holds there so the voices can be compared by ear. Not a pass/fail test - the voice
+  mutations need tuning by listening, repeatedly, and a normal test tears the Activity down at the
+  end of the method and takes the screen with it. `E2ERoomFixture.unlockAllVoices` drives off the
+  catalog, so a voice added to the policy is picked up automatically.
+- **The reading screen was rebuilding its controls 6-9 times a second, forever** - measured off a
+  live round's log, with nothing on screen changing. The room heartbeat rewrites a player record
+  about once a second, every rewrite arrives as a child-changed event, and each one ran
+  `updateActiveReaderControls` three times over. `updateActiveReaderControls` now compares a
+  signature of everything the controls are derived from and returns early when nothing moved.
+  - This is the likeliest cause of **the mic "not working" for 15-20 seconds at a time**: every one
+    of those refreshes called `setVisibility`/`setEnabled` on the mic button, and a visibility
+    change landing between a tap's down and up event cancels the click. The log shows the taps never
+    reached `speak()` at all - no "Speak queued", no "Speak blocked", nothing - which is what a
+    swallowed click looks like.
+  - It was also drowning the `AppLog` breadcrumb trail: the 40 lines `errorLogs/` captures before a
+    crash were all this one line, destroying the diagnostic the trail exists to provide.
+- **Loading the unlockables rebuilt the voice picker eight times in five milliseconds.**
+  `AccountProgressRepository.getUnlocked` added rows into the observable list one at a time, and
+  every observer does a full rebuild per event - the log reads "Voice picker rebuilt with 4, 5, 6,
+  7, 8 option(s)" back to back. Now collected into a plain list first and published with
+  `clear()` + `addAll()`: two events regardless of how many voices exist.
+- **Pig latin was mangling words in four separate ways**, all audible, all now fixed with tests:
+  clusters longer than two letters were truncated ("string" -> "ringstay" instead of "ingstray");
+  punctuation was dragged inside the word ("midnight," -> "dnight,miay"); capitals were stranded
+  mid-word ("What" -> "atWhay"); and "qu" was split so "queen" became "ueenqay". "y" now counts as a
+  consonant only at the start of a word.
+- **Every voice now has its own delivery, not just its own wordplay.** New `API/.../VoiceStyle.java`
+  maps each voice code to a pitch and speech-rate multiplier, and `VoicePlayback` applies it per
+  utterance (engine-wide settings persist, so setting them at selection time would leave the last
+  choice in force). Shaggy is the lowest, forgetful the slowest, jokester the highest and fastest.
+  `VoicePlayback` additionally hands each unlockable a *different system voice* where the device has
+  more than one - sorted by name and assigned by catalog position so it is stable per device,
+  skipping network-only and not-installed voices. Pure/Android-free so `VoiceStyleTest` can assert
+  every catalog voice differs from the narrator and from every other voice.
+- **The mic's real defect: every tap cancelled the previous one.** `speak()` used `QUEUE_FLUSH`, so
+  a second tap killed whatever was playing and started synthesising again. Measured from the
+  engine's own log, three consecutive taps delivered 4096, 14976 and then **512 frames** - 21
+  milliseconds of audio. That is both halves of the report at once: the mic that "does nothing"
+  (every tap cancelling the next) and the "clicking sound spam" (a burst of 20ms audio fragments).
+  The button was working perfectly and cancelling itself every time.
+  - A tap while it is talking now **stops** it instead of restarting it, and taps closer together
+    than 900ms are dropped outright. 900ms rather than a bare de-bounce because it also bounds how
+    short a stopped utterance can be - the worst any burst can now produce is ~0.9s of speech, which
+    is audibly someone cutting the reading off rather than a click.
+  - `UtteranceProgressListener` tracks whether it is actually speaking (marked optimistically when
+    the utterance is handed over, since a neural voice can take a second to produce its first
+    sample), and the mic dims while it talks so a tap visibly registers before any audio arrives.
+    Alpha only - it must stay tappable, because stopping is what it is for in that state.
+  - Verified on-device across all 8 picker entries: switch voice, tap immediately, every one starts
+    in 0.6-1.8s and runs to completion, exactly one utterance per tap. 8 and 12-tap bursts produce
+    zero sub-second fragments.
+- **Shaggy and Elmer Fudd now get male voices.** Android's `Voice` carries no gender, so this reads
+  the speaker id Google embeds in the voice name (`en-us-x-<id>-local`). Best-effort by design: an
+  unrecognized engine falls through to the ordinary round-robin. On the test device: 9 voices
+  available, 4 male-sounding, `fuddify->en-us-x-iob-local`, `shaggy->en-us-x-iom-local`.
+- `forgetful` slowed less (rate 0.70 -> 0.80): at 0.70 a sentence with four long words ran 15
+  seconds of audio, which stops being a joke and becomes a wait. The hesitation is in the words.
+- Voice codes are now named constants on `UnlockPolicy` rather than bare literals in three files.
+- Two testing gotchas recorded in `whatif-testing`: a hold-open harness must keep `ActivityScenario`
+  out of a try-with-resources, and `uiautomator dump` reads the topmost window (an open Spinner
+  popup), which produces self-contradictory state readings that look like real UI bugs.
+
 ## Archived Session: feature/back-navigation-and-lifecycle-safety
 
 - **Players are now assumed to be coming back. Nothing is removed automatically.** The old model

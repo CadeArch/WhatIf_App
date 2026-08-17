@@ -143,6 +143,62 @@ public class GameLogic {
             "wore", "work", "yard", "yarn", "yawn", "year", "zest", "zinc", "zone", "zoom",
     };
 
+    /**
+     * What the disobedient voice says before and after it caves and reads the sentence.
+     *
+     * <p>Kept as two independent lists rather than eight matched pairs on purpose: pairing them
+     * randomly means a player who has heard every line still keeps hearing new combinations, and
+     * adding one line to either list multiplies the variety instead of adding one more script.
+     * Each opener has to work in front of any sentence and each closer behind any sentence, so
+     * none of them refer to what the sentence actually said.
+     */
+    private static final String[] DISOBEDIENT_OPENERS = {
+            "No. I am not reading that.",
+            "Ugh. Fine. But let the record show this was not my idea.",
+            "Absolutely not. ... Okay, once, and only because you are all staring at me.",
+            "Whoever wrote this owes me an apology. Here goes.",
+            "I have read many things in my life. This is going to be the worst one of them.",
+            "Do I have to? ... Apparently I have to.",
+            "I am reading this under protest.",
+            "I want a lawyer present for this one.",
+    };
+
+    /**
+     * What the forgetful voice says while it gropes for a word it has already started saying.
+     *
+     * <p>Each one has to work in the gap between a half-said word and the whole word — "ele... no
+     * wait... elephant" — so they are all things you say <em>about</em> a word you cannot retrieve,
+     * never about what the sentence means.
+     */
+    private static final String[] FORGETFUL_INTERJECTIONS = {
+            "... uh... what was it... ",
+            "... hang on... ",
+            "... no wait... ",
+            "... what's the word... ",
+            "... give me a second... ",
+            "... it's on the tip of my tongue... ",
+            "... oh come on... ",
+            "... you know the one... ",
+            "... I had it a second ago... ",
+            "... don't tell me... ",
+    };
+
+    /** How thinly the extra "like"s are spread, and the ceiling on them — see {@code shaggy}. */
+    private static final int SHAGGY_WORDS_PER_LIKE = 6;
+    private static final int SHAGGY_MAX_EXTRA_LIKES = 3;
+    private static final int SHAGGY_PLACEMENT_ATTEMPTS = 40;
+
+    private static final String[] DISOBEDIENT_CLOSERS = {
+            "There. Happy?",
+            "I hope you are all very proud of yourselves.",
+            "I need a moment.",
+            "Never ask me to do that again.",
+            "That is the worst thing I have ever said out loud.",
+            "I am going to go lie down.",
+            "You did this. All of you.",
+            "Do not make me read the next one.",
+    };
+
     public static String randomRoomCode(Random random) {
         Random source = random == null ? new Random() : random;
         String first = ROOM_CODE_WORDS[source.nextInt(ROOM_CODE_WORDS.length)];
@@ -197,28 +253,68 @@ public class GameLogic {
      * {@code GameLogicTest.everyUnlockableVoiceActuallyChangesTheText} guards that.
      */
     public static String mutateVoiceText(String ifThen, String code) {
+        return mutateVoiceText(ifThen, code, null);
+    }
+
+    /**
+     * As above, with the randomness injectable.
+     *
+     * <p>{@code forgetful}, {@code shaggy} and {@code disobedient} use it — each picks fresh wording
+     * every time it speaks, so a test asserting on their output needs a seeded {@link Random} to
+     * have anything stable to assert. Same shape as {@link #randomRoomCode(Random)}: {@code null}
+     * means "use a real one".
+     */
+    public static String mutateVoiceText(String ifThen, String code, Random random) {
         if ("1".equals(code)) {
-            return ifThen.replace("r", "w");
+            return fuddify(ifThen);
         }
         if ("2".equals(code)) {
             return pigLatin(ifThen);
         }
         if ("3".equals(code)) {
-            return reverseWords(ifThen);
+            return backwords(ifThen);
         }
         if ("4".equals(code)) {
             return jokester(ifThen);
         }
         if ("5".equals(code)) {
-            return forgetful(ifThen);
+            return forgetful(ifThen, random);
         }
         if ("6".equals(code)) {
-            return shaggy(ifThen);
+            return shaggy(ifThen, random);
         }
         if ("7".equals(code)) {
-            return disobedient(ifThen);
+            return disobedient(ifThen, random);
         }
         return ifThen;
+    }
+
+    /**
+     * The Elmer Fudd consonant swap: both {@code r} and {@code l} become {@code w}, in either case.
+     *
+     * <p>This used to be a bare {@code replace("r", "w")}, which was wrong twice over. It never
+     * touched {@code l}, so "little" stayed "little" where Fudd says "wittwe" — half the joke was
+     * missing. And being case-sensitive on a single lowercase letter, it skipped every capital:
+     * the If half is always capitalized by {@link #cleanIfSentence}, so a sentence starting with
+     * "Run" or "Rabbit" came out completely unfuddified at exactly the most audible moment. Case is
+     * preserved rather than ignored so the text still reads correctly if it is ever shown rather
+     * than spoken.
+     */
+    private static String fuddify(String ifThen) {
+        StringBuilder result = new StringBuilder(ifThen.length());
+        for (int index = 0; index < ifThen.length(); index++) {
+            char character = ifThen.charAt(index);
+            if (character == 'r' || character == 'l') {
+                result.append('w');
+            }
+            else if (character == 'R' || character == 'L') {
+                result.append('W');
+            }
+            else {
+                result.append(character);
+            }
+        }
+        return result.toString();
     }
 
     /** Punctuates the sentence with laughter, so the reader can't get through it straight. */
@@ -227,19 +323,35 @@ public class GameLogic {
     }
 
     /**
-     * Trails off on the longer words, as if the reader keeps losing the thread. Deterministic on
-     * word length rather than random so the same sentence always reads the same way - a voice that
-     * changed every time it was read would be untestable and would feel broken to the player.
+     * Trails off on the longer words, as if the reader keeps losing the thread — with a different
+     * excuse each time.
+     *
+     * <p><em>Which</em> words stumble is still fixed by word length, so the shape of a given
+     * sentence is stable; only the excuse in the gap is drawn. That split matters: the sentence
+     * itself is never lost (the whole word always follows the stumble), so a listener who asks
+     * "what?" hears the same content again, just with different flailing around it. A single fixed
+     * excuse — which is what this had — turns into a catchphrase by the third long word of the
+     * first sentence, and there are usually several per sentence.
+     *
+     * <p>Never draws the same excuse twice in a row, because back-to-back repeats inside one
+     * sentence read as a stuck record rather than someone genuinely groping for a word.
      */
-    private static String forgetful(String ifThen) {
+    private static String forgetful(String ifThen, Random random) {
+        Random source = random == null ? new Random() : random;
         String[] words = ifThen.split(" ");
         StringBuilder result = new StringBuilder();
+        String previousInterjection = "";
         for (String word : words) {
             if (result.length() > 0) {
                 result.append(" ");
             }
             if (word.length() >= 6) {
-                result.append(word, 0, 3).append("... uh... what was it... ").append(word);
+                String interjection;
+                do {
+                    interjection = FORGETFUL_INTERJECTIONS[source.nextInt(FORGETFUL_INTERJECTIONS.length)];
+                } while (interjection.equals(previousInterjection));
+                previousInterjection = interjection;
+                result.append(word, 0, 3).append(interjection).append(word);
             } else {
                 result.append(word);
             }
@@ -247,81 +359,226 @@ public class GameLogic {
         return result.toString();
     }
 
-    /** Stoner-detective delivery: "like" wedged in, and a "Zoinks!" on the front. */
-    private static String shaggy(String ifThen) {
-        return "Zoinks! Like, " + ifThen.replace(", ", ", like, ");
+    /**
+     * Stoner-detective delivery: "Zoinks!" at both ends, "like" wedged into the clause breaks, and a
+     * few more scattered through wherever they happen to land this time.
+     *
+     * <p>The clause-break "like"s are fixed, so the delivery has a reliable rhythm; the extras are
+     * placed at random so two readings of the same sentence do not come out identically. Budgeted
+     * at one per {@link #SHAGGY_WORDS_PER_LIKE} words and capped at
+     * {@link #SHAGGY_MAX_EXTRA_LIKES} — the joke is a verbal tic, and a tic every other word stops
+     * being a character and becomes unlistenable, especially with a long sentence to get through.
+     * Never placed next to an existing "like" or next to another extra, for the same reason.
+     */
+    private static String shaggy(String ifThen, Random random) {
+        Random source = random == null ? new Random() : random;
+        String[] words = ifThen.replace(", ", ", like, ").split(" ");
+        boolean[] likeBefore = new boolean[words.length];
+        int wanted = words.length < 2 ? 0 : Math.min(SHAGGY_MAX_EXTRA_LIKES, words.length / SHAGGY_WORDS_PER_LIKE);
+        int placed = 0;
+        // Bounded rather than looping until satisfied: on a short sentence the "not next to another
+        // like" rule can make the last slot unreachable, and this would spin forever looking for it.
+        for (int attempt = 0; attempt < SHAGGY_PLACEMENT_ATTEMPTS && placed < wanted; attempt++) {
+            int index = 1 + source.nextInt(words.length - 1);
+            if (likeBefore[index] || likeBefore[index - 1]
+                    || (index + 1 < words.length && likeBefore[index + 1])) {
+                continue;
+            }
+            if (words[index].startsWith("like") || words[index - 1].endsWith("like,")) {
+                continue;
+            }
+            likeBefore[index] = true;
+            placed++;
+        }
+        StringBuilder result = new StringBuilder("Zoinks! Like, ");
+        for (int index = 0; index < words.length; index++) {
+            if (likeBefore[index]) {
+                result.append("like, ");
+            }
+            result.append(words[index]);
+            if (index < words.length - 1) {
+                result.append(" ");
+            }
+        }
+        return result.append(" Zoinks!").toString();
     }
 
-    /** Reads the sentence, then immediately refuses to have read it. */
-    private static String disobedient(String ifThen) {
-        return "No. I'm not reading that. " + ifThen + ". There, happy?";
+    /**
+     * Complains, reads it anyway, then complains again — with a different pair of complaints every
+     * time.
+     *
+     * <p>It used to be one fixed opener and one fixed closer, which is a joke that lands once. The
+     * voice is meant to be picked repeatedly across a round, and by the third sentence the player
+     * is reciting along with it. Drawing an opener and a closer independently gives
+     * {@code OPENERS.length * CLOSERS.length} combinations from two short lists, so the pairings
+     * stay fresh far longer than either list alone.
+     *
+     * <p>Deliberately the <em>only</em> random voice. {@code forgetful} is keyed off word length
+     * precisely so it reads the same way twice; that matters there because it mangles the words
+     * themselves and a listener needs to be able to ask "what?" and hear the same thing again.
+     * Disobedient never touches the sentence — it only wraps it — so re-reading still delivers the
+     * same content.
+     */
+    private static String disobedient(String ifThen, Random random) {
+        Random source = random == null ? new Random() : random;
+        String opener = DISOBEDIENT_OPENERS[source.nextInt(DISOBEDIENT_OPENERS.length)];
+        String closer = DISOBEDIENT_CLOSERS[source.nextInt(DISOBEDIENT_CLOSERS.length)];
+        return opener + " " + ifThen + " " + closer;
     }
 
     private static String pigLatin(String ifThen) {
-        String[] parts = ifThen.split(",");
+        String[] words = ifThen.split(" ");
         StringBuilder result = new StringBuilder();
-        for (int partIndex = 0; partIndex < parts.length; partIndex++) {
-            String[] words = parts[partIndex].trim().split(" ");
-            for (String word : words) {
-                if (word.length() == 0) {
-                    continue;
-                }
-                if (result.length() > 0) {
-                    result.append(" ");
-                }
-                result.append(pigLatinWord(word));
+        for (String word : words) {
+            if (word.length() == 0) {
+                continue;
             }
-            if (partIndex < parts.length - 1) {
-                result.append(", ");
+            if (result.length() > 0) {
+                result.append(" ");
             }
+            result.append(pigLatinWord(word));
         }
-        return result.toString().replace(",  ", ", ");
+        return result.toString();
     }
 
+    /**
+     * Moves a word's whole opening consonant cluster to the end and adds "ay".
+     *
+     * <p>The previous version got four things wrong, all audible:
+     * <ul>
+     *   <li><b>Clusters longer than two letters.</b> It moved at most two, so "string" came out
+     *       "ringstay" instead of "ingstray" and "three" came out "reethay" instead of "eethray".</li>
+     *   <li><b>Punctuation.</b> It treated the raw whitespace-delimited token as the word, so
+     *       "midnight," became "dnight,miay" - the comma ends up <em>inside</em> the word, which is
+     *       where the mangled-sounding output came from. Leading and trailing punctuation is now
+     *       split off and put back around the result.</li>
+     *   <li><b>Capitals.</b> "What" became "atWhay" with a capital mid-word. The word is converted
+     *       in lower case and re-capitalized at the front if it started that way.</li>
+     *   <li><b>"qu".</b> The "u" was read as the first vowel, so "queen" became "ueenqay" rather
+     *       than "eenquay" - "qu" moves as a unit.</li>
+     * </ul>
+     *
+     * <p>"y" counts as a consonant only at the start of a word ("yellow" -> "ellowyay") and as a
+     * vowel anywhere after that, which is what stops "my" being treated as consonants all the way
+     * through.
+     */
     private static String pigLatinWord(String word) {
-        if (startsWithVowel(word)) {
-            return word + "way";
+        int coreStart = 0;
+        while (coreStart < word.length() && !Character.isLetter(word.charAt(coreStart))) {
+            coreStart++;
         }
-        if (word.length() == 1) {
-            return word + "ay";
+        int coreEnd = word.length();
+        while (coreEnd > coreStart && !Character.isLetter(word.charAt(coreEnd - 1))) {
+            coreEnd--;
         }
-        if (startsWithVowel(word.substring(1))) {
-            return word.substring(1) + word.charAt(0) + "ay";
+        if (coreStart >= coreEnd) {
+            return word;
         }
-        return word.substring(2) + word.substring(0, 2) + "ay";
+        String leading = word.substring(0, coreStart);
+        String core = word.substring(coreStart, coreEnd);
+        String trailing = word.substring(coreEnd);
+
+        String lower = core.toLowerCase();
+        int cluster = 0;
+        while (cluster < lower.length() && isConsonantAt(lower, cluster)) {
+            cluster++;
+        }
+        if (cluster > 0 && cluster < lower.length()
+                && lower.charAt(cluster - 1) == 'q' && lower.charAt(cluster) == 'u') {
+            cluster++;
+        }
+
+        String pigged;
+        if (cluster == 0) {
+            pigged = lower + "way";
+        }
+        else if (cluster >= lower.length()) {
+            // No vowel anywhere ("hmm", "tsk") - there is nothing to move it in front of.
+            pigged = lower + "ay";
+        }
+        else {
+            pigged = lower.substring(cluster) + lower.substring(0, cluster) + "ay";
+        }
+        if (Character.isUpperCase(core.charAt(0)) && pigged.length() > 0) {
+            pigged = Character.toUpperCase(pigged.charAt(0)) + pigged.substring(1);
+        }
+        return leading + pigged + trailing;
     }
 
-    private static boolean startsWithVowel(String word) {
-        if (word == null || word.length() == 0) {
+    private static boolean isConsonantAt(String lowerWord, int index) {
+        char character = lowerWord.charAt(index);
+        if (!Character.isLetter(character)) {
             return false;
         }
-        String first = word.substring(0, 1);
-        return first.equalsIgnoreCase("a")
-                || first.equalsIgnoreCase("e")
-                || first.equalsIgnoreCase("i")
-                || first.equalsIgnoreCase("o")
-                || first.equalsIgnoreCase("u");
+        if ("aeiou".indexOf(character) >= 0) {
+            return false;
+        }
+        return character != 'y' || index == 0;
     }
 
-    private static String reverseWords(String ifThen) {
-        String[] parts = ifThen.split(",");
+    /**
+     * Says the sentence back to front — every word intact and pronounced normally, just delivered
+     * last word first.
+     *
+     * <p>This used to reverse the letters <em>inside</em> each word, which is a fine joke to read
+     * and a terrible one to hear: text-to-speech pronounces "etov" as noise, so the listener gets
+     * gibberish with no sentence underneath it to reconstruct. Reversing the word order instead
+     * keeps every word recognizable, which is what makes it a puzzle rather than static.
+     *
+     * <p>Sentence punctuation is dropped rather than carried along with its word. Reversing puts
+     * the closing full stop in front of the first word spoken, where it reads as a pause before
+     * the sentence has started, and a trailing question mark lifts the pitch on entirely the wrong
+     * syllable. Apostrophes are kept, so contractions still say themselves.
+     */
+    private static String backwords(String ifThen) {
+        // The If half and the Then half are reversed separately and stay in that order. Reversing
+        // the whole thing as one run put the Then before the What-if, which stops being a sentence
+        // read backwards and starts being two answers in the wrong order - the listener loses the
+        // setup before they have anything to attach it to.
+        int boundary = ifThen.indexOf('?');
+        if (boundary < 0) {
+            return terminate(reverseWordOrder(ifThen));
+        }
+        String ifHalf = reverseWordOrder(ifThen.substring(0, boundary + 1));
+        String thenHalf = reverseWordOrder(ifThen.substring(boundary + 1));
+        if (ifHalf.length() == 0) {
+            return terminate(thenHalf);
+        }
+        if (thenHalf.length() == 0) {
+            return terminate(ifHalf);
+        }
+        return terminate(ifHalf + ", " + thenHalf);
+    }
+
+    private static String reverseWordOrder(String half) {
+        String[] words = half.split("\\s+");
         StringBuilder result = new StringBuilder();
-        for (int partIndex = 0; partIndex < parts.length; partIndex++) {
-            String[] words = parts[partIndex].trim().split(" ");
-            for (String word : words) {
-                if (word.length() == 0) {
-                    continue;
-                }
-                if (result.length() > 0) {
-                    result.append(" ");
-                }
-                result.append(new StringBuilder(word).reverse());
+        for (int index = words.length - 1; index >= 0; index--) {
+            String word = stripSentencePunctuation(words[index]);
+            if (word.length() == 0) {
+                continue;
             }
-            if (partIndex < parts.length - 1) {
-                result.append(", ");
+            if (result.length() > 0) {
+                result.append(" ");
+            }
+            result.append(word);
+        }
+        return result.toString();
+    }
+
+    private static String terminate(String spoken) {
+        return spoken.length() == 0 ? spoken : spoken + ".";
+    }
+
+    private static String stripSentencePunctuation(String word) {
+        StringBuilder kept = new StringBuilder();
+        for (int index = 0; index < word.length(); index++) {
+            char character = word.charAt(index);
+            if (",.?!;:".indexOf(character) < 0) {
+                kept.append(character);
             }
         }
-        return result.toString().replace(",  ", ", ");
+        return kept.toString();
     }
 
     private static String cleanSentence(String sentence) {

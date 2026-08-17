@@ -388,14 +388,21 @@ after every branch is expensive. Options considered, in order of increasing cost
 
 ### Unlockable Text-To-Speech Voices
 
-- Finish and polish unlockable voice styles:
-  - Disobedient Google,
-  - Forgetful Google,
-  - Shaggy Google,
-  - Jokester Google,
-  - different accents.
-- Shaggy voice idea: add "like" in different places.
-- Jokester voice idea: add "haha, jk" at the end, or other creative things
+- [x] **Polish the unlockable voice styles.** Disobedient and forgetful now draw randomized wording
+      per reading (8 openers x 8 closers, and 10 stumble interjections) instead of one fixed line
+      that became a catchphrase; shaggy bookends with "Zoinks!" and scatters a budgeted few "like"s
+      at random spots; backwords says the words in reverse *order* rather than reversing letters
+      (which text-to-speech reads as noise); fuddify does proper Fudd (`r` and `l` -> `w`, either
+      case); pig latin's four mangling bugs are fixed.
+- [x] **Different voices, not just different words.** `VoiceStyle` gives each unlockable its own
+      pitch and speech rate, and `VoicePlayback` assigns each a different *system* voice where the
+      device has more than one - with male voices preferred for shaggy and fuddify.
+- [x] **A way to actually listen to them.** `VoiceAuditionTest` + `scripts/run-voice-audition.ps1`
+      drive the app to the reading screen with everything unlocked and hold it there.
+- [ ] Jokester voice idea: add "haha, jk" at the end, or other creative things.
+- [ ] Different accents beyond what the device's own voice list provides.
+- [ ] `backwords` takes noticeably longer to start speaking than the other voices (~1.7s vs ~0.6s,
+      measured); worth checking whether a different system voice assignment fixes it.
 
 ## Changelog
 
